@@ -49,7 +49,8 @@ describe('resolveTurn', () => {
   it('おとめ座のピンク2×2は、通常マッチが無くても回復の必殺が出る', () => {
     const state = stateWith(base, PINK_SQUARE, { partyHp: 100 });
     const { state: next, events } = resolveTurn(state, quietMove('virgo'));
-    expect(events.map((e) => e.type)).toEqual(['rotate', 'special', 'heal', 'enemyAttack']);
+    // 必殺 → 必殺に使った4個を消す（通常効果なし）→ 回復 → 敵の攻撃
+    expect(events.map((e) => e.type)).toEqual(['rotate', 'special', 'clear', 'heal', 'enemyAttack']);
     const heal = HEROES.virgo.special.power;
     expect(next.partyHp).toBe(100 + heal - ENEMY.attack);
     expect(next.enemyHp).toBe(state.enemyHp);
@@ -105,7 +106,7 @@ describe('resolveTurn', () => {
 
   it('HPが満タンなら回復の出来事は出ない（必殺の演出は出る）', () => {
     const { events } = resolveTurn(stateWith(base, PINK_SQUARE), quietMove('virgo'));
-    expect(events.map((e) => e.type)).toEqual(['rotate', 'special', 'enemyAttack']);
+    expect(events.map((e) => e.type)).toEqual(['rotate', 'special', 'clear', 'enemyAttack']);
   });
 
   it('敵HPが0になったら勝利し、敵は攻撃しない', () => {
@@ -144,6 +145,56 @@ describe('resolveTurn', () => {
     clears.forEach((e, i) => e.type === 'clear' && expect(e.chain).toBe(i + 1));
     const last = clears[clears.length - 1];
     if (last.type === 'clear') expect(boardToStrings(last.board)).toEqual(boardToStrings(next.board));
+  });
+});
+
+describe('必殺に使ったオーブを消す', () => {
+  const at = (cells: { row: number; col: number }[], r: number, c: number) =>
+    cells.some((p) => p.row === r && p.col === c);
+
+  it('ピンク2×2は通常マッチが無くても消え、通常の回復は出ない（連鎖にも数えない）', () => {
+    const state = stateWith(base, PINK_SQUARE, { partyHp: 100 });
+    const { events } = resolveTurn(state, quietMove('virgo'));
+    const first = events.find((e) => e.type === 'clear');
+    if (first?.type !== 'clear') throw new Error('clear がない');
+    expect(first.chain).toBe(0);
+    expect(first.cells).toHaveLength(4);
+    for (const [r, c] of [[0, 0], [0, 1], [1, 0], [1, 1]]) expect(at(first.cells, r, c)).toBeTruthy();
+    expect(first.counts).toEqual({ red: 0, blue: 0, green: 0, pink: 0 });
+    expect(first.heal).toBe(0);
+    // 続く通常マッチの連鎖は1段目から数える
+    events
+      .filter((e) => e.type === 'clear')
+      .slice(1)
+      .forEach((e, i) => e.type === 'clear' && expect(e.chain).toBe(i + 1));
+  });
+
+  it('必殺の形と通常マッチが重なるときは、両方を同時に1回で消す（重なったマスは1回）', () => {
+    const state = stateWith(base, RED_L);
+    const { events } = resolveTurn(state, quietMove('aries'));
+    const first = events.find((e) => e.type === 'clear');
+    if (first?.type !== 'clear') throw new Error('clear がない');
+    // 赤L字の5個は縦3＋横3の通常マッチでもある
+    expect(first.chain).toBe(1);
+    expect(first.cells).toHaveLength(5);
+    expect(first.counts.red).toBe(5);
+  });
+
+  it('選んでいないキャラの形は消さない', () => {
+    const { events } = resolveTurn(stateWith(base, PINK_SQUARE), quietMove('aries'));
+    expect(events.some((e) => e.type === 'clear')).toBeFalsy();
+  });
+
+  it('同じ形で毎ターン必殺が出続けることはない', () => {
+    // 以前はピンク2×2が残り続け、離れた交点を回すだけで毎ターン回復の必殺が出ていた
+    let state = stateWith(base, PINK_SQUARE, { partyHp: 100 });
+    let specials = 0;
+    for (let t = 0; t < 30 && state.status === 'playing'; t++) {
+      const r = resolveTurn(state, quietMove('virgo', t % 2 === 0 ? 'clockwise' : 'counterclockwise'));
+      if (r.events.some((e) => e.type === 'special')) specials++;
+      state = r.state;
+    }
+    expect(specials).toBeLessThan(10);
   });
 });
 
