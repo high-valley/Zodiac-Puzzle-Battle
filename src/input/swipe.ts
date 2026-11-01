@@ -17,8 +17,8 @@ export function nearestIntersection(x: number, y: number, cellSize: number): Pos
 
 export type SwipeResult =
   | { kind: 'rotate'; direction: Direction }
-  | { kind: 'select' } // 移動が閾値未満：選択だけ
-  | { kind: 'cancel' }; // 縦寄りに大きく動いた：何もしない
+  | { kind: 'select' } // 縦も横も閾値未満：選択だけ
+  | { kind: 'cancel' }; // 閾値以上動いたが水平ではない：何もしない
 
 /** 右へスワイプ → 時計回り、左へ → 反時計回り */
 export function classifySwipe(dx: number, dy: number, rule = SWIPE): SwipeResult {
@@ -27,6 +27,6 @@ export function classifySwipe(dx: number, dy: number, rule = SWIPE): SwipeResult
   if (ax >= rule.minDistance && ax > rule.horizontalRatio * ay) {
     return { kind: 'rotate', direction: dx > 0 ? 'clockwise' : 'counterclockwise' };
   }
-  if (Math.hypot(dx, dy) < rule.minDistance) return { kind: 'select' };
+  if (ax < rule.minDistance && ay < rule.minDistance) return { kind: 'select' };
   return { kind: 'cancel' };
 }

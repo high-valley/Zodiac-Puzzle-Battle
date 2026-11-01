@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BOARD_SIZE } from '../src/data/balance';
+import { BOARD_SIZE, ORB_COLORS } from '../src/data/balance';
 import { collapseAndRefill, createInitialBoard, rotate2x2 } from '../src/game/board';
+import { nextInt } from '../src/game/rng';
 import { findMatches } from '../src/game/matching';
 import type { Direction } from '../src/game/types';
 import { boardToStrings, parseBoard } from './helpers';
@@ -108,6 +109,29 @@ describe('collapseAndRefill', () => {
     const b = collapseAndRefill(board, cleared, 99);
     expect(a).toEqual(b);
     expect(a.seed).not.toBe(99);
+  });
+
+  it('補充は左の列から、各列は下の空きから順に乱数を引く', () => {
+    const cleared = none();
+    cleared[0][0] = cleared[1][0] = true; // 列0の上2つ
+    cleared[3][2] = true; // 列2の1つ
+    const { board: next, seed } = collapseAndRefill(board, cleared, 1234);
+    // 手で同じ順に引く：列0の1行目 → 列0の0行目 → 列2の0行目
+    let s = 1234;
+    const draw = () => {
+      const r = nextInt(s, ORB_COLORS.length);
+      s = r.seed;
+      return ORB_COLORS[r.value];
+    };
+    const c0r1 = draw();
+    const c0r0 = draw();
+    const c2r0 = draw();
+    expect(next[1][0]).toBe(c0r1);
+    expect(next[0][0]).toBe(c0r0);
+    expect(next[0][2]).toBe(c2r0);
+    expect(seed).toBe(s);
+    // 列2は消えた3行目より上が1つずつ下がる
+    expect(next.map((row) => row[2]).slice(1)).toEqual([board[0][2], board[1][2], board[2][2], board[4][2]]);
   });
 
   it('何も消さなければ盤面も seed も変わらない', () => {

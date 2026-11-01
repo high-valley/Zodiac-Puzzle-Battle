@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ENEMY, chainMultiplier } from '../src/data/balance';
 import { HEROES } from '../src/data/heroes';
 import { createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game/combat';
+import { findMatches } from '../src/game/matching';
 import type { BattleState, Direction, HeroId, TurnAction } from '../src/game/types';
 import { QUIET_ROWS, boardToStrings, stateWith } from './helpers';
 
@@ -97,7 +98,14 @@ describe('resolveTurn', () => {
     const { state: next, events } = resolveTurn(state, quietMove('virgo'));
     const heal = events.find((e) => e.type === 'heal');
     expect(heal && heal.type === 'heal' && heal.partyHp).toBe(base.partyMaxHp);
+    // 回復量は実際に増えた分だけ
+    expect(heal && heal.type === 'heal' && heal.amount).toBe(10);
     expect(next.partyHp).toBe(base.partyMaxHp - ENEMY.attack);
+  });
+
+  it('HPが満タンなら回復の出来事は出ない（必殺の演出は出る）', () => {
+    const { events } = resolveTurn(stateWith(base, PINK_SQUARE), quietMove('virgo'));
+    expect(events.map((e) => e.type)).toEqual(['rotate', 'special', 'enemyAttack']);
   });
 
   it('敵HPが0になったら勝利し、敵は攻撃しない', () => {
@@ -106,6 +114,7 @@ describe('resolveTurn', () => {
     expect(next.enemyHp).toBe(0);
     expect(next.status).toBe('victory');
     expect(events.some((e) => e.type === 'enemyAttack')).toBeFalsy();
+    expect(next.partyHp).toBe(state.partyHp);
     expect(events[events.length - 1]).toEqual({ type: 'end', status: 'victory' });
   });
 
@@ -135,6 +144,29 @@ describe('resolveTurn', () => {
     clears.forEach((e, i) => e.type === 'clear' && expect(e.chain).toBe(i + 1));
     const last = clears[clears.length - 1];
     if (last.type === 'clear') expect(boardToStrings(last.board)).toEqual(boardToStrings(next.board));
+  });
+});
+
+describe('連鎖の上限', () => {
+  // seed 47 で下の操作列を流すと、6ターン目（t = 5）で連鎖が8段に達し、マッチが残る
+  const scripted = (t: number): TurnAction => ({
+    hero: (['aries', 'sagittarius', 'virgo'] as HeroId[])[t % 3],
+    row: (t * 7) % 4,
+    col: (t * 3) % 4,
+    direction: t % 2 === 0 ? 'clockwise' : 'counterclockwise',
+  });
+
+  it('8段で止め、残ったマッチは次の回転のあとに消える', () => {
+    let state = createBattle(47);
+    for (let t = 0; t < 5; t++) state = resolveTurn(state, scripted(t)).state;
+    const capped = resolveTurn(state, scripted(5));
+    expect(capped.events.filter((e) => e.type === 'clear')).toHaveLength(8);
+    expect(findMatches(capped.state.board).length).toBeGreaterThan(0);
+
+    // 次のターンは、残っていたマッチから消える（1段目に clear が出る）
+    expect(capped.state.status).toBe('playing');
+    const next = resolveTurn(capped.state, scripted(6));
+    expect(next.events.some((e) => e.type === 'clear' && e.chain === 1)).toBeTruthy();
   });
 });
 

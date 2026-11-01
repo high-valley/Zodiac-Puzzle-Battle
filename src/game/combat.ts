@@ -102,7 +102,9 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
   let enemyHp = state.enemyHp;
   if (heal > 0) {
     partyHp = Math.min(state.partyMaxHp, partyHp + heal);
-    events.push({ type: 'heal', amount: heal, partyHp });
+    // amount は実際に増えた量（最大HPで頭打ちになった分は含めない）。満タンなら出さない
+    const healed = partyHp - state.partyHp;
+    if (healed > 0) events.push({ type: 'heal', amount: healed, partyHp });
   }
   if (damage > 0) {
     enemyHp = Math.max(0, enemyHp - damage);

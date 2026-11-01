@@ -148,7 +148,8 @@ export function mountBattle(root: HTMLElement): void {
   function setBusy(value: boolean) {
     busy = value;
     board.setLocked(value);
-    root.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero').forEach((b) => (b.disabled = value));
+    // ターンの演出中は「やり直す」も止める（途中で新しい戦闘を作ると、古いターンの結果で上書きされる）
+    root.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .restart').forEach((b) => (b.disabled = value));
   }
 
   async function showEvent(ev: BattleEvent, hp: { enemy: number; party: number }) {
@@ -221,6 +222,7 @@ export function mountBattle(root: HTMLElement): void {
   }
 
   function restart() {
+    if (busy) return;
     state = createBattle(newSeed());
     hero = state.selectedHero;
     result.hidden = true;

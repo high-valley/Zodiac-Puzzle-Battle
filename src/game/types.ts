@@ -65,6 +65,7 @@ export type BattleEvent =
       /** 落下・補充した後の盤面 */
       board: Board;
     }
+  /** amount は実際に増えた量 */
   | { type: 'heal'; amount: number; partyHp: number }
   | { type: 'damage'; amount: number; enemyHp: number }
   | { type: 'enemyAttack'; amount: number; partyHp: number }

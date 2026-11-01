@@ -95,7 +95,7 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
   }
 
   el.addEventListener('pointerdown', (e) => {
-    if (locked || start) return;
+    if (locked || start || !e.isPrimary || e.button !== 0) return;
     const p = local(e);
     select(nearestIntersection(p.x, p.y, p.cell));
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };

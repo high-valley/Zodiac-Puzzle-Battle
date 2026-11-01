@@ -36,6 +36,9 @@ describe('classifySwipe', () => {
     expect(classifySwipe(SWIPE.minDistance - 1, 0)).toEqual({ kind: 'select' });
     expect(classifySwipe(0, 0)).toEqual({ kind: 'select' });
     expect(classifySwipe(-10, 10)).toEqual({ kind: 'select' });
+    // 斜めの合計距離が閾値を超えても、縦横どちらも閾値未満なら選択だけ
+    expect(classifySwipe(21, 8)).toEqual({ kind: 'select' });
+    expect(classifySwipe(-18, 18)).toEqual({ kind: 'select' });
   });
 
   it('縦寄りの大きな動きはキャンセル', () => {
