@@ -3,6 +3,7 @@ import { ENEMY, chainMultiplier } from '../src/data/balance';
 import { HEROES } from '../src/data/heroes';
 import { createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game/combat';
 import { findMatches } from '../src/game/matching';
+import { detectHeroSpecial } from '../src/game/specials';
 import type { BattleState, Direction, HeroId, TurnAction } from '../src/game/types';
 import { QUIET_ROWS, boardToStrings, stateWith } from './helpers';
 
@@ -162,22 +163,38 @@ describe('必殺に使ったオーブを消す', () => {
     for (const [r, c] of [[0, 0], [0, 1], [1, 0], [1, 1]]) expect(at(first.cells, r, c)).toBeTruthy();
     expect(first.counts).toEqual({ red: 0, blue: 0, green: 0, pink: 0 });
     expect(first.heal).toBe(0);
-    // 続く通常マッチの連鎖は1段目から数える
-    events
-      .filter((e) => e.type === 'clear')
-      .slice(1)
-      .forEach((e, i) => e.type === 'clear' && expect(e.chain).toBe(i + 1));
   });
 
-  it('必殺の形と通常マッチが重なるときは、両方を同時に1回で消す（重なったマスは1回）', () => {
-    const state = stateWith(base, RED_L);
-    const { events } = resolveTurn(state, quietMove('aries'));
+  const chains = (rngSeed: number) =>
+    resolveTurn(stateWith(base, PINK_SQUARE, { rngSeed }), quietMove('virgo'))
+      .events.flatMap((e) => (e.type === 'clear' ? [e.chain] : []));
+
+  it('必殺だけの消去のあと、落ちてきたオーブの通常マッチは1連鎖目から数える', () => {
+    // rngSeed 1315 では、必殺の消去のあとに通常マッチが7段続く
+    expect(chains(1315)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+  });
+
+  it('必殺だけの消去は連鎖の上限（8段）に数えない', () => {
+    // rngSeed 17538 では、必殺の消去のあとに通常マッチが8段に達し、マッチが残る
+    const state = stateWith(base, PINK_SQUARE, { rngSeed: 17538 });
+    const result = resolveTurn(state, quietMove('virgo'));
+    expect(result.events.flatMap((e) => (e.type === 'clear' ? [e.chain] : []))).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(findMatches(result.state.board).length).toBeGreaterThan(0);
+  });
+
+  it('形の一部だけが通常マッチと重なるとき、同時に1回で消し、通常効果は通常マッチの分だけ', () => {
+    // 上の行のピンク3個（横並び）が通常マッチ、うち2個がピンク2×2の上の辺と重なる
+    const rows = ['PPPGR', 'PPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
+    const { events } = resolveTurn(stateWith(base, rows, { partyHp: 100 }), quietMove('virgo'));
     const first = events.find((e) => e.type === 'clear');
     if (first?.type !== 'clear') throw new Error('clear がない');
-    // 赤L字の5個は縦3＋横3の通常マッチでもある
     expect(first.chain).toBe(1);
+    // 2×2 の4個 ＋ (0,2) の5個。重なった (0,0)(0,1) は1回だけ
     expect(first.cells).toHaveLength(5);
-    expect(first.counts.red).toBe(5);
+    for (const [r, c] of [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1]]) expect(at(first.cells, r, c)).toBeTruthy();
+    // 必殺だけで消えた (1,0)(1,1) は通常効果に入らない
+    expect(first.counts.pink).toBe(3);
+    expect(first.heal).toBe(HEROES.virgo.actions.pink!.coef * 3);
   });
 
   it('選んでいないキャラの形は消さない', () => {
@@ -185,16 +202,12 @@ describe('必殺に使ったオーブを消す', () => {
     expect(events.some((e) => e.type === 'clear')).toBeFalsy();
   });
 
-  it('同じ形で毎ターン必殺が出続けることはない', () => {
+  it('同じ形は盤面に残らない（毎ターン必殺が出続けない）', () => {
     // 以前はピンク2×2が残り続け、離れた交点を回すだけで毎ターン回復の必殺が出ていた
-    let state = stateWith(base, PINK_SQUARE, { partyHp: 100 });
-    let specials = 0;
-    for (let t = 0; t < 30 && state.status === 'playing'; t++) {
-      const r = resolveTurn(state, quietMove('virgo', t % 2 === 0 ? 'clockwise' : 'counterclockwise'));
-      if (r.events.some((e) => e.type === 'special')) specials++;
-      state = r.state;
-    }
-    expect(specials).toBeLessThan(10);
+    const { state: next } = resolveTurn(stateWith(base, PINK_SQUARE), quietMove('virgo'));
+    const found = detectHeroSpecial(next.board, 'virgo');
+    // 補充でたまたま新しい2×2ができることはあるが、元の位置（左上）の形は消えている
+    expect(found !== null && found.cells[0].row === 0 && found.cells[0].col === 0).toBeFalsy();
   });
 });
 
