@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { cueForEvent } from '../src/audio/cues';
+import { cueForEvent, turnHasSpecial } from '../src/audio/cues';
+import { createSoundPlayer } from '../src/audio/sound';
 import { createBattle, resolveTurn } from '../src/game/combat';
 import type { BattleEvent } from '../src/game/types';
-import { DEFAULT_SETTINGS, parseSettings } from '../src/storage/settings';
+import { DEFAULT_SETTINGS, loadSettings, parseSettings, saveSettings } from '../src/storage/settings';
 import { stateWith } from './helpers';
 
 describe('cueForEvent', () => {
@@ -44,14 +45,131 @@ describe('cueForEvent', () => {
     });
   });
 
-  it('必殺が出たターンは、攻撃・回復の音が強くなる', () => {
-    const rows = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
-    const { events } = resolveTurn(stateWith(createBattle(1), rows), { hero: 'aries', row: 3, col: 3, direction: 'clockwise' });
-    const special = events.some((e) => e.type === 'special');
-    const damage = events.find((e) => e.type === 'damage');
-    expect(special).toBeTruthy();
-    expect(damage && cueForEvent(damage, special)).toEqual({ name: 'hit', big: true });
-    expect(damage && cueForEvent(damage, false)).toEqual({ name: 'hit', big: false });
+  it('必殺が出たターンだけ、攻撃・回復の音が強くなる', () => {
+    const quiet = ['RBGPR', 'GPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
+    const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
+    const move = { hero: 'aries' as const, row: 3, col: 3, direction: 'clockwise' as const };
+    const withSpecial = resolveTurn(stateWith(createBattle(1), redL), move).events;
+    const withoutSpecial = resolveTurn(stateWith(createBattle(1), quiet), move).events;
+    expect(turnHasSpecial(withSpecial)).toBeTruthy();
+    expect(turnHasSpecial(withoutSpecial)).toBeFalsy();
+    const damage = withSpecial.find((e) => e.type === 'damage');
+    expect(damage && cueForEvent(damage, turnHasSpecial(withSpecial))).toEqual({ name: 'hit', big: true });
+  });
+});
+
+describe('loadSettings / saveSettings', () => {
+  const g = globalThis as unknown as { window?: unknown };
+  const original = g.window;
+  const withWindow = (w: unknown, fn: () => void) => {
+    g.window = w;
+    try {
+      fn();
+    } finally {
+      g.window = original;
+    }
+  };
+
+  it('localStorage が例外を投げても、既定値で読めて保存も失敗しない', () => {
+    const broken = {
+      get localStorage(): never {
+        throw new Error('SecurityError');
+      },
+    };
+    withWindow(broken, () => {
+      expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+      expect(() => saveSettings({ soundOn: false, tutorialSeen: true })).not.toThrow();
+    });
+    const throwing = {
+      localStorage: {
+        getItem: () => {
+          throw new Error('x');
+        },
+        setItem: () => {
+          throw new Error('QuotaExceededError');
+        },
+      },
+    };
+    withWindow(throwing, () => {
+      expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+      expect(() => saveSettings(DEFAULT_SETTINGS)).not.toThrow();
+    });
+  });
+
+  it('保存したものを読み戻せる', () => {
+    const store = new Map<string, string>();
+    const w = { localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) } };
+    withWindow(w, () => {
+      saveSettings({ soundOn: false, tutorialSeen: true });
+      expect(loadSettings()).toEqual({ soundOn: false, tutorialSeen: true });
+    });
+  });
+});
+
+describe('createSoundPlayer', () => {
+  const g = globalThis as unknown as { window?: unknown };
+  const original = g.window;
+
+  it('オフのあいだは AudioContext を作らない', () => {
+    let created = 0;
+    g.window = {
+      AudioContext: class {
+        state = 'running';
+        constructor() {
+          created++;
+        }
+      },
+    };
+    try {
+      const player = createSoundPlayer(false);
+      player.unlock();
+      player.play({ name: 'rotate' });
+      expect(created).toBe(0);
+      player.setEnabled(true);
+      expect(created).toBe(1);
+    } finally {
+      g.window = original;
+    }
+  });
+
+  it('AudioContext を作れない・音が使えない環境でも例外を出さない', () => {
+    g.window = {
+      AudioContext: class {
+        constructor() {
+          throw new Error('NotSupportedError');
+        }
+      },
+    };
+    try {
+      const player = createSoundPlayer(true);
+      expect(() => player.unlock()).not.toThrow();
+      expect(() => player.play({ name: 'special' })).not.toThrow();
+      expect(() => player.play({ name: 'hit', big: true })).not.toThrow();
+    } finally {
+      g.window = original;
+    }
+    g.window = {};
+    try {
+      expect(() => createSoundPlayer(true).play({ name: 'rotate' })).not.toThrow();
+    } finally {
+      g.window = original;
+    }
+  });
+
+  it('再開（resume）が失敗しても例外を出さない', () => {
+    g.window = {
+      AudioContext: class {
+        state = 'suspended';
+        resume() {
+          return Promise.reject(new Error('NotAllowedError'));
+        }
+      },
+    };
+    try {
+      expect(() => createSoundPlayer(true).unlock()).not.toThrow();
+    } finally {
+      g.window = original;
+    }
   });
 });
 

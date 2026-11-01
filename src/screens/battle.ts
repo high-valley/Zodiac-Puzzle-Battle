@@ -1,5 +1,5 @@
 // バトル画面。ゲームの判定はすべて src/game に任せ、ここは表示と入力だけ
-import { cueForEvent } from '../audio/cues';
+import { cueForEvent, turnHasSpecial } from '../audio/cues';
 import { createSoundPlayer } from '../audio/sound';
 import { createBoardView } from '../components/board';
 import { specialPreviewSvg } from '../components/specialPreview';
@@ -165,8 +165,9 @@ export function mountBattle(root: HTMLElement): void {
   function setBusy(value: boolean) {
     busy = value;
     board.setLocked(value);
-    // ターンの演出中は「やり直す」も止める（途中で新しい戦闘を作ると、古いターンの結果で上書きされる）
-    root.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .restart').forEach((b) => (b.disabled = value));
+    // ターンの演出中は「やり直す」と「遊び方」も止める（途中で新しい戦闘を作ると古いターンの結果で上書きされ、
+    // 遊び方を開くと背後で勝敗が決まってフォーカスが裏に回る）。効果音のオン/オフは演出中も押せる
+    root.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .restart, .help').forEach((b) => (b.disabled = value));
   }
 
   async function showEvent(ev: BattleEvent, hp: { enemy: number; party: number }, special: boolean) {
@@ -227,15 +228,22 @@ export function mountBattle(root: HTMLElement): void {
   async function playTurn(at: Pos, direction: Direction) {
     if (busy || state.status !== 'playing') return;
     setBusy(true);
-    const before = state;
-    const turn = resolveTurn(state, { hero, row: at.row, col: at.col, direction });
-    const hp = { enemy: before.enemyHp, party: before.partyHp };
-    const special = turn.events.some((e) => e.type === 'special');
-    for (const ev of turn.events) await showEvent(ev, hp, special);
-    state = turn.state;
-    board.render(state.board);
-    renderStatus();
-    setBusy(false);
+    try {
+      const turn = resolveTurn(state, { hero, row: at.row, col: at.col, direction });
+      const hp = { enemy: state.enemyHp, party: state.partyHp };
+      const special = turnHasSpecial(turn.events);
+      // 状態は先に進めておく。演出の途中で何か失敗しても、表示は最後に state から描き直す
+      state = turn.state;
+      try {
+        for (const ev of turn.events) await showEvent(ev, hp, special);
+      } catch (e) {
+        console.error('演出の途中で失敗しました', e);
+      }
+    } finally {
+      board.render(state.board);
+      renderStatus();
+      setBusy(false);
+    }
     if (state.status !== 'playing') showResult();
   }
 
@@ -264,13 +272,16 @@ export function mountBattle(root: HTMLElement): void {
     b.addEventListener('click', () => {
       if (busy) return;
       hero = b.dataset.hero as HeroId;
-      sound.play({ name: 'select' });
       renderHero();
+      sound.play({ name: 'select' });
     }),
   );
 
   // iOS は操作の中でないと音を出せないので、最初のタップで音を使えるようにする
-  root.addEventListener('pointerdown', () => sound.unlock(), { capture: true });
+  // iOS の版によって音を許可する操作が違う（touchend・click）ので、操作の区切りごとに試す。キーボード操作でも鳴らせるように keydown も
+  for (const type of ['pointerdown', 'pointerup', 'click', 'keydown']) {
+    root.addEventListener(type, () => sound.unlock(), { capture: true });
+  }
 
   const soundToggle = $<HTMLButtonElement>('.sound-toggle');
   function renderSound() {
@@ -287,7 +298,7 @@ export function mountBattle(root: HTMLElement): void {
   });
 
   function showTutorial() {
-    openTutorial(root, () => {
+    openTutorial(root, battleEl, () => {
       settings.tutorialSeen = true;
       saveSettings(settings);
     });

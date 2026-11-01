@@ -903,6 +903,35 @@ button:focus-visible {
   }
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 遊び方の図は繰り返し動くので、動きを減らす設定では止める（1ms で回り続けると点滅になる） */
+  .tutorial-figure *,
+  .tutorial-figure *::before {
+    animation: none !important;
+  }
+  .t-grid .a {
+    transform: translate(0, 0);
+  }
+  .t-grid .b {
+    transform: translate(40px, 0);
+  }
+  .t-grid .d {
+    transform: translate(40px, 40px);
+  }
+  .t-grid .c {
+    transform: translate(0, 40px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

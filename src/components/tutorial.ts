@@ -35,7 +35,7 @@ const STEPS: Step[] = [
   },
   {
     title: '形をつくって必殺技',
-    body: 'キャラごとに決まった色と形を盤面につくると、そのキャラを選んでいるときに必殺技が出ます。使ったオーブは消えます。選んでいるキャラの形は、回転ボタンの間に出ています。',
+    body: 'キャラごとに決まった色と形が、回したあとの盤面にあると、そのとき選んでいるキャラの必殺技が出ます。使ったオーブは消えます。選んでいるキャラの形は、回転ボタンの間に出ています。',
     figure: `
       <div class="t-specials" aria-hidden="true">
         ${PARTY.map(
@@ -54,26 +54,50 @@ const STEPS: Step[] = [
   },
 ];
 
-export function openTutorial(root: HTMLElement, onClose: () => void): void {
+let isOpen = false;
+
+/**
+ * 遊び方を開く。開いている間は background を inert にして、
+ * キーボードでも背後の盤面やボタンを操作できないようにする。すでに開いていれば何もしない
+ */
+export function openTutorial(root: HTMLElement, background: HTMLElement, onClose: () => void): void {
+  if (isOpen) return;
+  isOpen = true;
   const previouslyFocused = document.activeElement as HTMLElement | null;
   const overlay = document.createElement('div');
   overlay.className = 'tutorial';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
   overlay.setAttribute('aria-labelledby', 'tutorial-title');
+  overlay.setAttribute('aria-describedby', 'tutorial-body');
   root.append(overlay);
+  background.inert = true;
 
   let index = 0;
 
   function close() {
     overlay.remove();
+    background.inert = false;
+    isOpen = false;
     document.removeEventListener('keydown', onKey);
     previouslyFocused?.focus();
     onClose();
   }
 
   function onKey(e: KeyboardEvent) {
-    if (e.key === 'Escape') close();
+    if (e.key === 'Escape') {
+      close();
+      return;
+    }
+    // Tab でカードのボタンの間だけを巡る
+    if (e.key === 'Tab') {
+      const buttons = [...overlay.querySelectorAll<HTMLButtonElement>('button')];
+      if (buttons.length === 0) return;
+      const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      const next = e.shiftKey ? (i <= 0 ? buttons.length - 1 : i - 1) : i === buttons.length - 1 ? 0 : i + 1;
+      buttons[next].focus();
+      e.preventDefault();
+    }
   }
   document.addEventListener('keydown', onKey);
 
@@ -83,9 +107,9 @@ export function openTutorial(root: HTMLElement, onClose: () => void): void {
     overlay.innerHTML = `
       <div class="tutorial-card">
         <div class="tutorial-figure">${step.figure}</div>
-        <h2 id="tutorial-title">${step.title}</h2>
-        <p>${step.body}</p>
-        <div class="tutorial-dots" aria-label="${index + 1} / ${STEPS.length}">
+        <h2 id="tutorial-title">${step.title}<span class="visually-hidden">（${index + 1} / ${STEPS.length}）</span></h2>
+        <p id="tutorial-body" aria-live="polite">${step.body}</p>
+        <div class="tutorial-dots" aria-hidden="true">
           ${STEPS.map((_, i) => `<span class="${i === index ? 'on' : ''}"></span>`).join('')}
         </div>
         <div class="tutorial-actions">
