@@ -57,8 +57,11 @@ export type BattleEvent =
   | { type: 'special'; special: SpecialResult; name: string; damage: number; heal: number }
   | {
       type: 'clear';
+      /** 通常マッチの連鎖段数（1〜）。必殺に使ったオーブだけを消した段は 0 */
       chain: number;
+      /** この段で消したマス（通常マッチ＋必殺に使ったオーブ） */
       cells: Pos[];
+      /** 通常マッチで消した色ごとの個数（通常効果の計算に使う。必殺だけで消えた分は含めない） */
       counts: Record<OrbColor, number>;
       damage: number;
       heal: number;

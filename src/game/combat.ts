@@ -81,20 +81,38 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     events.push({ type: 'special', special, name: hero.special.name, damage: sDamage, heal: sHeal });
   }
 
-  for (let chain = 1; chain <= MAX_CHAIN; chain++) {
+  // 必殺に使ったオーブは、最初の消去で通常マッチと一緒に消す。
+  // 必殺だけで消えたオーブは通常効果を出さず、連鎖の段数にも数えない（通常マッチの段だけ数える）
+  let specialCells = special ? special.cells : [];
+  let chain = 0;
+  for (;;) {
     const groups = findMatches(board);
-    if (groups.length === 0) break;
-    const mask = matchedMask(groups);
-    const cells = maskToCells(mask);
+    if (groups.length === 0 && specialCells.length === 0) break;
+    if (groups.length > 0) {
+      if (chain >= MAX_CHAIN) break;
+      chain++;
+    }
+    const matched = matchedMask(groups);
     const counts = emptyCounts();
-    for (const p of cells) counts[board[p.row][p.col]]++;
-    const effect = normalEffect(action.hero, counts, chain);
+    for (const p of maskToCells(matched)) counts[board[p.row][p.col]]++;
+    const effect = groups.length > 0 ? normalEffect(action.hero, counts, chain) : { damage: 0, heal: 0 };
     damage += effect.damage;
     heal += effect.heal;
+    const mask = matched.map((line) => line.slice());
+    for (const p of specialCells) mask[p.row][p.col] = true;
+    specialCells = [];
     const refilled = collapseAndRefill(board, mask, seed);
     board = refilled.board;
     seed = refilled.seed;
-    events.push({ type: 'clear', chain, cells, counts, damage: effect.damage, heal: effect.heal, board });
+    events.push({
+      type: 'clear',
+      chain: groups.length > 0 ? chain : 0,
+      cells: maskToCells(mask),
+      counts,
+      damage: effect.damage,
+      heal: effect.heal,
+      board,
+    });
   }
 
   // 味方の回復 → 敵へのダメージ → 敵の攻撃
