@@ -10,6 +10,8 @@
   - `board.ts` 盤面の生成・2×2回転・落下と補充／`matching.ts` 通常マッチ／`specials.ts` 必殺の形の判定／`combat.ts` 1ターンの解決／`rng.ts` seed 付き乱数／`types.ts` 型
 - `src/data/` … 数値の設定データ（`balance.ts` 盤面・連鎖・敵・スワイプ閾値、`heroes.ts` キャラ）。仕様書の数値は仮
 - `src/input/swipe.ts` … 交点の選び方とスワイプの向きの判定（純粋な関数）
+- `src/audio/` … 効果音（`cues.ts` 出来事と音の対応、`sound.ts` Web Audio での合成）
+- `src/storage/settings.ts` … 端末に保存する設定（効果音・遊び方を見たか）
 - `src/components/`・`src/screens/` … 画面（DOM ＋ Pointer Events）
 - `tests/` … Vitest の単体テスト
 

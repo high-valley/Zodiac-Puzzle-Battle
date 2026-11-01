@@ -82,8 +82,46 @@ button:focus-visible {
 .top .turn {
   font-variant-numeric: tabular-nums;
 }
-.text-btn {
+.top-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #ffffff2e;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.icon-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-btn .speaker {
+  fill: currentColor;
+}
+.sound-toggle .mute,
+.sound-toggle.off .waves {
+  display: none;
+}
+.sound-toggle.off .mute {
+  display: inline;
+}
+.text-btn {
   background: none;
   border: 1px solid #ffffff2e;
   border-radius: 999px;
@@ -295,21 +333,92 @@ button:focus-visible {
 }
 
 .banner {
+  --accent: var(--gold);
+  /* 盤面の上の端（敵の欄）に重ねて、盤面に描く星座の線を隠さない */
   position: absolute;
   left: 50%;
-  top: 50%;
-  translate: -50% -50%;
+  top: 0;
+  translate: -50% calc(-100% + 6px);
   z-index: 5;
-  padding: 10px 22px;
-  border-radius: 12px;
-  background: #0b0f2ee6;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 12px 24px 14px;
+  border-radius: 14px;
+  background: #0b0f2ef0;
   border: 1px solid var(--gold);
-  color: var(--gold);
-  font-size: 22px;
-  font-weight: 700;
+  box-shadow: 0 0 32px color-mix(in srgb, var(--accent) 55%, transparent);
   white-space: nowrap;
-  animation: banner 0.65s ease-out;
+  animation: banner 1.1s ease-out;
   pointer-events: none;
+}
+.banner[data-color='red'] {
+  --accent: var(--red);
+}
+.banner[data-color='blue'] {
+  --accent: var(--blue);
+}
+.banner[data-color='pink'] {
+  --accent: var(--pink);
+}
+.banner-hero {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.banner-name {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+
+/* 必殺：形を結ぶ星座の線 */
+.constellation {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 4;
+  pointer-events: none;
+  overflow: visible;
+}
+.constellation line {
+  stroke: var(--gold);
+  stroke-width: 0.07;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 0.08px #fff) drop-shadow(0 0 0.15px var(--gold));
+  animation: draw-line 0.45s ease-out forwards;
+}
+.board.special-glow {
+  box-shadow:
+    inset 0 0 0 1px #e9c46a99,
+    0 0 28px #e9c46a55;
+}
+.battle {
+  position: relative;
+}
+.battle::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 6;
+  background: radial-gradient(circle at 50% 45%, var(--flash, #e9c46a) 0%, transparent 60%);
+}
+.battle[data-flash='red'] {
+  --flash: #e5484d66;
+}
+.battle[data-flash='blue'] {
+  --flash: #3d8bf266;
+}
+.battle[data-flash='pink'] {
+  --flash: #ef7fbf66;
+}
+.battle.special-flash::after {
+  animation: flash 1.1s ease-out;
 }
 
 .hint {
@@ -479,6 +588,18 @@ button:focus-visible {
   color: var(--hurt);
   font-size: 22px;
 }
+.popup.big {
+  font-size: 46px;
+  color: var(--gold);
+  animation-duration: 1.4s;
+}
+.popup.heal.big {
+  font-size: 34px;
+  color: var(--heal);
+}
+.enemy-figure.big-hit {
+  animation: hit 0.6s ease-out;
+}
 .popup.chain {
   color: var(--gold);
   font-size: 18px;
@@ -528,6 +649,206 @@ button:focus-visible {
   cursor: pointer;
 }
 
+/* 遊び方 */
+.tutorial {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px 16px;
+  background: #0b0f2ee0;
+  backdrop-filter: blur(4px);
+}
+.tutorial-card {
+  width: min(380px, 100%);
+  padding: 20px 20px 18px;
+  border-radius: 20px;
+  background: var(--sky-raise);
+  border: 1px solid #e9c46a66;
+}
+.tutorial-card h2 {
+  margin: 14px 0 6px;
+  font-size: 19px;
+  color: var(--gold);
+}
+.tutorial-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.tutorial-figure {
+  height: 132px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #0b0f2e80;
+}
+.tutorial-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 14px 0 12px;
+}
+.tutorial-dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff33;
+}
+.tutorial-dots span.on {
+  background: var(--gold);
+}
+.tutorial-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+}
+.tutorial-actions .text-btn {
+  min-height: 44px;
+  padding: 0 16px;
+}
+.t-orb {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #ffffffe6;
+  font-size: 15px;
+  text-shadow: 0 1px 2px #0006;
+  isolation: isolate;
+}
+.t-orb::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ffffffb3 0 8%, transparent 30%), var(--orb);
+  z-index: -1;
+}
+.t-rotate {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.t-grid {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+.t-grid .t-orb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  animation: 2.4s ease-in-out infinite;
+}
+/* 4個が時計回りに1つずつ進む */
+.t-grid .a {
+  animation-name: t-cw-a;
+}
+.t-grid .b {
+  animation-name: t-cw-b;
+}
+.t-grid .d {
+  animation-name: t-cw-d;
+}
+.t-grid .c {
+  animation-name: t-cw-c;
+}
+.t-star {
+  position: absolute;
+  left: 40px;
+  top: 40px;
+  width: 8px;
+  height: 8px;
+  margin: -4px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 8px var(--gold);
+  z-index: 2;
+}
+.t-finger {
+  font-size: 26px;
+  color: var(--gold);
+  animation: t-finger 2.4s ease-in-out infinite;
+}
+.t-row {
+  display: flex;
+}
+.t-row .pop {
+  animation: t-pop 2s ease-in-out infinite;
+}
+.t-specials {
+  display: flex;
+  gap: 18px;
+}
+.t-special {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.t-special svg {
+  width: 58px;
+  height: 58px;
+}
+.t-special .links {
+  stroke: var(--gold);
+  stroke-width: 1.5;
+}
+.t-special .dim {
+  fill: #ffffff40;
+}
+.t-special .lit {
+  stroke: #fff;
+  stroke-width: 1;
+}
+.t-hp {
+  width: 70%;
+  display: grid;
+  gap: 14px;
+}
+
+@keyframes t-cw-a {
+  0%, 30% { transform: translate(0, 0); }
+  50%, 100% { transform: translate(40px, 0); }
+}
+@keyframes t-cw-b {
+  0%, 30% { transform: translate(40px, 0); }
+  50%, 100% { transform: translate(40px, 40px); }
+}
+@keyframes t-cw-d {
+  0%, 30% { transform: translate(40px, 40px); }
+  50%, 100% { transform: translate(0, 40px); }
+}
+@keyframes t-cw-c {
+  0%, 30% { transform: translate(0, 40px); }
+  50%, 100% { transform: translate(0, 0); }
+}
+@keyframes t-finger {
+  0%, 10% { transform: translateX(-6px); opacity: 0.4; }
+  40% { transform: translateX(8px); opacity: 1; }
+  60%, 100% { transform: translateX(8px); opacity: 0; }
+}
+@keyframes t-pop {
+  0%, 45% { opacity: 1; transform: scale(1); }
+  65% { opacity: 0; transform: scale(0.3); }
+  85%, 100% { opacity: 1; transform: scale(1); }
+}
+@keyframes draw-line {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes flash {
+  20% {
+    opacity: 1;
+  }
+}
+
 @keyframes hit {
   20% {
     transform: translateX(-6px);
@@ -573,9 +894,41 @@ button:focus-visible {
     opacity: 0;
     scale: 0.7;
   }
-  30% {
+  20% {
     opacity: 1;
-    scale: 1.05;
+    scale: 1.06;
+  }
+  35% {
+    scale: 1;
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 遊び方の図は繰り返し動くので、動きを減らす設定では止める（1ms で回り続けると点滅になる） */
+  .tutorial-figure *,
+  .tutorial-figure *::before {
+    animation: none !important;
+  }
+  .t-grid .a {
+    transform: translate(0, 0);
+  }
+  .t-grid .b {
+    transform: translate(40px, 0);
+  }
+  .t-grid .d {
+    transform: translate(40px, 40px);
+  }
+  .t-grid .c {
+    transform: translate(0, 40px);
   }
 }
 
