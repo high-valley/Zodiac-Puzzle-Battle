@@ -1,6 +1,10 @@
 // バトル画面。ゲームの判定はすべて src/game に任せ、ここは表示と入力だけ
+import { cueForEvent } from '../audio/cues';
+import { createSoundPlayer } from '../audio/sound';
 import { createBoardView } from '../components/board';
 import { specialPreviewSvg } from '../components/specialPreview';
+import { openTutorial } from '../components/tutorial';
+import { loadSettings, saveSettings } from '../storage/settings';
 import { ENEMY } from '../data/balance';
 import { HEROES, PARTY } from '../data/heroes';
 import { createBattle, resolveTurn } from '../game/combat';
@@ -30,13 +34,25 @@ export function mountBattle(root: HTMLElement): void {
   let state: BattleState = createBattle(newSeed());
   let hero: HeroId = state.selectedHero;
   let busy = false;
+  const settings = loadSettings();
+  const sound = createSoundPlayer(settings.soundOn);
 
   root.innerHTML = `
   <main class="battle">
     <header class="top">
       <span class="stage">ステージ 1</span>
       <span class="turn" aria-live="polite"></span>
-      <button type="button" class="text-btn restart">やり直す</button>
+      <span class="top-actions">
+        <button type="button" class="icon-btn sound-toggle" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path class="speaker" d="M4 9h4l5-4v14l-5-4H4z"/>
+            <path class="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>
+            <path class="mute" d="M16 9l6 6M22 9l-6 6"/>
+          </svg>
+        </button>
+        <button type="button" class="icon-btn help" aria-label="遊び方">?</button>
+        <button type="button" class="text-btn restart">やり直す</button>
+      </span>
     </header>
 
     <section class="enemy" aria-label="敵">
@@ -109,6 +125,7 @@ export function mountBattle(root: HTMLElement): void {
   const banner = $<HTMLElement>('.banner');
   const result = $<HTMLElement>('.result');
   const enemyFigure = $<HTMLElement>('.enemy-figure');
+  const battleEl = $<HTMLElement>('.battle');
 
   function setBar(sel: string, value: number, max: number) {
     const bar = $<HTMLElement>(sel);
@@ -136,10 +153,10 @@ export function mountBattle(root: HTMLElement): void {
     root.querySelector('.battle')?.setAttribute('data-hero', hero);
   }
 
-  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain') {
+  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false) {
     const layer = $<HTMLElement>(sel);
     const p = document.createElement('span');
-    p.className = `popup ${kind}`;
+    p.className = `popup ${kind}${big ? ' big' : ''}`;
     p.textContent = text;
     layer.append(p);
     setTimeout(() => p.remove(), ms(1100));
@@ -152,17 +169,26 @@ export function mountBattle(root: HTMLElement): void {
     root.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .restart').forEach((b) => (b.disabled = value));
   }
 
-  async function showEvent(ev: BattleEvent, hp: { enemy: number; party: number }) {
+  async function showEvent(ev: BattleEvent, hp: { enemy: number; party: number }, special: boolean) {
+    const cue = cueForEvent(ev, special);
+    if (cue) sound.play(cue);
     switch (ev.type) {
       case 'rotate':
         await board.animateRotate(ev.board, { row: ev.row, col: ev.col }, ev.direction, ms(170));
         break;
-      case 'special':
-        banner.textContent = ev.name;
+      case 'special': {
+        // 必殺演出：形を星座の線で結び、キャラ名と技名を大きく出す
+        const owner = HEROES[ev.special.heroId];
+        banner.innerHTML = `<span class="banner-hero">${owner.symbol} ${owner.name}</span><span class="banner-name">${ev.name}</span>`;
+        banner.dataset.color = ev.special.color;
         banner.hidden = false;
-        await board.flashCells(ev.special.cells, ms(650));
+        battleEl.classList.add('special-flash');
+        battleEl.dataset.flash = ev.special.color;
+        await board.drawConstellation(ev.special.cells, ms(1100));
+        battleEl.classList.remove('special-flash');
         banner.hidden = true;
         break;
+      }
       case 'clear':
         if (ev.chain > 1) popup('.enemy-popups', `${ev.chain}連鎖`, 'chain');
         await board.animateClear(ev.cells, ms(200));
@@ -171,17 +197,18 @@ export function mountBattle(root: HTMLElement): void {
       case 'heal':
         hp.party = ev.partyHp;
         renderStatus(hp.enemy, hp.party);
-        popup('.party-popups', `+${ev.amount}`, 'heal');
-        await wait(ms(300));
+        popup('.party-popups', `+${ev.amount}`, 'heal', special);
+        await wait(ms(special ? 500 : 300));
         break;
       case 'damage':
         hp.enemy = ev.enemyHp;
         renderStatus(hp.enemy, hp.party);
-        popup('.enemy-popups', `${ev.amount}`, 'damage');
+        popup('.enemy-popups', `${ev.amount}`, 'damage', special);
         enemyFigure.classList.remove('hit');
         void enemyFigure.offsetWidth;
+        enemyFigure.classList.toggle('big-hit', special);
         enemyFigure.classList.add('hit');
-        await wait(ms(420));
+        await wait(ms(special ? 650 : 420));
         break;
       case 'enemyAttack':
         await wait(ms(200));
@@ -203,7 +230,8 @@ export function mountBattle(root: HTMLElement): void {
     const before = state;
     const turn = resolveTurn(state, { hero, row: at.row, col: at.col, direction });
     const hp = { enemy: before.enemyHp, party: before.partyHp };
-    for (const ev of turn.events) await showEvent(ev, hp);
+    const special = turn.events.some((e) => e.type === 'special');
+    for (const ev of turn.events) await showEvent(ev, hp, special);
     state = turn.state;
     board.render(state.board);
     renderStatus();
@@ -236,9 +264,35 @@ export function mountBattle(root: HTMLElement): void {
     b.addEventListener('click', () => {
       if (busy) return;
       hero = b.dataset.hero as HeroId;
+      sound.play({ name: 'select' });
       renderHero();
     }),
   );
+
+  // iOS は操作の中でないと音を出せないので、最初のタップで音を使えるようにする
+  root.addEventListener('pointerdown', () => sound.unlock(), { capture: true });
+
+  const soundToggle = $<HTMLButtonElement>('.sound-toggle');
+  function renderSound() {
+    soundToggle.setAttribute('aria-pressed', String(sound.enabled()));
+    soundToggle.setAttribute('aria-label', sound.enabled() ? '効果音：オン' : '効果音：オフ');
+    soundToggle.classList.toggle('off', !sound.enabled());
+  }
+  soundToggle.addEventListener('click', () => {
+    sound.setEnabled(!sound.enabled());
+    settings.soundOn = sound.enabled();
+    saveSettings(settings);
+    renderSound();
+    sound.play({ name: 'select' });
+  });
+
+  function showTutorial() {
+    openTutorial(root, () => {
+      settings.tutorialSeen = true;
+      saveSettings(settings);
+    });
+  }
+  $('.help').addEventListener('click', showTutorial);
   root.querySelectorAll<HTMLButtonElement>('.rotate-btn').forEach((b) =>
     b.addEventListener('click', () => {
       const at = board.selected();
@@ -256,6 +310,8 @@ export function mountBattle(root: HTMLElement): void {
   board.render(state.board);
   renderHero();
   renderStatus();
+  renderSound();
+  if (!settings.tutorialSeen) showTutorial();
 }
 
 /** 戦闘ごとの seed。エンジンは受け取った seed だけで決まる */

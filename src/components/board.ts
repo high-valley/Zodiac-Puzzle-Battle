@@ -17,7 +17,8 @@ export interface BoardView {
   animateRotate(board: Board, at: Pos, direction: Direction, ms: number): Promise<void>;
   animateClear(cells: Pos[], ms: number): Promise<void>;
   animateDrop(board: Board, cleared: Pos[], ms: number): Promise<void>;
-  flashCells(cells: Pos[], ms: number): Promise<void>;
+  /** 必殺の形を星座の線で結んで光らせる */
+  drawConstellation(cells: Pos[], ms: number): Promise<void>;
 }
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -165,10 +166,32 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
       }
       await wait(ms);
     },
-    async flashCells(cells, ms) {
+    async drawConstellation(cells, ms) {
+      // 隣り合う必殺のオーブ同士を星座の線で結ぶ（盤面を 5×5 の座標にした SVG）
+      const key = (r: number, c: number) => `${r},${c}`;
+      const set = new Set(cells.map((p) => key(p.row, p.col)));
+      const lines: string[] = [];
+      for (const p of cells) {
+        for (const [dr, dc] of [[0, 1], [1, 0]]) {
+          if (set.has(key(p.row + dr, p.col + dc))) {
+            lines.push(
+              `<line pathLength="1" x1="${p.col + 0.5}" y1="${p.row + 0.5}" x2="${p.col + dc + 0.5}" y2="${p.row + dr + 0.5}"/>`,
+            );
+          }
+        }
+      }
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', `0 0 ${BOARD_SIZE} ${BOARD_SIZE}`);
+      svg.setAttribute('class', 'constellation');
+      svg.setAttribute('aria-hidden', 'true');
+      svg.innerHTML = lines.join('');
+      el.append(svg);
+      el.classList.add('special-glow');
       for (const p of cells) orbAt(p).classList.add('special');
       await wait(ms);
       for (const p of cells) orbAt(p).classList.remove('special');
+      el.classList.remove('special-glow');
+      svg.remove();
     },
   };
 }
