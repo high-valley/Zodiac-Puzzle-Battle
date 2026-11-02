@@ -136,12 +136,14 @@ const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 if (import.meta.url === `file://${process.argv[1]}`) {
   const n = Number(process.argv[2] ?? 300);
   const only = process.argv[3];
+  // 4つめの引数で編成を指定できる（例：npm run bench -- 200 1-5 aries,sagittarius,gemini）。レベルは1
+  const party = process.argv[4] ? process.argv[4].split(',').map((id) => ({ id: id as HeroId, level: 1 })) : DEFAULT_PARTY;
   for (const stage of ALL_STAGES.filter((s) => !only || s.id === only))
   for (const level of ['random', 'skilled'] as BotLevel[]) {
-    const r = runBench(level, n, stage.enemyId);
+    const r = runBench(level, n, stage.enemyId, party);
     console.log(`\n== ${stage.id} ${ENEMIES[stage.enemyId].name}（★2の目標 ${stage.targetTurns}ターン）／${level}（${n}戦）`);
     console.log(`勝率 ${pct(r.winRate)}／平均ターン（勝ち） ${r.avgTurnsWin.toFixed(1)}／平均ターン（全体） ${r.avgTurns.toFixed(1)}／1ターンの平均ダメージ ${r.avgDamagePerTurn.toFixed(1)}`);
-    const ids = DEFAULT_PARTY.map((m) => m.id);
+    const ids = party.map((m) => m.id);
     const line = (f: (h: HeroId) => string) => ids.map((h) => `${HEROES[h].name} ${f(h)}`).join(' ');
     console.log(`キャラを選んだ割合 ${line((h) => pct(r.heroShare[h]))}`);
     console.log(`必殺（1戦あたり） ${line((h) => r.specialsPerBattle[h].toFixed(2))}`);
