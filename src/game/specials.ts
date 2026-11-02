@@ -11,31 +11,31 @@ function rotateOffsets(offsets: Offsets): Offsets {
   return offsets.map(([r, c]) => [c, height - r] as const);
 }
 
-// 角（つの）：上に2本の角、下に顔。●・● / ●・● / ・●・
-const HORNS: Offsets = [
+// L字：縦3＋横3で角の1個を共有する5個（角が左下の向き）
+const L_SHAPE: Offsets = [
   [0, 0],
   [1, 0],
-  [0, 2],
-  [1, 2],
+  [2, 0],
   [2, 1],
+  [2, 2],
 ];
 
 /**
  * 形ごとの配置（[行, 列] の相対位置）。
- * どの形も縦横に同じ色が3個並ぶところを含まない。3個並ぶと通常マッチで先に消えるので、
- * 3個の並びを含む形（以前のL字・十字）は少しずつ組み立てられなかった（docs/decisions.md）
+ * L字と十字は縦横の3個並びを含むので、1回の回転では作れないことが多い。
+ * 1ターンに3回まで回せて、「攻撃」を押すまで消えないので、途中で3個並んでも崩れずに組み立てられる（docs/decisions.md）
  */
 export const SHAPES: Record<SpecialShape, readonly Offsets[]> = {
-  // 角は90度ずつ回した4方向（角が上・右・下・左）
-  horns: [HORNS, rotateOffsets(HORNS), rotateOffsets(rotateOffsets(HORNS)), rotateOffsets(rotateOffsets(rotateOffsets(HORNS)))],
-  // ×字：中央と斜め4つ
-  x: [
+  // L字は90度ずつ回した4方向
+  L: [L_SHAPE, rotateOffsets(L_SHAPE), rotateOffsets(rotateOffsets(L_SHAPE)), rotateOffsets(rotateOffsets(rotateOffsets(L_SHAPE)))],
+  // 十字：中央と上下左右
+  cross: [
     [
-      [0, 0],
-      [0, 2],
+      [0, 1],
+      [1, 0],
       [1, 1],
-      [2, 0],
-      [2, 2],
+      [1, 2],
+      [2, 1],
     ],
   ],
   square: [

@@ -6,6 +6,9 @@ export const ORB_COLORS: readonly OrbColor[] = ['red', 'blue', 'green', 'pink'];
 
 /** 通常マッチになる最小の連続数 */
 export const MIN_MATCH = 3;
+/** 1ターンに回せる回数の上限（回し終えたら「攻撃」で確定。仕様書 10章） */
+export const MAX_ROTATIONS_PER_TURN = 3;
+
 /** 連鎖の上限（無限ループ回避の暫定値） */
 export const MAX_CHAIN = 8;
 

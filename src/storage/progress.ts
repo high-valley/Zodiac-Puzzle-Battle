@@ -5,7 +5,9 @@ import { ENEMIES } from '../data/enemies';
 import { PARTY } from '../data/heroes';
 import { partyMaxHp } from '../game/combat';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
-import type { BattleState } from '../game/types';
+import type { BattleState, Rotation } from '../game/types';
+import { isValidIntersection } from '../game/board';
+import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
 
 export interface StageRecord {
   /** いちばん良かった★（0〜3） */
@@ -17,6 +19,8 @@ export interface StageRecord {
 export interface SavedBattle {
   stageId: string;
   state: BattleState;
+  /** このターンにすでに回した分（「攻撃」を押す前に閉じたとき用） */
+  pending: Rotation[];
 }
 
 export interface Progress {
@@ -62,6 +66,19 @@ export function isBattleState(v: unknown): v is BattleState {
   return isInt(st.maxChain, 0) && isInt(st.specials, 0) && isInt(st.damageDealt, 0) && isInt(st.healed, 0);
 }
 
+/** 回した途中の分を読む。おかしければ回していないことにする（盤面は保存した状態のまま） */
+export function parsePending(v: unknown): Rotation[] {
+  if (!Array.isArray(v) || v.length > MAX_ROTATIONS_PER_TURN) return [];
+  const ok = v.every(
+    (r) =>
+      typeof r === 'object' &&
+      r !== null &&
+      isValidIntersection((r as Rotation).row, (r as Rotation).col) &&
+      ((r as Rotation).direction === 'clockwise' || (r as Rotation).direction === 'counterclockwise'),
+  );
+  return ok ? v.map((r: Rotation) => ({ row: r.row, col: r.col, direction: r.direction })) : [];
+}
+
 /** 保存されていた文字列を読む。壊れた部分は捨て、読める部分だけ残す */
 export function parseProgress(raw: string | null): Progress {
   const progress = emptyProgress();
@@ -87,7 +104,7 @@ export function parseProgress(raw: string | null): Progress {
   if (b && typeof b.stageId === 'string' && isUnlocked(progress, b.stageId) && isBattleState(b.state)) {
     const stage = findStage(b.stageId)!;
     if (stage.enemyId === (b.state as BattleState).enemyId) {
-      progress.battle = { stageId: b.stageId, state: b.state as BattleState };
+      progress.battle = { stageId: b.stageId, state: b.state as BattleState, pending: parsePending(b.pending) };
     }
   }
   return progress;

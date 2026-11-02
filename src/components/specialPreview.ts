@@ -5,7 +5,7 @@ import type { HeroId } from '../game/types';
 import { ORB_LABEL } from './board';
 import { shapeLinks } from './shapeLinks';
 
-const SHAPE_LABEL = { horns: '角（つの）の形', x: '×字', square: '2×2' } as const;
+const SHAPE_LABEL = { L: 'L字', cross: '十字', square: '2×2' } as const;
 
 export function specialPreviewSvg(heroId: HeroId): string {
   const { color, shape, name } = HEROES[heroId].special;

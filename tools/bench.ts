@@ -2,11 +2,12 @@
 // 使い方：npm run bench -- [戦闘数]
 import { ENEMIES } from '../src/data/enemies';
 import { ALL_STAGES } from '../src/data/stages';
+import { MAX_ROTATIONS_PER_TURN } from '../src/data/balance';
 import { rotate2x2 } from '../src/game/board';
 import { createBattle, resolveTurn } from '../src/game/combat';
 import { detectHeroSpecial } from '../src/game/specials';
-import type { HeroId } from '../src/game/types';
-import { allActions, chooseAction, type BotLevel } from './bot';
+import type { Board, HeroId } from '../src/game/types';
+import { allRotations, chooseAction, type BotLevel } from './bot';
 
 // Node の型定義を入れずに済むよう、使う分だけ宣言する（このファイルは Node で動かす）
 declare const process: { argv: string[] };
@@ -79,32 +80,50 @@ export function runBench(level: BotLevel, battles: number, enemyId: string): Ben
 }
 
 /**
- * 必殺の形の作りやすさ：skilled で進めた実戦に近い盤面で、1回の回転でそのキャラの必殺の形を作れる割合
+ * 必殺の形の作りやすさ：skilled で進めた実戦に近い盤面で、1ターン（3回まで回す）でそのキャラの必殺の形を作れる割合。
+ * 回数ごと（1回・2回以内・3回以内）に出す。3回まで全部の回し方を調べるので時間がかかる
  */
-export function shapeAvailability(battles: number, turnsPerBattle = 12): { boards: number; rate: Record<HeroId, number> } {
-  const found: Record<HeroId, number> = { aries: 0, sagittarius: 0, virgo: 0 };
+export function shapeAvailability(battles: number, turnsPerBattle = 5): { boards: number; rate: Record<HeroId, number[]> } {
+  const heroes: HeroId[] = ['aries', 'sagittarius', 'virgo'];
+  const found: Record<HeroId, number[]> = { aries: [0, 0, 0], sagittarius: [0, 0, 0], virgo: [0, 0, 0] };
+  const rotations = allRotations();
+  const key = (b: Board) => b.map((row) => row.map((c) => c[0]).join('')).join('');
   let boards = 0;
-  const actions = allActions();
   for (let b = 0; b < battles; b++) {
     let state = createBattle(9_000_011 * (b + 1), 'shadow');
     let botSeed = b;
     for (let t = 0; t < turnsPerBattle && state.status === 'playing'; t++) {
       boards++;
-      for (const hero of Object.keys(found) as HeroId[]) {
-        const ok = actions.some(
-          (a) => a.hero === hero && detectHeroSpecial(rotate2x2(state.board, a.row, a.col, a.direction), hero) !== null,
-        );
-        if (ok) found[hero]++;
+      const first: Partial<Record<HeroId, number>> = {};
+      let layer = [state.board];
+      const seen = new Set([key(state.board)]);
+      for (let depth = 1; depth <= MAX_ROTATIONS_PER_TURN; depth++) {
+        const next: Board[] = [];
+        for (const board of layer) {
+          for (const r of rotations) {
+            const nb = rotate2x2(board, r.row, r.col, r.direction);
+            const k = key(nb);
+            if (seen.has(k)) continue;
+            seen.add(k);
+            next.push(nb);
+          }
+        }
+        for (const hero of heroes) {
+          if (first[hero] === undefined && next.some((nb) => detectHeroSpecial(nb, hero) !== null)) first[hero] = depth;
+        }
+        layer = next;
+      }
+      for (const hero of heroes) {
+        const d = first[hero];
+        if (d !== undefined) for (let k = d - 1; k < MAX_ROTATIONS_PER_TURN; k++) found[hero][k]++;
       }
       const c = chooseAction(state, 'skilled', botSeed);
       botSeed = c.seed;
       state = resolveTurn(state, c.action).state;
     }
   }
-  return {
-    boards,
-    rate: { aries: found.aries / boards, sagittarius: found.sagittarius / boards, virgo: found.virgo / boards },
-  };
+  const rate = (h: HeroId) => found[h].map((n) => n / boards);
+  return { boards, rate: { aries: rate('aries'), sagittarius: rate('sagittarius'), virgo: rate('virgo') } };
 }
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
@@ -122,7 +141,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`必殺（そのキャラを選んだターンのうち） おひつじ ${pct(r.specialRatePerTurn.aries)} いて ${pct(r.specialRatePerTurn.sagittarius)} おとめ ${pct(r.specialRatePerTurn.virgo)}`);
     console.log(`最大連鎖の分布（0〜8） ${r.maxChainHistogram.slice(0, 9).join(' / ')}`);
   }
-  const a = shapeAvailability(400);
-  console.log(`\n== 必殺の形の作りやすさ（実戦に近い盤面 ${a.boards} 面で、1回の回転で作れる割合）`);
-  console.log(`おひつじ座（赤の角） ${pct(a.rate.aries)}／いて座（青の×字） ${pct(a.rate.sagittarius)}／おとめ座（ピンク2×2） ${pct(a.rate.virgo)}`);
+  if (!only) {
+    const a = shapeAvailability(40);
+    const show = (r: number[]) => r.map((x) => pct(x)).join(' → ');
+    console.log(`\n== 必殺の形の作りやすさ（実戦に近い盤面 ${a.boards} 面で、1回 → 2回以内 → 3回以内に作れる割合）`);
+    console.log(`おひつじ座（赤L字） ${show(a.rate.aries)}／いて座（青十字） ${show(a.rate.sagittarius)}／おとめ座（ピンク2×2） ${show(a.rate.virgo)}`);
+  }
 }
