@@ -50,10 +50,13 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
       .join('');
     const members = picked.map((id) => ({ id, level: level(id) }));
     const problem = partyProblem(members);
-    status.classList.toggle('bad', problem !== null);
+    const noAttacker = problem === null && members.every((m) => HEROES[m.id].role === 'healer');
+    status.classList.toggle('bad', problem !== null || noAttacker);
     status.textContent =
       problem === null
-        ? `パーティーHP ${partyMaxHp(members)}　この3人で出撃します`
+        ? noAttacker
+          ? `パーティーHP ${partyMaxHp(members)}　攻撃キャラがいないので、敵にダメージを与えられません`
+          : `パーティーHP ${partyMaxHp(members)}　この3人で出撃します`
         : picked.length < PARTY_SIZE
           ? `あと${PARTY_SIZE - picked.length}人選んでください（今の編成はまだ保存されていません）`
           : `${PARTY_PROBLEM_TEXT[problem]}（今の編成はまだ保存されていません）`;

@@ -13,8 +13,8 @@ import { createBattle, enemyOf, resolveTurn } from '../game/combat';
 import { findMatches, matchedMask, maskToCells } from '../game/matching';
 import { detectHeroSpecial } from '../game/specials';
 import type { BattleEvent, BattleState, BattleStats, Direction, HeroId, Pos, Rotation } from '../game/types';
-import { heroGrowth, partyMembers, recordResult } from '../storage/progress';
-import { battleExp, gainExp } from '../game/growth';
+import { applyBattleExp, partyMembers, recordResult, type GrowthChange } from '../storage/progress';
+import { battleExp } from '../game/growth';
 
 /** バトルが終わったときの結果（リザルト画面に渡す） */
 export interface BattleOutcome {
@@ -31,7 +31,7 @@ export interface BattleOutcome {
   /** 出撃した3人それぞれがもらった経験値 */
   exp: number;
   /** 3人それぞれのレベル（前と後） */
-  growth: { id: HeroId; before: number; after: number }[];
+  growth: GrowthChange[];
 }
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -306,16 +306,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       growth: [],
     };
     // 経験値：出撃した3人それぞれに入る（端末に保存。課金を入れる段階でサーバーへ移す）
-    let next = recordResult(ctx.progress, stage.id, stars, victory ? turns : null);
-    const heroes = { ...next.heroes };
-    for (const m of state.party) {
-      const before = heroGrowth(next, m.id);
-      const after = gainExp(before, outcome.exp);
-      heroes[m.id] = { level: after.level, exp: after.exp };
-      outcome.growth.push({ id: m.id, before: before.level, after: after.level });
-    }
-    next = { ...next, heroes };
-    ctx.setProgress(next);
+    const gained = applyBattleExp(recordResult(ctx.progress, stage.id, stars, victory ? turns : null), state.party, outcome.exp);
+    outcome.growth = gained.growth;
+    ctx.setProgress(gained.progress);
     ctx.lastOutcome = outcome;
   }
 

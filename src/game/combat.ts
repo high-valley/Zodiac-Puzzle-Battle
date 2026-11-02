@@ -3,7 +3,7 @@
 import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, ORB_COLORS, chainMultiplier } from '../data/balance';
 import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
 import { DEFAULT_PARTY, HEROES } from '../data/heroes';
-import { levelMultiplier } from '../data/growth';
+import { levelPercent } from '../data/growth';
 import { memberLevel, partyMaxHp, partyProblem, scaled } from './party';
 import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
 import { findMatches, matchedMask, maskToCells } from './matching';
@@ -60,7 +60,7 @@ export function normalEffect(
   let amount = 0;
   for (const color of ORB_COLORS) {
     const action = hero.actions[color];
-    if (action) amount += action.coef * counts[color] * chainMultiplier(chain) * levelMultiplier(level);
+    if (action) amount += action.coef * counts[color] * chainMultiplier(chain) * (levelPercent(level) / 100);
   }
   const rounded = Math.round(amount);
   return hero.role === 'healer' ? { damage: 0, heal: rounded } : { damage: rounded, heal: 0 };

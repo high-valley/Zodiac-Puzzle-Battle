@@ -73,7 +73,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
         <span class="lv-now">Lv.<b>${g.level}</b><small> / ${MAX_LEVEL}</small></span>
         <span class="lv-next">${maxed ? '最大レベル' : `次のレベルまで ${need - g.exp}`}</span>
       </div>
-      <div class="bar exp-bar" role="meter" aria-label="経験値" aria-valuemin="0" aria-valuemax="${need || 1}" aria-valuenow="${maxed ? need : g.exp}">
+      <div class="bar exp-bar" role="meter" aria-label="経験値" aria-valuemin="0" aria-valuemax="${maxed ? 1 : need}" aria-valuenow="${maxed ? 1 : g.exp}">
         <span class="fill" style="--ratio:${maxed ? 1 : g.exp / need}"></span>
       </div>
       <dl class="stat-list">

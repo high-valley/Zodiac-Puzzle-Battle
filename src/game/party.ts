@@ -1,5 +1,5 @@
 // 編成のルールとレベルによる強さ（純粋な関数）
-import { MAX_LEVEL, levelMultiplier } from '../data/growth';
+import { MAX_LEVEL, levelPercent } from '../data/growth';
 import { HEROES, PARTY_SIZE, isHeroId } from '../data/heroes';
 import type { HeroId, PartyMember } from './types';
 
@@ -8,6 +8,7 @@ export type PartyProblem = 'size' | 'duplicate' | 'unknown' | 'level' | 'noHeale
 /** 編成のルール：3人、同じキャラは1人まで、回復役が1人以上（仕様書 12.5）。問題がなければ null */
 export function partyProblem(party: readonly PartyMember[]): PartyProblem | null {
   if (party.length !== PARTY_SIZE) return 'size';
+  if (party.some((m) => typeof m !== 'object' || m === null)) return 'unknown';
   if (party.some((m) => !isHeroId(m.id))) return 'unknown';
   if (new Set(party.map((m) => m.id)).size !== party.length) return 'duplicate';
   if (party.some((m) => !Number.isInteger(m.level) || m.level < 1 || m.level > MAX_LEVEL)) return 'level';
@@ -23,9 +24,9 @@ export const PARTY_PROBLEM_TEXT: Record<PartyProblem, string> = {
   noHealer: '回復役（ピンクで回復）を1人以上入れてください',
 };
 
-/** レベルをかけた値（小数は四捨五入） */
+/** レベルをかけた値（小数は四捨五入。.5 がそろって切り上がるよう整数で計算する） */
 export function scaled(base: number, level: number): number {
-  return Math.round(base * levelMultiplier(level));
+  return Math.round((base * levelPercent(level)) / 100);
 }
 
 /** そのキャラのパーティー最大HPへの寄与（レベル込み） */

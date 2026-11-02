@@ -4,10 +4,10 @@ import { ALL_HEROES, DEFAULT_PARTY, HEROES } from '../src/data/heroes';
 import { ALL_STAGES } from '../src/data/stages';
 import { createBattle, normalEffect, resolveTurn } from '../src/game/combat';
 import { battleExp, gainExp } from '../src/game/growth';
-import { heroMaxHp, partyMaxHp, partyProblem } from '../src/game/party';
+import { heroMaxHp, partyMaxHp, partyProblem, scaled } from '../src/game/party';
 import { SHAPES } from '../src/game/specials';
 import type { HeroId, PartyMember } from '../src/game/types';
-import { emptyProgress, parseProgress, partyMembers } from '../src/storage/progress';
+import { applyBattleExp, emptyProgress, parseProgress, partyMembers } from '../src/storage/progress';
 import { stateWith } from './helpers';
 
 const m = (id: HeroId, level = 1): PartyMember => ({ id, level });
@@ -80,7 +80,15 @@ describe('レベルによる強さ', () => {
   it('レベル1で倍率1、1上がるごとに5%', () => {
     expect(levelMultiplier(1)).toBe(1);
     expect(levelMultiplier(11)).toBe(1.5);
-    expect(levelMultiplier(MAX_LEVEL)).toBe(1 + 0.05 * (MAX_LEVEL - 1));
+    expect(MAX_LEVEL).toBe(20);
+    expect(levelMultiplier(MAX_LEVEL)).toBe(1.95);
+  });
+
+  it('ちょうど .5 になる値はどのレベルでも切り上げる（小数の誤差で切り捨てない）', () => {
+    expect(scaled(90, 2)).toBe(95); // 94.5
+    expect(scaled(90, 4)).toBe(104); // 103.5
+    expect(scaled(110, 4)).toBe(127); // 126.5
+    expect(heroMaxHp('gemini', 4)).toBe(104);
   });
 
   it('パーティー最大HPは3人のレベル込みの寄与値の合計', () => {
@@ -190,5 +198,52 @@ describe('12星座の性能の決まり（仕様書 12.3）', () => {
 
   it('12体の必殺の形はすべて違う', () => {
     expect(new Set(ALL_HEROES.map((id) => HEROES[id].special.shape)).size).toBe(12);
+  });
+});
+
+describe('途中のバトルの編成', () => {
+  const saved = (state: object, extra: object = {}) =>
+    parseProgress(JSON.stringify({ ...emptyProgress(), ...extra, battle: { stageId: '1-1', state, pending: [] } })).battle;
+  const base = () => createBattle(5, 'stardust', [m('leo', 7), m('scorpio'), m('pisces', 3)]);
+
+  it('始めたときの編成とレベルのまま読み込める（今の編成やレベルが違っても）', () => {
+    const state = { ...base(), selectedHero: 'scorpio' };
+    const b = saved(state, { party: ['aries', 'sagittarius', 'virgo'], heroes: { leo: { level: 1, exp: 0 } } });
+    expect(b?.state.party).toEqual([m('leo', 7), m('scorpio'), m('pisces', 3)]);
+    expect(b?.state.partyMaxHp).toBe(partyMaxHp([m('leo', 7), m('scorpio'), m('pisces', 3)]));
+  });
+
+  it('回復役がいない・選んでいるキャラが編成にいない・壊れた編成は捨てる', () => {
+    const s = base();
+    expect(saved({ ...s, party: [m('leo'), m('scorpio'), m('taurus')], partyMaxHp: 300, partyHp: 300 })).toBeNull();
+    expect(saved({ ...s, selectedHero: 'aries' })).toBeNull();
+    expect(saved({ ...s, party: [null, m('scorpio'), m('pisces')] })).toBeNull();
+    expect(saved({ ...s, party: 'leo' })).toBeNull();
+  });
+
+  it('M3 までの party の無い途中バトルは、最初の編成（レベル1）を補って続ける', () => {
+    const { party: _drop, ...old } = createBattle(9, 'stardust');
+    const b = saved(old);
+    expect(b?.state.party).toEqual(DEFAULT_PARTY.map((x) => ({ ...x })));
+    // 最初の編成にいないキャラを選んでいたものは捨てる
+    expect(saved({ ...old, selectedHero: 'leo' })).toBeNull();
+  });
+});
+
+describe('バトルの経験値の記録', () => {
+  it('始めたときの3人に1回分だけ入り、今の編成の他のキャラには入らない', () => {
+    const progress = { ...emptyProgress(), party: ['aries', 'sagittarius', 'virgo'] as HeroId[], heroes: { leo: { level: 1, exp: 35 } } };
+    const { progress: next, growth } = applyBattleExp(progress, [m('leo'), m('scorpio'), m('cancer')], 30);
+    expect(next.heroes.leo).toEqual({ level: 2, exp: 25 });
+    expect(next.heroes.scorpio).toEqual({ level: 1, exp: 30 });
+    expect(next.heroes.cancer).toEqual({ level: 1, exp: 30 });
+    expect(next.heroes.aries).toBeFalsy();
+    expect(growth).toEqual([
+      { id: 'leo', before: 1, after: 2 },
+      { id: 'scorpio', before: 1, after: 1 },
+      { id: 'cancer', before: 1, after: 1 },
+    ]);
+    // 元の進行は書き換えない
+    expect(progress.heroes).toEqual({ leo: { level: 1, exp: 35 } });
   });
 });

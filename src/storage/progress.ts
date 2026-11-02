@@ -4,7 +4,7 @@ import { BOARD_SIZE, ORB_COLORS } from '../data/balance';
 import { ENEMIES } from '../data/enemies';
 import { MAX_LEVEL, expToNext } from '../data/growth';
 import { DEFAULT_PARTY, isHeroId } from '../data/heroes';
-import { NEW_HERO, type HeroGrowth } from '../game/growth';
+import { NEW_HERO, gainExp, type HeroGrowth } from '../game/growth';
 import { partyMaxHp, partyProblem } from '../game/party';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
 import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
@@ -136,6 +136,10 @@ export function parseProgress(raw: string | null): Progress {
   }
   // 途中のバトルは、まだ開いていないステージのものなら捨てる
   const b = d.battle as Record<string, unknown> | null | undefined;
+  // M3 までの途中バトルには party が無い。そのころは最初の編成（レベル1）だけだったので補って続ける
+  if (b && typeof b.state === 'object' && b.state !== null && !('party' in b.state)) {
+    b.state = { ...(b.state as object), party: DEFAULT_PARTY.map((m) => ({ ...m })) };
+  }
   if (b && typeof b.stageId === 'string' && isUnlocked(progress, b.stageId) && isBattleState(b.state)) {
     const stage = findStage(b.stageId)!;
     if (stage.enemyId === (b.state as BattleState).enemyId) {
@@ -143,6 +147,33 @@ export function parseProgress(raw: string | null): Progress {
     }
   }
   return progress;
+}
+
+/** レベルの変化（リザルトの表示用） */
+export interface GrowthChange {
+  id: HeroId;
+  before: number;
+  after: number;
+}
+
+/**
+ * 出撃した3人（バトルを始めたときの編成。今の編成ではない）それぞれに経験値を足した新しい進行を返す。
+ * 端末に保存する。報酬をサーバーで確定させる段階で、この処理はサーバーへ移す（仕様書 12.4）
+ */
+export function applyBattleExp(
+  progress: Progress,
+  party: readonly PartyMember[],
+  exp: number,
+): { progress: Progress; growth: GrowthChange[] } {
+  const heroes = { ...progress.heroes };
+  const growth: GrowthChange[] = [];
+  for (const m of party) {
+    const before = heroGrowth(progress, m.id);
+    const after = gainExp(before, exp);
+    heroes[m.id] = { level: after.level, exp: after.exp };
+    growth.push({ id: m.id, before: before.level, after: after.level });
+  }
+  return { progress: { ...progress, heroes }, growth };
 }
 
 /** 勝ち負けを記録した新しい進行を返す（★とターン数は良いほうを残す）。途中のバトルは消す */

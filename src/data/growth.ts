@@ -2,9 +2,17 @@
 
 export const MAX_LEVEL = 20;
 
+/** レベルが1上がるごとに増える強さ（レベル1の何%か） */
+export const LEVEL_STEP_PERCENT = 5;
+
+/** レベルによる強さ（レベル1を100とした整数）。小数の誤差を出さないよう、丸める計算はこちらを使う */
+export function levelPercent(level: number): number {
+  return 100 + LEVEL_STEP_PERCENT * (level - 1);
+}
+
 /** レベルによる強さの倍率：HP・攻撃・回復・必殺の威力にかける。レベル1で1 */
 export function levelMultiplier(level: number): number {
-  return 1 + 0.05 * (level - 1);
+  return levelPercent(level) / 100;
 }
 
 /** そのレベルから次のレベルに上がるのに要る経験値 */

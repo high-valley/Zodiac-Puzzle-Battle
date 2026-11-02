@@ -80,7 +80,7 @@ export function mountApp(root: HTMLElement): void {
       });
     },
     openTutorial(background) {
-      openTutorial(root, background, () => ctx.setSettings({ ...ctx.settings, tutorialSeen: true }));
+      openTutorial(root, background, () => ctx.setSettings({ ...ctx.settings, tutorialSeen: true }), ctx.progress.party);
     },
   };
 
