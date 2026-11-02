@@ -71,6 +71,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     throw new RangeError(`回転は1〜${MAX_ROTATIONS_PER_TURN}回です`);
   }
   for (const r of rotations) {
+    if (typeof r !== 'object' || r === null) throw new RangeError('回転の指定が不正です');
     if (!isValidIntersection(r.row, r.col)) {
       throw new RangeError(`交点が範囲外です: (${r.row}, ${r.col})`);
     }

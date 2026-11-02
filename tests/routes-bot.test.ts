@@ -42,11 +42,13 @@ describe('計測用の自動プレイヤー', () => {
   });
 
   it('補充で落ちてくるオーブ（seed の先）を見ない：盤面が同じなら rngSeed が違っても同じ手を選ぶ', () => {
-    for (const enemy of ['stardust', 'shadow']) {
-      const base = createBattle(21, enemy);
-      const a = chooseAction(base, 'skilled', 5).action;
-      const b = chooseAction({ ...base, rngSeed: (base.rngSeed + 12345) >>> 0 }, 'skilled', 5).action;
-      expect(b).toEqual(a);
+    for (const level of ['skilled', 'expert'] as const) {
+      for (const enemy of ['stardust', 'shadow']) {
+        const base = createBattle(21, enemy);
+        const a = chooseAction(base, level, 5).action;
+        const b = chooseAction({ ...base, rngSeed: (base.rngSeed + 12345) >>> 0 }, level, 5).action;
+        expect(b).toEqual(a);
+      }
     }
   });
 

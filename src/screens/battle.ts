@@ -173,8 +173,10 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
           ? `あと${left}回まわせる`
           : '「攻撃」で確定';
     const attack = $<HTMLButtonElement>('.attack-btn');
-    attack.disabled = busy || pending.length === 0;
-    attack.classList.toggle('ready', pending.length > 0 && !busy);
+    // 回している最中（アニメーション中）は押せない（押しても受け付けないため）
+    const canAttack = !busy && !rotating && pending.length > 0;
+    attack.disabled = !canAttack;
+    attack.classList.toggle('ready', canAttack);
     battleEl.classList.toggle('rotations-used', left === 0);
   }
 
@@ -325,6 +327,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       if (!disposed) {
         board.setLocked(busy);
         renderMarks();
+        renderTurnBar();
       }
     }
   }
@@ -332,15 +335,16 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   /** 「攻撃」：回し終えた盤面で、必殺と消去と敵の行動を進める */
   async function attack() {
     if (busy || rotating || disposed || state.status !== 'playing' || pending.length === 0) return;
+    const rotations = pending;
+    pending = [];
     setBusy(true);
     try {
-      const turn = resolveTurn(state, { hero, rotations: pending });
+      const turn = resolveTurn(state, { hero, rotations });
       const hp = { enemy: state.enemyHp, party: state.partyHp };
       const special = turnHasSpecial(turn.events);
       // 状態は先に進めて保存しておく（勝敗が決まったら、ここで記録まで済ませる）。
       // 演出の途中で何か失敗しても、表示は最後に state から描き直す
       state = turn.state;
-      pending = [];
       if (state.status === 'playing') ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state, pending } });
       else recordOutcome();
       board.mark([], []);
@@ -414,6 +418,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     b.addEventListener('click', () => {
       if (busy) return;
       hero = b.dataset.hero as HeroId;
+      // 選んだキャラも保存する（再読み込みしても、選んだキャラと金の輪がそのまま戻るように）
+      if (state.status === 'playing') {
+        state = { ...state, selectedHero: hero };
+        ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state, pending } });
+      }
       renderHero();
       renderMarks();
       sound.play({ name: 'select' });

@@ -3,8 +3,11 @@ import { shapeLinks } from '../src/components/shapeLinks';
 import { SHAPES, detectHeroSpecial } from '../src/game/specials';
 import { QUIET_ROWS, parseBoard } from './helpers';
 
-/** QUIET_ROWS に、指定した位置だけ色を置いた盤面 */
-function boardWith(cells: [number, number][], ch: string, base = QUIET_ROWS) {
+// 形の判定だけを見るときの背景（調べる色を含まない。通常マッチは判定に関係しない）
+const GREEN = ['GGGGG', 'GGGGG', 'GGGGG', 'GGGGG', 'GGGGG'];
+
+/** 背景に、指定した位置だけ色を置いた盤面 */
+function boardWith(cells: [number, number][], ch: string, base = GREEN) {
   const rows = base.map((line) => line.split(''));
   for (const [r, c] of cells) rows[r][c] = ch;
   return parseBoard(rows.map((line) => line.join('')));
@@ -36,10 +39,26 @@ describe('detectHeroSpecial', () => {
     }
   });
 
-  it('おひつじ座：L字の1個が欠ける・別の色なら出ない', () => {
-    const cells = shift(SHAPES.L[0], 1, 1);
-    expect(detectHeroSpecial(boardWith(cells.slice(0, 4), 'R'), 'aries')).toBeNull();
-    expect(detectHeroSpecial(boardWith(cells, 'B'), 'aries')).toBeNull();
+  it('おひつじ座：L字の5個のどれが欠けても、別の色でも出ない（4方向とも）', () => {
+    for (const o of SHAPES.L) {
+      const cells = shift(o, 1, 1);
+      for (let i = 0; i < cells.length; i++) {
+        expect(detectHeroSpecial(boardWith(cells.filter((_, j) => j !== i), 'R'), 'aries')).toBeNull();
+      }
+      expect(detectHeroSpecial(boardWith(cells, 'B'), 'aries')).toBeNull();
+    }
+  });
+
+  it('L字の4方向は、90度ずつ回したすべて違う配置', () => {
+    const asText = SHAPES.L.map((o) =>
+      [0, 1, 2].map((r) => [0, 1, 2].map((c) => (o.some(([a, b]) => a === r && b === c) ? '●' : '・')).join('')),
+    );
+    expect(asText).toEqual([
+      ['●・・', '●・・', '●●●'],
+      ['●●●', '●・・', '●・・'],
+      ['●●●', '・・●', '・・●'],
+      ['・・●', '・・●', '●●●'],
+    ]);
   });
 
   it('いて座：青十字を見つける（端に寄せても）', () => {
@@ -49,6 +68,11 @@ describe('detectHeroSpecial', () => {
       expect(result!.shape).toBe('cross');
     }
     expect(detectHeroSpecial(boardWith(shift(SHAPES.cross[0], 0, 0), 'R'), 'sagittarius')).toBeNull();
+    // 5個のどれが欠けても出ない（中央も含む）
+    const cells = shift(SHAPES.cross[0], 1, 1);
+    for (let i = 0; i < cells.length; i++) {
+      expect(detectHeroSpecial(boardWith(cells.filter((_, j) => j !== i), 'B'), 'sagittarius')).toBeNull();
+    }
   });
 
   it('おとめ座：ピンク2×2を16か所どこでも見つける', () => {

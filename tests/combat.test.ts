@@ -72,7 +72,7 @@ describe('resolveTurn', () => {
     }
   });
 
-  it('必殺は回転直後に判定し、そのあと通常マッチを消す（必殺に使った赤も消える）', () => {
+  it('必殺は回し終えた盤面で判定し、そのあと通常マッチを消す（必殺に使った赤も消える）', () => {
     const state = stateWith(base, RED_L);
     const { events } = resolveTurn(state, quietMove('aries'));
     const types = events.map((e) => e.type);
@@ -84,12 +84,15 @@ describe('resolveTurn', () => {
     expect(firstClear && firstClear.type === 'clear' && firstClear.counts.red).toBe(5);
   });
 
-  it('必殺は1ターンに1回まで', () => {
+  it('必殺は1ターンに1回まで（ダメージは必殺1回分＋通常効果）', () => {
     // 赤L字が2つ
     const twoL = ['RRRPB', 'RPGBG', 'RBRRR', 'GPRBR', 'BBGPR'];
     // 交点(3,0)の回転はどちらのL字も崩さない
-    const { events } = resolveTurn(stateWith(base, twoL), { hero: 'aries', rotations: [{ row: 3, col: 0, direction: 'clockwise' }] });
+    const state = stateWith(base, twoL);
+    const { state: next, events } = resolveTurn(state, { hero: 'aries', rotations: [{ row: 3, col: 0, direction: 'clockwise' }] });
     expect(events.filter((e) => e.type === 'special')).toHaveLength(1);
+    const normal = events.reduce((sum, e) => (e.type === 'clear' ? sum + e.damage : sum), 0);
+    expect(state.enemyHp - next.enemyHp).toBe(Math.min(state.enemyHp, HEROES.aries.special.power + normal));
   });
 
   it('ダメージ合計は 必殺 ＋ 各連鎖の通常効果 で、敵HPに反映される', () => {
@@ -257,14 +260,29 @@ describe('1ターンに3回まで回して「攻撃」で確定', () => {
     if (special?.type !== 'special') throw new Error('必殺が出ない');
     expect(special.special.shape).toBe('cross');
     expect(special.damage).toBe(HEROES.sagittarius.special.power);
-    // 十字は縦3＋横3の通常マッチでもあるので、1段目に一緒に消える（連鎖1。隣の青で4個並ぶと青は5個より多い）
+    // 十字は縦3＋横3の通常マッチでもあるので、1段目に一緒に消える（連鎖1。この盤面では隣の青で横が4個並び、青は6個）
     const first = events.find((e) => e.type === 'clear');
     if (first?.type !== 'clear') throw new Error('clear がない');
     expect(first.chain).toBe(1);
-    expect(first.counts.blue).toBeGreaterThan(4);
+    expect(first.counts.blue).toBe(6);
+    expect(first.cells).toHaveLength(6);
     for (const p of special.special.cells) {
       expect(first.cells.some((c) => c.row === p.row && c.col === p.col)).toBeTruthy();
     }
+  });
+
+  it('回す前や途中にあった必殺の形も、最後の回転で崩れれば出ない', () => {
+    // 回す前から赤L字がある。1回目は関係ない所を回し（形は残る）、2回目でL字の角を崩す
+    const state = stateWith(base, RED_L);
+    expect(detectHeroSpecial(parseBoard(RED_L), 'aries')).not.toBeNull();
+    const { events } = resolveTurn(state, {
+      hero: 'aries',
+      rotations: [
+        { row: 3, col: 3, direction: 'clockwise' },
+        { row: 0, col: 0, direction: 'clockwise' },
+      ],
+    });
+    expect(events.some((e) => e.type === 'special')).toBeFalsy();
   });
 
   it('回転の出来事は回した回数だけ並び、それぞれの盤面は回したあとのもの', () => {
@@ -332,9 +350,15 @@ describe('再現性', () => {
     const heroes: HeroId[] = ['aries', 'sagittarius', 'virgo'];
     const log: string[] = [];
     for (let t = 0; t < 60 && state.status === 'playing'; t++) {
+      // 1〜3回の回転をまぜる
+      const count = 1 + (t % 3);
       const action: TurnAction = {
         hero: heroes[t % 3],
-        rotations: [{ row: (t * 7) % 4, col: (t * 3) % 4, direction: t % 2 === 0 ? 'clockwise' : 'counterclockwise' }],
+        rotations: [...Array(count)].map((_, k) => ({
+          row: (t * 7 + k * 3) % 4,
+          col: (t * 3 + k) % 4,
+          direction: (t + k) % 2 === 0 ? ('clockwise' as const) : ('counterclockwise' as const),
+        })),
       };
       const result = resolveTurn(state, action);
       log.push(JSON.stringify(result.events));
