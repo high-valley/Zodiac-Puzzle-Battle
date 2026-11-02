@@ -1,9 +1,10 @@
 // 計測用の自動プレイヤー（ゲームには入れない）。
 // 見えている盤面だけで判断する：回したあとの盤面は見るが、補充で何が落ちてくるか（seed の先）は見ない
 import { MAX_ROTATIONS_PER_TURN } from '../src/data/balance';
-import { HEROES, PARTY } from '../src/data/heroes';
+import { HEROES } from '../src/data/heroes';
 import { MAX_INTERSECTION, rotate2x2 } from '../src/game/board';
 import { enemyOf, normalEffect } from '../src/game/combat';
+import { memberLevel, scaled } from '../src/game/party';
 import { findMatches, matchedMask, maskToCells } from '../src/game/matching';
 import { nextInt } from '../src/game/rng';
 import { SHAPES, detectHeroSpecial } from '../src/game/specials';
@@ -37,13 +38,13 @@ export function nextEnemyAttack(state: BattleState): number {
 }
 
 /** 回し終えた盤面で「攻撃」したときの効果の見積もり（連鎖は数えない） */
-export function estimate(board: Board, hero: HeroId): { damage: number; heal: number; special: boolean } {
+export function estimate(board: Board, hero: HeroId, level = 1): { damage: number; heal: number; special: boolean } {
   const def = HEROES[hero];
   const special = detectHeroSpecial(board, hero) !== null;
   const counts: Record<OrbColor, number> = { red: 0, blue: 0, green: 0, pink: 0 };
   for (const p of maskToCells(matchedMask(findMatches(board)))) counts[board[p.row][p.col]]++;
-  const effect = normalEffect(hero, counts, 1);
-  const sp = special ? def.special.power : 0;
+  const effect = normalEffect(hero, counts, 1, level);
+  const sp = special ? scaled(def.special.power, level) : 0;
   return {
     damage: effect.damage + (def.role === 'attacker' ? sp : 0),
     heal: effect.heal + (def.role === 'healer' ? sp : 0),
@@ -78,8 +79,9 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
     return r.value;
   };
 
+  const party = state.party.map((m) => m.id);
   if (level === 'random') {
-    const hero = PARTY[rand(PARTY.length)];
+    const hero = party[rand(party.length)];
     const count = 1 + rand(MAX_ROTATIONS_PER_TURN);
     const rotations = [...Array(count)].map(() => ROTATIONS[rand(ROTATIONS.length)]);
     return { action: { hero, rotations }, seed: s };
@@ -91,7 +93,7 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
   const afterHit = (state.partyHp - attack) / state.partyMaxHp;
   const healWeight = afterHit < 0.25 ? 3 : afterHit < 0.5 ? 1.5 : 0.6;
   const value = (board: Board, hero: HeroId) => {
-    const e = estimate(board, hero);
+    const e = estimate(board, hero, memberLevel(state.party, hero));
     const finishing = e.damage >= state.enemyHp ? 10_000 : 0;
     return finishing + e.damage + Math.min(e.heal, missing) * healWeight;
   };
@@ -103,7 +105,7 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
   };
 
   let best: { action: TurnAction; score: number } | null = null;
-  for (const hero of PARTY) {
+  for (const hero of party) {
     let plan: { rotations: Rotation[]; board: Board };
     if (level === 'skilled') {
       plan = { rotations: [], board: state.board };

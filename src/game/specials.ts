@@ -11,41 +11,72 @@ function rotateOffsets(offsets: Offsets): Offsets {
   return offsets.map(([r, c]) => [c, height - r] as const);
 }
 
-// L字：縦3＋横3で角の1個を共有する5個（角が左下の向き）
-const L_SHAPE: Offsets = [
-  [0, 0],
-  [1, 0],
-  [2, 0],
-  [2, 1],
-  [2, 2],
-];
+/** 図（● が形のマス）から配置を作る */
+function fromRows(rows: readonly string[]): Offsets {
+  return rows.flatMap((line, r) => [...line].flatMap((ch, c) => (ch === '●' ? [[r, c] as const] : [])));
+}
+
+/** 90度ずつ回した配置のうち、違うものだけ（回しても同じ形は1つにまとめる） */
+function orientations(base: Offsets): Offsets[] {
+  const key = (o: Offsets) =>
+    [...o]
+      .map(([r, c]) => `${r},${c}`)
+      .sort()
+      .join(' ');
+  const out: Offsets[] = [];
+  let cur = base;
+  for (let i = 0; i < 4; i++) {
+    if (!out.some((o) => key(o) === key(cur))) out.push(cur);
+    cur = rotateOffsets(cur);
+  }
+  return out;
+}
 
 /**
- * 形ごとの配置（[行, 列] の相対位置）。
- * L字と十字は縦横の3個並びを含むので、1回の回転では作れないことが多い。
- * 1ターンに3回まで回せて、「攻撃」を押すまで消えないので、途中で3個並んでも崩れずに組み立てられる（docs/decisions.md）
+ * 形ごとの配置（[行, 列] の相対位置）。どの形も、90度ずつ回した向きすべてが有効。
+ * 1ターンに3回まで回せて、「攻撃」を押すまで消えないので、縦横の3個並びを含む形（L字・十字など）も組み立てられる。
+ * 作りにくい形ほど必殺の威力を大きくする（仕様書 12.3、作りやすさは npm run bench）
  */
 export const SHAPES: Record<SpecialShape, readonly Offsets[]> = {
-  // L字は90度ずつ回した4方向
-  L: [L_SHAPE, rotateOffsets(L_SHAPE), rotateOffsets(rotateOffsets(L_SHAPE)), rotateOffsets(rotateOffsets(rotateOffsets(L_SHAPE)))],
+  // L字：縦3＋横3で角を共有する5個
+  L: orientations(fromRows(['●・・', '●・・', '●●●'])),
   // 十字：中央と上下左右
-  cross: [
-    [
-      [0, 1],
-      [1, 0],
-      [1, 1],
-      [1, 2],
-      [2, 1],
-    ],
-  ],
-  square: [
-    [
-      [0, 0],
-      [0, 1],
-      [1, 0],
-      [1, 1],
-    ],
-  ],
+  cross: orientations(fromRows(['・●・', '●●●', '・●・'])),
+  square: orientations(fromRows(['●●', '●●'])),
+  // T字（牛の頭）
+  T: orientations(fromRows(['●●●', '・●・', '・●・'])),
+  // 小さなT（天秤）
+  smallT: orientations(fromRows(['・●・', '●●●'])),
+  // 二本柱（ふたご）
+  pillars: orientations(fromRows(['●・●', '●・●'])),
+  // 一直線5（獅子の咆哮）
+  line5: orientations(fromRows(['●●●●●'])),
+  // 一直線4（水の流れ）
+  line4: orientations(fromRows(['●●●●'])),
+  // Z字（さそりの尾）
+  Z: orientations(fromRows(['●●・', '・●・', '・●●'])),
+  // 角（やぎ）
+  horns: orientations(fromRows(['●・●', '●・●', '・●・'])),
+  // S字（反対を向いて泳ぐ二匹の魚）
+  S: orientations(fromRows(['・●●', '●●・'])),
+  // 四隅（かにのはさみと脚）
+  corners: orientations(fromRows(['●・●', '・・・', '●・●'])),
+};
+
+/** 形の名前（表示用） */
+export const SHAPE_LABEL: Record<SpecialShape, string> = {
+  L: 'L字',
+  cross: '十字',
+  square: '2×2',
+  T: 'T字',
+  smallT: '小さなT字',
+  pillars: '二本柱',
+  line5: '一直線5個',
+  line4: '一直線4個',
+  Z: 'Z字',
+  horns: '角（つの）',
+  S: 'S字',
+  corners: '四隅',
 };
 
 /** 選んだキャラの必殺の形が盤面にあれば、最初に見つかった1つを返す（向きの順に、それぞれ左上から探す） */

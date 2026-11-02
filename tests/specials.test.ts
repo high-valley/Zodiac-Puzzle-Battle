@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { shapeLinks } from '../src/components/shapeLinks';
 import { SHAPES, detectHeroSpecial } from '../src/game/specials';
+import { ALL_HEROES, HEROES } from '../src/data/heroes';
 import { QUIET_ROWS, parseBoard } from './helpers';
 
 // 形の判定だけを見るときの背景（調べる色を含まない。通常マッチは判定に関係しない）
@@ -117,4 +118,68 @@ describe('形を結ぶ線（画面の演出用）', () => {
     expect(asText(shapeLinks(pos(SHAPES.L[0])))).toEqual(['00-10', '10-20', '20-21', '21-22']);
     for (const o of SHAPES.L) expect(shapeLinks(pos(o))).toHaveLength(4);
   });
+});
+
+describe('12星座の形（仕様書 9.2 の図と同じか）', () => {
+  // 仕様書 9.2 の図を書き写したもの（実装の定義とは別に持つ）
+  const SPEC: Record<string, { rows: string[]; orientations: number }> = {
+    aries: { rows: ['●・・', '●・・', '●●●'], orientations: 4 },
+    taurus: { rows: ['●●●', '・●・', '・●・'], orientations: 4 },
+    gemini: { rows: ['●・●', '●・●'], orientations: 2 },
+    cancer: { rows: ['●・●', '・・・', '●・●'], orientations: 1 },
+    leo: { rows: ['●●●●●'], orientations: 2 },
+    virgo: { rows: ['●●', '●●'], orientations: 1 },
+    libra: { rows: ['・●・', '●●●'], orientations: 4 },
+    scorpio: { rows: ['●●・', '・●・', '・●●'], orientations: 2 },
+    sagittarius: { rows: ['・●・', '●●●', '・●・'], orientations: 1 },
+    capricorn: { rows: ['●・●', '●・●', '・●・'], orientations: 4 },
+    aquarius: { rows: ['●●●●'], orientations: 2 },
+    pisces: { rows: ['・●●', '●●・'], orientations: 2 },
+  };
+  const CHAR = { red: 'R', blue: 'B', green: 'G', pink: 'P' } as const;
+  /** 左上をそろえて並べ替えた文字列（向きを比べるため） */
+  const norm = (cells: readonly (readonly [number, number])[]) => {
+    const r0 = Math.min(...cells.map(([r]) => r));
+    const c0 = Math.min(...cells.map(([, c]) => c));
+    return cells.map(([r, c]) => `${r - r0},${c - c0}`).sort().join(' ');
+  };
+  const cellsOf = (rows: string[]) => rows.flatMap((l, r) => [...l].flatMap((ch, c) => (ch === '●' ? [[r, c] as [number, number]] : [])));
+  const turn = (cells: [number, number][]) => cells.map(([r, c]) => [c, -r] as [number, number]);
+
+  for (const id of ALL_HEROES) {
+    const h = HEROES[id];
+    it(`${h.name}：${h.special.color}の形が図どおりで、どの向き・どの位置でも見つかり、1個欠けると出ない`, () => {
+      const spec = SPEC[id];
+      // 図を90度ずつ回した向き（重なりを除く）が実装の向きと同じ
+      const expected = new Set<string>();
+      let cur = cellsOf(spec.rows);
+      for (let i = 0; i < 4; i++) {
+        expected.add(norm(cur));
+        cur = turn(cur);
+      }
+      expect(expected.size).toBe(spec.orientations);
+      const actual = SHAPES[h.special.shape];
+      expect(new Set(actual.map(norm))).toEqual(expected);
+      expect(actual).toHaveLength(spec.orientations);
+
+      const ch = CHAR[h.special.color];
+      const bg = Array(5).fill((h.special.color === 'green' ? 'R' : 'G').repeat(5));
+      let placements = 0;
+      for (const offsets of actual) {
+        const height = Math.max(...offsets.map(([r]) => r)) + 1;
+        const width = Math.max(...offsets.map(([, c]) => c)) + 1;
+        for (let dr = 0; dr + height <= 5; dr++)
+          for (let dc = 0; dc + width <= 5; dc++) {
+            const cells = shift(offsets, dr, dc);
+            placements++;
+            const found = detectHeroSpecial(boardWith(cells, ch, bg), id);
+            expect(found?.shape).toBe(h.special.shape);
+            expect(found?.cells).toHaveLength(cells.length);
+            expect(detectHeroSpecial(boardWith(cells.slice(1), ch, bg), id)).toBeNull();
+          }
+      }
+      // 一直線5個は行か列の端から端まで（5行＋5列）だけ
+      if (h.special.shape === 'line5') expect(placements).toBe(10);
+    });
+  }
 });
