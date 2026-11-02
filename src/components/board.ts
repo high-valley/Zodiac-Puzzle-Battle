@@ -2,6 +2,7 @@
 import { BOARD_SIZE } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
 import { classifySwipe, nearestIntersection } from '../input/swipe';
+import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
 export const ORB_GLYPH: Record<OrbColor, string> = { red: '▲', blue: '◆', green: '■', pink: '♥' };
@@ -167,19 +168,11 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
       await wait(ms);
     },
     async drawConstellation(cells, ms) {
-      // 隣り合う必殺のオーブ同士を星座の線で結ぶ（盤面を 5×5 の座標にした SVG）
-      const key = (r: number, c: number) => `${r},${c}`;
-      const set = new Set(cells.map((p) => key(p.row, p.col)));
-      const lines: string[] = [];
-      for (const p of cells) {
-        for (const [dr, dc] of [[0, 1], [1, 0]]) {
-          if (set.has(key(p.row + dr, p.col + dc))) {
-            lines.push(
-              `<line pathLength="1" x1="${p.col + 0.5}" y1="${p.row + 0.5}" x2="${p.col + dc + 0.5}" y2="${p.row + dr + 0.5}"/>`,
-            );
-          }
-        }
-      }
+      // 必殺のオーブ同士を星座の線で結ぶ（盤面を 5×5 の座標にした SVG）
+      const lines = shapeLinks(cells).map(
+        ([a, b]) =>
+          `<line pathLength="1" x1="${a.col + 0.5}" y1="${a.row + 0.5}" x2="${b.col + 0.5}" y2="${b.row + 0.5}"/>`,
+      );
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('viewBox', `0 0 ${BOARD_SIZE} ${BOARD_SIZE}`);
       svg.setAttribute('class', 'constellation');

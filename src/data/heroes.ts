@@ -40,7 +40,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
       blue: { name: '防御低下の一撃', coef: 9 },
       green: { name: '連続斬撃', coef: 10 },
     },
-    special: { name: '炎角・紅蓮衝', color: 'red', shape: 'L', power: 140 },
+    special: { name: '炎角・紅蓮衝', color: 'red', shape: 'horns', power: 140 },
   },
   sagittarius: {
     id: 'sagittarius',
@@ -53,7 +53,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
       blue: { name: '貫通射撃', coef: 11 },
       green: { name: '連射', coef: 10 },
     },
-    special: { name: '天穿つ星矢', color: 'blue', shape: 'cross', power: 140 },
+    special: { name: '天穿つ星矢', color: 'blue', shape: 'x', power: 140 },
   },
   virgo: {
     id: 'virgo',
