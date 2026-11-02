@@ -1,68 +1,67 @@
 // バトル画面。ゲームの判定はすべて src/game に任せ、ここは表示と入力だけ
+import type { AppContext } from '../app';
 import { cueForEvent, turnHasSpecial } from '../audio/cues';
-import { createSoundPlayer } from '../audio/sound';
 import { createBoardView } from '../components/board';
+import { enemySvg } from '../components/enemyArt';
+import { openModal } from '../components/modal';
 import { specialPreviewSvg } from '../components/specialPreview';
-import { openTutorial } from '../components/tutorial';
-import { loadSettings, saveSettings } from '../storage/settings';
-import { ENEMY } from '../data/balance';
 import { HEROES, PARTY } from '../data/heroes';
-import { createBattle, resolveTurn } from '../game/combat';
-import type { BattleEvent, BattleState, Direction, HeroId, Pos } from '../game/types';
+import { findStage, starsFor } from '../data/stages';
+import { createBattle, enemyOf, resolveTurn } from '../game/combat';
+import type { BattleEvent, BattleState, BattleStats, Direction, HeroId, Pos } from '../game/types';
+import { recordResult } from '../storage/progress';
+
+/** バトルが終わったときの結果（リザルト画面に渡す） */
+export interface BattleOutcome {
+  stageId: string;
+  victory: boolean;
+  turns: number;
+  partyHp: number;
+  partyMaxHp: number;
+  enemyHp: number;
+  stats: BattleStats;
+  stars: number;
+  newBestStars: boolean;
+  newBestTurns: boolean;
+}
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-const ms = (n: number) => (reduceMotion.matches ? Math.min(n, 60) : n);
 const wait = (n: number) => new Promise<void>((resolve) => setTimeout(resolve, n));
 
-const ENEMY_SVG = `
-<svg viewBox="0 0 120 100" aria-hidden="true">
-  <defs>
-    <radialGradient id="nebula" cx="50%" cy="45%" r="55%">
-      <stop offset="0" stop-color="#6b4fa8"/>
-      <stop offset=".6" stop-color="#2b2266"/>
-      <stop offset="1" stop-color="#2b2266" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <ellipse cx="60" cy="52" rx="56" ry="46" fill="url(#nebula)"/>
-  <path d="M30 70 C28 40 44 22 60 22 C76 22 92 40 90 70 C84 64 78 74 72 66 C66 76 54 76 48 66 C42 74 36 64 30 70Z" fill="#120f33"/>
-  <circle cx="50" cy="46" r="4.5" fill="#ffd36e"/>
-  <circle cx="70" cy="46" r="4.5" fill="#ffd36e"/>
-  <circle cx="18" cy="20" r="1.4" fill="#fff"/><circle cx="104" cy="30" r="1.1" fill="#fff"/><circle cx="96" cy="84" r="1.3" fill="#fff"/>
-</svg>`;
-
-export function mountBattle(root: HTMLElement): void {
-  let state: BattleState = createBattle(newSeed());
+export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: string): () => void {
+  const stage = findStage(stageId)!;
+  const saved = ctx.progress.battle;
+  let state: BattleState =
+    saved && saved.stageId === stageId ? saved.state : createBattle(newSeed(), stage.enemyId);
+  const enemy = enemyOf(state);
   let hero: HeroId = state.selectedHero;
   let busy = false;
-  const settings = loadSettings();
-  const sound = createSoundPlayer(settings.soundOn);
+  let disposed = false;
+  const sound = ctx.sound;
+  // 演出の待ち時間。「はやい」なら半分、動きを減らす設定ならごく短く
+  const ms = (n: number) => (reduceMotion.matches ? Math.min(n, 60) : n / ctx.settings.speed);
 
-  root.innerHTML = `
+  container.innerHTML = `
   <main class="battle">
     <header class="top">
-      <span class="stage">ステージ 1</span>
+      <span class="stage">${stage.id}</span>
       <span class="turn" aria-live="polite"></span>
       <span class="top-actions">
-        <button type="button" class="icon-btn sound-toggle" aria-pressed="true">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path class="speaker" d="M4 9h4l5-4v14l-5-4H4z"/>
-            <path class="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/>
-            <path class="mute" d="M16 9l6 6M22 9l-6 6"/>
-          </svg>
+        <button type="button" class="chip speed-toggle"></button>
+        <button type="button" class="icon-btn menu" aria-label="メニュー">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg>
         </button>
-        <button type="button" class="icon-btn help" aria-label="遊び方">?</button>
-        <button type="button" class="text-btn restart">やり直す</button>
       </span>
     </header>
 
     <section class="enemy" aria-label="敵">
-      <div class="enemy-figure">${ENEMY_SVG}</div>
+      <div class="enemy-figure">${enemySvg(enemy.tint)}</div>
       <div class="enemy-info">
-        <span class="enemy-name">${ENEMY.name}</span>
+        <span class="enemy-name">${enemy.name}</span>
         <div class="bar enemy-bar" role="meter" aria-label="敵のHP" aria-valuemin="0" aria-valuemax="${state.enemyMaxHp}">
           <span class="fill"></span>
         </div>
-        <span class="bar-value enemy-hp"></span>
+        <span class="enemy-meta"><span class="bar-value enemy-hp"></span><span class="enemy-charge" aria-live="polite"></span></span>
       </div>
       <div class="popups enemy-popups" aria-live="polite"></div>
     </section>
@@ -108,22 +107,13 @@ export function mountBattle(root: HTMLElement): void {
       </div>
       <div class="popups party-popups" aria-live="polite"></div>
     </section>
-
-    <div class="result" hidden role="dialog" aria-modal="true" aria-labelledby="result-title">
-      <div class="result-card">
-        <p id="result-title" class="result-title"></p>
-        <p class="result-detail"></p>
-        <button type="button" class="primary-btn again">もう一度戦う</button>
-      </div>
-    </div>
   </main>`;
 
-  const $ = <T extends Element>(sel: string) => root.querySelector(sel) as T;
+  const $ = <T extends Element>(sel: string) => container.querySelector(sel) as T;
   const board = createBoardView((at, direction) => void playTurn(at, direction));
   $('.board-wrap').prepend(board.el);
 
   const banner = $<HTMLElement>('.banner');
-  const result = $<HTMLElement>('.result');
   const enemyFigure = $<HTMLElement>('.enemy-figure');
   const battleEl = $<HTMLElement>('.battle');
 
@@ -134,23 +124,42 @@ export function mountBattle(root: HTMLElement): void {
     bar.classList.toggle('low', value / max <= 0.3);
   }
 
+  function renderCharge(chargeIn: number | null) {
+    const el = $<HTMLElement>('.enemy-charge');
+    if (!enemy.heavy || chargeIn === null) {
+      el.textContent = '';
+      return;
+    }
+    el.classList.toggle('imminent', chargeIn === 1);
+    el.textContent =
+      chargeIn === 1 ? `このターンの終わりに強攻撃（${enemy.heavy.attack}）` : `強攻撃まで あと${chargeIn}ターン`;
+  }
+
   function renderStatus(enemyHp = state.enemyHp, partyHp = state.partyHp) {
     $('.turn').textContent = `ターン ${state.turn}`;
     setBar('.enemy-bar', enemyHp, state.enemyMaxHp);
-    $('.enemy-hp').textContent = `${enemyHp} / ${state.enemyMaxHp}`;
+    $('.enemy-hp').textContent = `${enemyHp.toLocaleString('ja-JP')} / ${state.enemyMaxHp.toLocaleString('ja-JP')}`;
     setBar('.party-bar', partyHp, state.partyMaxHp);
-    $('.party-hp').textContent = `${partyHp} / ${state.partyMaxHp}`;
+    $('.party-hp').textContent = `${partyHp.toLocaleString('ja-JP')} / ${state.partyMaxHp.toLocaleString('ja-JP')}`;
   }
 
   function renderHero() {
-    root.querySelectorAll<HTMLElement>('.hero').forEach((el) => {
+    container.querySelectorAll<HTMLElement>('.hero').forEach((el) => {
       const on = el.dataset.hero === hero;
       el.setAttribute('aria-checked', String(on));
       el.classList.toggle('active', on);
     });
     $('.special-shape').innerHTML = specialPreviewSvg(hero);
     $('.special-name').textContent = HEROES[hero].special.name;
-    root.querySelector('.battle')?.setAttribute('data-hero', hero);
+    battleEl.setAttribute('data-hero', hero);
+  }
+
+  function renderSettings() {
+    const speed = $<HTMLButtonElement>('.speed-toggle');
+    speed.textContent = ctx.settings.speed === 2 ? '×2' : '×1';
+    speed.setAttribute('aria-label', ctx.settings.speed === 2 ? '演出の速さ：はやい' : '演出の速さ：ふつう');
+    speed.setAttribute('aria-pressed', String(ctx.settings.speed === 2));
+    battleEl.classList.toggle('no-rotate-buttons', !ctx.settings.rotateButtons);
   }
 
   function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false) {
@@ -165,9 +174,8 @@ export function mountBattle(root: HTMLElement): void {
   function setBusy(value: boolean) {
     busy = value;
     board.setLocked(value);
-    // ターンの演出中は「やり直す」と「遊び方」も止める（途中で新しい戦闘を作ると古いターンの結果で上書きされ、
-    // 遊び方を開くと背後で勝敗が決まってフォーカスが裏に回る）。効果音のオン/オフは演出中も押せる
-    root.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .restart, .help').forEach((b) => (b.disabled = value));
+    // ターンの演出中はメニューも止める（途中でリタイアや遊び方を開くと、背後で勝敗が決まってしまう）
+    container.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .menu').forEach((b) => (b.disabled = value));
   }
 
   async function showEvent(ev: BattleEvent, hp: { enemy: number; party: number }, special: boolean) {
@@ -215,60 +223,117 @@ export function mountBattle(root: HTMLElement): void {
         await wait(ms(200));
         hp.party = ev.partyHp;
         renderStatus(hp.enemy, hp.party);
-        popup('.party-popups', `−${ev.amount}`, 'hurt');
-        root.querySelector('.party')?.classList.add('shake');
-        await wait(ms(320));
-        root.querySelector('.party')?.classList.remove('shake');
+        popup('.party-popups', `−${ev.amount}`, 'hurt', ev.heavy);
+        battleEl.classList.toggle('heavy-hit', ev.heavy);
+        $('.party').classList.add('shake');
+        await wait(ms(ev.heavy ? 520 : 320));
+        $('.party').classList.remove('shake');
+        battleEl.classList.remove('heavy-hit');
         break;
       case 'end':
         break;
     }
   }
 
+  /** 勝敗を記録する。演出より先に呼ぶ（演出の途中で再読み込みや「戻る」をしても、結果が消えたりやり直せたりしないように） */
+  function recordOutcome() {
+    const victory = state.status === 'victory';
+    const turns = state.turn - 1;
+    const stars = starsFor(stage, { victory, turns, partyHp: state.partyHp, partyMaxHp: state.partyMaxHp });
+    const prev = ctx.progress.stages[stage.id];
+    const outcome: BattleOutcome = {
+      stageId: stage.id,
+      victory,
+      turns,
+      partyHp: state.partyHp,
+      partyMaxHp: state.partyMaxHp,
+      enemyHp: state.enemyHp,
+      stats: state.stats,
+      stars,
+      newBestStars: victory && stars > (prev?.stars ?? 0) && (prev?.stars ?? 0) > 0,
+      newBestTurns: victory && prev?.bestTurns != null && turns < prev.bestTurns,
+    };
+    ctx.setProgress(recordResult(ctx.progress, stage.id, stars, victory ? turns : null));
+    ctx.lastOutcome = outcome;
+  }
+
   async function playTurn(at: Pos, direction: Direction) {
-    if (busy || state.status !== 'playing') return;
+    if (busy || disposed || state.status !== 'playing') return;
     setBusy(true);
     try {
       const turn = resolveTurn(state, { hero, row: at.row, col: at.col, direction });
       const hp = { enemy: state.enemyHp, party: state.partyHp };
       const special = turnHasSpecial(turn.events);
-      // 状態は先に進めておく。演出の途中で何か失敗しても、表示は最後に state から描き直す
+      // 状態は先に進めて保存しておく（勝敗が決まったら、ここで記録まで済ませる）。
+      // 演出の途中で何か失敗しても、表示は最後に state から描き直す
       state = turn.state;
+      if (state.status === 'playing') ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state } });
+      else recordOutcome();
       try {
-        for (const ev of turn.events) await showEvent(ev, hp, special);
+        for (const ev of turn.events) {
+          if (disposed) return;
+          await showEvent(ev, hp, special);
+        }
       } catch (e) {
         console.error('演出の途中で失敗しました', e);
       }
     } finally {
-      board.render(state.board);
-      renderStatus();
-      setBusy(false);
+      if (!disposed) {
+        board.render(state.board);
+        renderStatus();
+        renderCharge(state.enemyChargeIn);
+        // 勝敗が決まったら操作を止めたままにする（リザルトへ移るまでにメニューを開いたりリタイアしたりできないように）
+        if (state.status === 'playing') setBusy(false);
+      }
     }
-    if (state.status !== 'playing') showResult();
+    if (disposed) return;
+    if (state.status !== 'playing') {
+      await wait(ms(500));
+      if (!disposed) ctx.navigate({ name: 'result' }, { replace: true });
+    }
   }
 
-  function showResult() {
-    const win = state.status === 'victory';
-    $('.result-title').textContent = win ? '勝利' : '敗北';
-    $('.result-detail').textContent = win
-      ? `${state.turn - 1}ターンで${ENEMY.name}を倒した`
-      : `パーティーHPが尽きた。敵の残りHPは${state.enemyHp}`;
-    result.hidden = false;
-    $<HTMLButtonElement>('.again').focus();
-  }
-
-  function restart() {
+  function openMenu() {
     if (busy) return;
-    state = createBattle(newSeed());
-    hero = state.selectedHero;
-    result.hidden = true;
-    board.select(null);
-    board.render(state.board);
-    renderHero();
-    renderStatus();
+    const modal = openModal(ctx.root, battleEl, { className: 'sheet', labelledBy: 'menu-title' });
+    if (!modal) return;
+    let confirmRetire = false;
+    const render = () => {
+      modal.overlay.innerHTML = `
+        <div class="sheet-card">
+          <h2 id="menu-title">一時停止</h2>
+          <p class="sheet-note">${stage.id} ${enemy.name}　ターン ${state.turn}</p>
+          <button type="button" class="primary-btn resume">つづける</button>
+          <button type="button" class="text-btn wide how">遊び方</button>
+          <button type="button" class="text-btn wide settings">設定</button>
+          <button type="button" class="text-btn wide danger retire">${confirmRetire ? 'もう一度押すとリタイア（このバトルは記録されません）' : 'リタイア'}</button>
+        </div>`;
+      modal.overlay.querySelector('.resume')?.addEventListener('click', () => modal.close());
+      modal.overlay.querySelector('.how')?.addEventListener('click', () => {
+        modal.close();
+        ctx.openTutorial(battleEl);
+      });
+      modal.overlay.querySelector('.settings')?.addEventListener('click', () => {
+        modal.close();
+        ctx.openSettings(battleEl);
+      });
+      modal.overlay.querySelector('.retire')?.addEventListener('click', () => {
+        if (!confirmRetire) {
+          confirmRetire = true;
+          render();
+          (modal.overlay.querySelector('.retire') as HTMLElement).focus();
+          return;
+        }
+        modal.close();
+        ctx.setProgress({ ...ctx.progress, battle: null });
+        ctx.navigate({ name: 'quest', stageId: stage.id });
+      });
+    };
+    render();
+    (modal.overlay.querySelector('.resume') as HTMLButtonElement).focus();
   }
 
-  root.querySelectorAll<HTMLButtonElement>('.hero').forEach((b) =>
+  container.querySelectorAll<HTMLButtonElement>('.hero').forEach((b) =>
     b.addEventListener('click', () => {
       if (busy) return;
       hero = b.dataset.hero as HeroId;
@@ -276,35 +341,7 @@ export function mountBattle(root: HTMLElement): void {
       sound.play({ name: 'select' });
     }),
   );
-
-  // iOS は操作の中でないと音を出せないので、最初のタップで音を使えるようにする
-  // iOS の版によって音を許可する操作が違う（touchend・click）ので、操作の区切りごとに試す。キーボード操作でも鳴らせるように keydown も
-  for (const type of ['pointerdown', 'pointerup', 'click', 'keydown']) {
-    root.addEventListener(type, () => sound.unlock(), { capture: true });
-  }
-
-  const soundToggle = $<HTMLButtonElement>('.sound-toggle');
-  function renderSound() {
-    soundToggle.setAttribute('aria-pressed', String(sound.enabled()));
-    soundToggle.setAttribute('aria-label', sound.enabled() ? '効果音：オン' : '効果音：オフ');
-    soundToggle.classList.toggle('off', !sound.enabled());
-  }
-  soundToggle.addEventListener('click', () => {
-    sound.setEnabled(!sound.enabled());
-    settings.soundOn = sound.enabled();
-    saveSettings(settings);
-    renderSound();
-    sound.play({ name: 'select' });
-  });
-
-  function showTutorial() {
-    openTutorial(root, battleEl, () => {
-      settings.tutorialSeen = true;
-      saveSettings(settings);
-    });
-  }
-  $('.help').addEventListener('click', showTutorial);
-  root.querySelectorAll<HTMLButtonElement>('.rotate-btn').forEach((b) =>
+  container.querySelectorAll<HTMLButtonElement>('.rotate-btn').forEach((b) =>
     b.addEventListener('click', () => {
       const at = board.selected();
       if (!at) {
@@ -315,14 +352,27 @@ export function mountBattle(root: HTMLElement): void {
       void playTurn(at, b.classList.contains('cw') ? 'clockwise' : 'counterclockwise');
     }),
   );
-  $('.restart').addEventListener('click', restart);
-  $('.again').addEventListener('click', restart);
+  $('.menu').addEventListener('click', openMenu);
+  $('.speed-toggle').addEventListener('click', () => {
+    ctx.setSettings({ ...ctx.settings, speed: ctx.settings.speed === 2 ? 1 : 2 });
+    renderSettings();
+  });
+
+  // 設定（回転ボタン・速さ）がメニューから変わったら反映する
+  const onSettingsChanged = () => renderSettings();
+  window.addEventListener('zodiac:settings', onSettingsChanged);
 
   board.render(state.board);
   renderHero();
   renderStatus();
-  renderSound();
-  if (!settings.tutorialSeen) showTutorial();
+  renderCharge(state.enemyChargeIn);
+  renderSettings();
+  if (!ctx.settings.tutorialSeen) ctx.openTutorial(battleEl);
+
+  return () => {
+    disposed = true;
+    window.removeEventListener('zodiac:settings', onSettingsChanged);
+  };
 }
 
 /** 戦闘ごとの seed。エンジンは受け取った seed だけで決まる */

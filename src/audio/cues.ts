@@ -9,7 +9,8 @@ export type SoundCue =
   | { name: 'special' }
   | { name: 'hit'; big: boolean }
   | { name: 'heal'; big: boolean }
-  | { name: 'hurt' }
+  /** heavy は敵の強攻撃 */
+  | { name: 'hurt'; heavy: boolean }
   | { name: 'victory' }
   | { name: 'defeat' };
 
@@ -32,7 +33,7 @@ export function cueForEvent(ev: BattleEvent, specialThisTurn: boolean): SoundCue
     case 'heal':
       return { name: 'heal', big: specialThisTurn };
     case 'enemyAttack':
-      return { name: 'hurt' };
+      return { name: 'hurt', heavy: ev.heavy };
     case 'end':
       return { name: ev.status === 'victory' ? 'victory' : 'defeat' };
   }

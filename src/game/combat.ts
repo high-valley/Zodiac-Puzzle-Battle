@@ -1,6 +1,7 @@
 // 戦闘の開始と1ターンの解決
 // 処理順：回転 → 固有形判定 → 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
-import { ENEMY, MAX_CHAIN, ORB_COLORS, chainMultiplier } from '../data/balance';
+import { MAX_CHAIN, ORB_COLORS, chainMultiplier } from '../data/balance';
+import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
 import { HEROES, PARTY } from '../data/heroes';
 import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
 import { findMatches, matchedMask, maskToCells } from './matching';
@@ -12,7 +13,14 @@ export function partyMaxHp(party: readonly HeroId[] = PARTY): number {
   return party.reduce((sum, id) => sum + HEROES[id].maxHpContribution, 0);
 }
 
-export function createBattle(seed: number): BattleState {
+export function enemyOf(state: Pick<BattleState, 'enemyId'>): EnemyDef {
+  const enemy = ENEMIES[state.enemyId];
+  if (!enemy) throw new RangeError(`敵が見つかりません: ${state.enemyId}`);
+  return enemy;
+}
+
+export function createBattle(seed: number, enemyId: string = DEFAULT_ENEMY_ID): BattleState {
+  const enemy = enemyOf({ enemyId });
   const initial = createInitialBoard(seed >>> 0);
   const maxHp = partyMaxHp();
   return {
@@ -21,10 +29,13 @@ export function createBattle(seed: number): BattleState {
     turn: 1,
     partyHp: maxHp,
     partyMaxHp: maxHp,
-    enemyHp: ENEMY.maxHp,
-    enemyMaxHp: ENEMY.maxHp,
+    enemyId,
+    enemyHp: enemy.maxHp,
+    enemyMaxHp: enemy.maxHp,
+    enemyChargeIn: enemy.heavy ? enemy.heavy.every : null,
     rngSeed: initial.seed,
     status: 'playing',
+    stats: { maxChain: 0, specials: 0, damageDealt: 0, healed: 0 },
   };
 }
 
@@ -129,16 +140,31 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     events.push({ type: 'damage', amount: damage, enemyHp });
   }
 
+  // 敵の行動：強攻撃のある敵は、残りターンが 0 になったら強攻撃して数え直す
   let status: BattleState['status'] = 'playing';
+  let chargeIn = state.enemyChargeIn;
   if (enemyHp === 0) {
     status = 'victory';
   } else {
-    partyHp = Math.max(0, partyHp - ENEMY.attack);
-    events.push({ type: 'enemyAttack', amount: ENEMY.attack, partyHp });
+    const enemy = enemyOf(state);
+    let amount = enemy.attack;
+    let heavy = false;
+    if (enemy.heavy && chargeIn !== null) {
+      chargeIn -= 1;
+      if (chargeIn <= 0) {
+        amount = enemy.heavy.attack;
+        heavy = true;
+        chargeIn = enemy.heavy.every;
+      }
+    }
+    partyHp = Math.max(0, partyHp - amount);
+    events.push({ type: 'enemyAttack', amount, partyHp, heavy });
     if (partyHp === 0) status = 'defeat';
   }
   if (status !== 'playing') events.push({ type: 'end', status });
 
+  const maxChainThisTurn = events.reduce((m, e) => (e.type === 'clear' ? Math.max(m, e.chain) : m), 0);
+  const healedThisTurn = events.reduce((sum, e) => (e.type === 'heal' ? sum + e.amount : sum), 0);
   return {
     state: {
       ...state,
@@ -147,8 +173,15 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       turn: state.turn + 1,
       partyHp,
       enemyHp,
+      enemyChargeIn: chargeIn,
       rngSeed: seed,
       status,
+      stats: {
+        maxChain: Math.max(state.stats.maxChain, maxChainThisTurn),
+        specials: state.stats.specials + (special ? 1 : 0),
+        damageDealt: state.stats.damageDealt + (state.enemyHp - enemyHp),
+        healed: state.stats.healed + healedThisTurn,
+      },
     },
     events,
   };

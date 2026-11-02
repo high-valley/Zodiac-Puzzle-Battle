@@ -14,17 +14,34 @@ export interface Pos {
 
 export type BattleStatus = 'playing' | 'victory' | 'defeat';
 
+/** 1戦の記録（リザルトに出す。途中で保存しても失われないよう状態に持つ） */
+export interface BattleStats {
+  /** 1ターンの最大連鎖（0〜8） */
+  maxChain: number;
+  /** 必殺が出た回数 */
+  specials: number;
+  /** 敵に与えたダメージの合計（敵の残りHPを超えた分は含めない） */
+  damageDealt: number;
+  /** 実際に回復した量の合計 */
+  healed: number;
+}
+
 export interface BattleState {
   board: Board;
   selectedHero: HeroId;
   turn: number;
   partyHp: number;
   partyMaxHp: number;
+  /** 敵の種類（src/data/enemies.ts） */
+  enemyId: string;
   enemyHp: number;
   enemyMaxHp: number;
+  /** 強攻撃まであと何ターンか。強攻撃のない敵は null */
+  enemyChargeIn: number | null;
   /** 乱数の内部状態。補充のたびに進む */
   rngSeed: number;
   status: BattleStatus;
+  stats: BattleStats;
 }
 
 export interface TurnAction {
@@ -71,7 +88,8 @@ export type BattleEvent =
   /** amount は実際に増えた量 */
   | { type: 'heal'; amount: number; partyHp: number }
   | { type: 'damage'; amount: number; enemyHp: number }
-  | { type: 'enemyAttack'; amount: number; partyHp: number }
+  /** heavy は強攻撃のとき true */
+  | { type: 'enemyAttack'; amount: number; partyHp: number; heavy: boolean }
   | { type: 'end'; status: Exclude<BattleStatus, 'playing'> };
 
 export interface TurnResult {
