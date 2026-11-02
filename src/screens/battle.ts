@@ -6,14 +6,15 @@ import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialPreviewSvg } from '../components/specialPreview';
 import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
-import { HEROES, PARTY } from '../data/heroes';
+import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { rotate2x2 } from '../game/board';
 import { createBattle, enemyOf, resolveTurn } from '../game/combat';
 import { findMatches, matchedMask, maskToCells } from '../game/matching';
 import { detectHeroSpecial } from '../game/specials';
 import type { BattleEvent, BattleState, BattleStats, Direction, HeroId, Pos, Rotation } from '../game/types';
-import { recordResult } from '../storage/progress';
+import { heroGrowth, partyMembers, recordResult } from '../storage/progress';
+import { battleExp, gainExp } from '../game/growth';
 
 /** バトルが終わったときの結果（リザルト画面に渡す） */
 export interface BattleOutcome {
@@ -27,6 +28,10 @@ export interface BattleOutcome {
   stars: number;
   newBestStars: boolean;
   newBestTurns: boolean;
+  /** 出撃した3人それぞれがもらった経験値 */
+  exp: number;
+  /** 3人それぞれのレベル（前と後） */
+  growth: { id: HeroId; before: number; after: number }[];
 }
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -36,7 +41,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   const stage = findStage(stageId)!;
   const saved = ctx.progress.battle;
   const resuming = saved !== null && saved.stageId === stageId;
-  let state: BattleState = resuming ? saved.state : createBattle(newSeed(), stage.enemyId);
+  let state: BattleState = resuming ? saved.state : createBattle(newSeed(), stage.enemyId, partyMembers(ctx.progress));
   // このターンにすでに回した分（「攻撃」を押すまでは何も消えない）。途中で閉じても続きから回せるよう保存する
   let pending: Rotation[] = resuming ? [...saved.pending] : [];
   let rotating = false;
@@ -100,8 +105,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     </div>
 
     <div class="heroes" role="radiogroup" aria-label="このターンに行動するキャラ">
-      ${PARTY.map(
-        (id) => `
+      ${state.party.map(
+        ({ id }) => `
         <button type="button" class="hero hero-${id}" role="radio" data-hero="${id}">
           <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="hero-name">${HEROES[id].name}</span>
@@ -297,8 +302,20 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       stars,
       newBestStars: victory && stars > (prev?.stars ?? 0) && (prev?.stars ?? 0) > 0,
       newBestTurns: victory && prev?.bestTurns != null && turns < prev.bestTurns,
+      exp: battleExp(stage.exp, victory),
+      growth: [],
     };
-    ctx.setProgress(recordResult(ctx.progress, stage.id, stars, victory ? turns : null));
+    // 経験値：出撃した3人それぞれに入る（端末に保存。課金を入れる段階でサーバーへ移す）
+    let next = recordResult(ctx.progress, stage.id, stars, victory ? turns : null);
+    const heroes = { ...next.heroes };
+    for (const m of state.party) {
+      const before = heroGrowth(next, m.id);
+      const after = gainExp(before, outcome.exp);
+      heroes[m.id] = { level: after.level, exp: after.exp };
+      outcome.growth.push({ id: m.id, before: before.level, after: after.level });
+    }
+    next = { ...next, heroes };
+    ctx.setProgress(next);
     ctx.lastOutcome = outcome;
   }
 

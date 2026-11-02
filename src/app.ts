@@ -10,7 +10,12 @@ import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
 import { clearAllData, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './storage/settings';
-import { hashToRoute, routeToHash, type Route } from './routes';
+import { hashToRoute, routeToHash, tabOf, type Route } from './routes';
+import { tabBarHtml } from './components/tabBar';
+import { openModal } from './components/modal';
+import { mountBook } from './screens/book';
+import { mountHeroes } from './screens/heroes';
+import { mountParty } from './screens/party';
 
 export type { Route };
 
@@ -118,8 +123,62 @@ export function mountApp(root: HTMLElement): void {
       case 'result':
         cleanup = mountResult(container, ctx, ctx.lastOutcome!);
         break;
+      case 'party':
+        cleanup = mountParty(container, ctx);
+        break;
+      case 'heroes':
+        cleanup = mountHeroes(container, ctx, route.heroId);
+        break;
+      case 'book':
+        cleanup = mountBook(container, ctx);
+        break;
+    }
+
+    // 下のタブバー（バトルとリザルトでは出さない）
+    const tab = tabOf(route);
+    if (tab) {
+      container.classList.add('with-tabs');
+      container.insertAdjacentHTML('beforeend', tabBarHtml(tab));
+      container.querySelectorAll<HTMLButtonElement>('.tab-bar .tab').forEach((b) =>
+        b.addEventListener('click', () => {
+          const t = b.dataset.tab;
+          if (t === 'menu') openMenuSheet(container.querySelector('main') ?? container);
+          else if (t === 'home') ctx.navigate({ name: 'home' });
+          else if (t === 'quest') ctx.navigate({ name: 'quest' });
+          else if (t === 'party') ctx.navigate({ name: 'party' });
+          else if (t === 'heroes') ctx.navigate({ name: 'heroes' });
+        }),
+      );
     }
     window.scrollTo(0, 0);
+  }
+
+  /** メニュー：遊び方・図鑑・設定 */
+  function openMenuSheet(background: HTMLElement) {
+    const modal = openModal(root, background, { className: 'sheet', labelledBy: 'menu-sheet-title' });
+    if (!modal) return;
+    modal.overlay.innerHTML = `
+      <div class="sheet-card">
+        <h2 id="menu-sheet-title">メニュー</h2>
+        <button type="button" class="text-btn wide m-book">図鑑</button>
+        <button type="button" class="text-btn wide m-how">遊び方</button>
+        <button type="button" class="text-btn wide m-settings">設定</button>
+        <button type="button" class="primary-btn m-close">とじる</button>
+      </div>`;
+    modal.overlay.querySelector('.m-book')?.addEventListener('click', () => {
+      modal.close();
+      ctx.navigate({ name: 'book' });
+    });
+    modal.overlay.querySelector('.m-how')?.addEventListener('click', () => {
+      modal.close();
+      ctx.openTutorial(background);
+    });
+    modal.overlay.querySelector('.m-settings')?.addEventListener('click', () => {
+      modal.close();
+      ctx.openSettings(background, { allowClear: true });
+    });
+    modal.overlay.querySelector('.m-close')?.addEventListener('click', () => modal.close());
+    (modal.overlay.querySelector('.m-close') as HTMLButtonElement).focus();
   }
 
   document.documentElement.dataset.speed = String(settings.speed);

@@ -1,5 +1,5 @@
 // 遊び方（初回だけ自動で開き、「?」でいつでも開ける）。タブ：基本操作／必殺技／バトルの基本
-import { HEROES, PARTY } from '../data/heroes';
+import { DEFAULT_PARTY, HEROES } from '../data/heroes';
 import { STAR3_HP_RATIO } from '../data/stages';
 import type { OrbColor } from '../game/types';
 import { ORB_GLYPH } from './board';
@@ -52,7 +52,7 @@ const STEPS: Step[] = [
     body: 'キャラごとに決まった色と形が、「攻撃」を押したときの盤面にあると、そのとき選んでいるキャラの必殺技が出ます（形ができると金の輪で光ります）。3回まで回せるので、途中で3個並んでも崩れずに形を組み立てられます。選んでいるキャラの形は、回転ボタンの間に出ています。',
     figure: `
       <div class="t-specials" aria-hidden="true">
-        ${PARTY.map((id) => `<div class="t-special">${specialPreviewSvg(id)}<span>${HEROES[id].name}</span></div>`).join('')}
+        ${DEFAULT_PARTY.map(({ id }) => `<div class="t-special">${specialPreviewSvg(id)}<span>${HEROES[id].name}</span></div>`).join('')}
       </div>`,
   },
   {

@@ -8,6 +8,8 @@ export interface StageDef {
   enemyId: string;
   /** ★2：このターン数以内で勝つ */
   targetTurns: number;
+  /** 勝ったときに出撃した3人それぞれがもらう経験値（負けると一部だけ。src/data/growth.ts） */
+  exp: number;
 }
 
 export interface ChapterDef {
@@ -26,11 +28,11 @@ export const CHAPTERS: ChapterDef[] = [
     name: '星降る神殿',
     tagline: '星の導きが、再び世界を結ぶ',
     stages: [
-      { id: '1-1', chapter: 1, enemyId: 'stardust', targetTurns: 5 },
-      { id: '1-2', chapter: 1, enemyId: 'mistbeast', targetTurns: 7 },
-      { id: '1-3', chapter: 1, enemyId: 'moonwarden', targetTurns: 9 },
-      { id: '1-4', chapter: 1, enemyId: 'hunter', targetTurns: 12 },
-      { id: '1-5', chapter: 1, enemyId: 'shadow', targetTurns: 14 },
+      { id: '1-1', chapter: 1, enemyId: 'stardust', targetTurns: 5, exp: 30 },
+      { id: '1-2', chapter: 1, enemyId: 'mistbeast', targetTurns: 7, exp: 40 },
+      { id: '1-3', chapter: 1, enemyId: 'moonwarden', targetTurns: 9, exp: 50 },
+      { id: '1-4', chapter: 1, enemyId: 'hunter', targetTurns: 12, exp: 60 },
+      { id: '1-5', chapter: 1, enemyId: 'shadow', targetTurns: 14, exp: 80 },
     ],
   },
 ];

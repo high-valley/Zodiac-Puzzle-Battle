@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { chainMultiplier } from '../src/data/balance';
 import { ENEMIES } from '../src/data/enemies';
-import { HEROES } from '../src/data/heroes';
+import { DEFAULT_PARTY, HEROES } from '../src/data/heroes';
 import { createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game/combat';
 import { rotate2x2 } from '../src/game/board';
 import { findMatches } from '../src/game/matching';
@@ -27,7 +27,7 @@ const RED_L = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
 describe('戦闘の開始', () => {
   it('パーティー最大HPは3人の寄与値の合計で、共通HPは満タンから', () => {
     const expected = HEROES.aries.maxHpContribution + HEROES.sagittarius.maxHpContribution + HEROES.virgo.maxHpContribution;
-    expect(partyMaxHp()).toBe(expected);
+    expect(partyMaxHp(DEFAULT_PARTY)).toBe(expected);
     expect(base.partyMaxHp).toBe(expected);
     expect(base.partyHp).toBe(expected);
     expect(base.enemyHp).toBe(ENEMY.maxHp);

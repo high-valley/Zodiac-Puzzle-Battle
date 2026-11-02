@@ -2,16 +2,15 @@
 // 処理順：回転（1〜3回。この間は何も消えない）→ 攻撃で確定 → 固有形判定 → 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
 import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, ORB_COLORS, chainMultiplier } from '../data/balance';
 import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
-import { HEROES, PARTY } from '../data/heroes';
+import { DEFAULT_PARTY, HEROES } from '../data/heroes';
+import { levelMultiplier } from '../data/growth';
+import { memberLevel, partyMaxHp, partyProblem, scaled } from './party';
 import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
 import { findMatches, matchedMask, maskToCells } from './matching';
 import { detectHeroSpecial } from './specials';
-import type { BattleEvent, BattleState, HeroId, OrbColor, TurnAction, TurnResult } from './types';
+import type { BattleEvent, BattleState, HeroId, OrbColor, PartyMember, TurnAction, TurnResult } from './types';
 
-/** パーティー最大HP = 編成キャラの寄与値の合計 */
-export function partyMaxHp(party: readonly HeroId[] = PARTY): number {
-  return party.reduce((sum, id) => sum + HEROES[id].maxHpContribution, 0);
-}
+export { partyMaxHp } from './party';
 
 export function enemyOf(state: Pick<BattleState, 'enemyId'>): EnemyDef {
   const enemy = ENEMIES[state.enemyId];
@@ -19,13 +18,20 @@ export function enemyOf(state: Pick<BattleState, 'enemyId'>): EnemyDef {
   return enemy;
 }
 
-export function createBattle(seed: number, enemyId: string = DEFAULT_ENEMY_ID): BattleState {
+export function createBattle(
+  seed: number,
+  enemyId: string = DEFAULT_ENEMY_ID,
+  party: readonly PartyMember[] = DEFAULT_PARTY,
+): BattleState {
   const enemy = enemyOf({ enemyId });
+  const problem = partyProblem(party);
+  if (problem) throw new RangeError(`編成が不正です: ${problem}`);
   const initial = createInitialBoard(seed >>> 0);
-  const maxHp = partyMaxHp();
+  const maxHp = partyMaxHp(party);
   return {
     board: initial.board,
-    selectedHero: PARTY[0],
+    party: party.map((m) => ({ ...m })),
+    selectedHero: party[0].id,
     turn: 1,
     partyHp: maxHp,
     partyMaxHp: maxHp,
@@ -43,17 +49,18 @@ function emptyCounts(): Record<OrbColor, number> {
   return { red: 0, blue: 0, green: 0, pink: 0 };
 }
 
-/** 消した色ごとの個数から、選択キャラの通常効果（ダメージ・回復）を計算する */
+/** 消した色ごとの個数から、選択キャラの通常効果（ダメージ・回復）を計算する。level はそのキャラのレベル */
 export function normalEffect(
   heroId: HeroId,
   counts: Record<OrbColor, number>,
   chain: number,
+  level = 1,
 ): { damage: number; heal: number } {
   const hero = HEROES[heroId];
   let amount = 0;
   for (const color of ORB_COLORS) {
     const action = hero.actions[color];
-    if (action) amount += action.coef * counts[color] * chainMultiplier(chain);
+    if (action) amount += action.coef * counts[color] * chainMultiplier(chain) * levelMultiplier(level);
   }
   const rounded = Math.round(amount);
   return hero.role === 'healer' ? { damage: 0, heal: rounded } : { damage: rounded, heal: 0 };
@@ -63,7 +70,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
   if (state.status !== 'playing') {
     throw new Error('戦闘は終わっています');
   }
-  if (!PARTY.includes(action.hero)) {
+  if (!state.party.some((m) => m.id === action.hero)) {
     throw new RangeError(`編成にいないキャラです: ${action.hero}`);
   }
   const rotations = action.rotations;
@@ -94,10 +101,12 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
 
   // 必殺は回し終えた盤面で、通常マッチを消す前に判定する。選んだキャラだけ、1ターン1回
   const hero = HEROES[action.hero];
+  const level = memberLevel(state.party, action.hero);
   const special = detectHeroSpecial(board, action.hero);
   if (special) {
-    const sDamage = hero.role === 'attacker' ? hero.special.power : 0;
-    const sHeal = hero.role === 'healer' ? hero.special.power : 0;
+    const power = scaled(hero.special.power, level);
+    const sDamage = hero.role === 'attacker' ? power : 0;
+    const sHeal = hero.role === 'healer' ? power : 0;
     damage += sDamage;
     heal += sHeal;
     events.push({ type: 'special', special, name: hero.special.name, damage: sDamage, heal: sHeal });
@@ -117,7 +126,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const matched = matchedMask(groups);
     const counts = emptyCounts();
     for (const p of maskToCells(matched)) counts[board[p.row][p.col]]++;
-    const effect = groups.length > 0 ? normalEffect(action.hero, counts, chain) : { damage: 0, heal: 0 };
+    const effect = groups.length > 0 ? normalEffect(action.hero, counts, chain, level) : { damage: 0, heal: 0 };
     damage += effect.damage;
     heal += effect.heal;
     const mask = matched.map((line) => line.slice());

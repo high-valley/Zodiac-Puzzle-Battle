@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashToRoute, routeToHash, type Route } from '../src/routes';
+import { hashToRoute, routeToHash, tabOf, type Route } from '../src/routes';
 import { parseBoard } from './helpers';
 import { createBattle, resolveTurn } from '../src/game/combat';
 import { MAX_ROTATIONS_PER_TURN } from '../src/data/balance';
@@ -14,6 +14,10 @@ describe('画面の行き先と URL', () => {
       { name: 'quest', stageId: '1-3' },
       { name: 'battle', stageId: '1-2' },
       { name: 'result' },
+      { name: 'party' },
+      { name: 'heroes' },
+      { name: 'heroes', heroId: 'scorpio' },
+      { name: 'book' },
     ];
     for (const r of routes) expect(hashToRoute(routeToHash(r))).toEqual(r);
   });
@@ -23,6 +27,22 @@ describe('画面の行き先と URL', () => {
     expect(hashToRoute('#/')).toEqual({ name: 'home' });
     expect(hashToRoute('#/nowhere')).toEqual({ name: 'home' });
     expect(hashToRoute('#/battle')).toEqual({ name: 'home' });
+  });
+
+  it('知らないキャラ名は育成の一覧（Object の持ち物の名前も通さない）', () => {
+    expect(hashToRoute('#/heroes/ophiuchus')).toEqual({ name: 'heroes' });
+    expect(hashToRoute('#/heroes/constructor')).toEqual({ name: 'heroes' });
+    expect(hashToRoute('#/heroes/toString')).toEqual({ name: 'heroes' });
+  });
+
+  it('光らせるタブ：バトルとリザルトはタブバーを出さず、図鑑はメニュー', () => {
+    expect(tabOf({ name: 'home' })).toBe('home');
+    expect(tabOf({ name: 'quest', stageId: '1-1' })).toBe('quest');
+    expect(tabOf({ name: 'party' })).toBe('party');
+    expect(tabOf({ name: 'heroes', heroId: 'leo' })).toBe('heroes');
+    expect(tabOf({ name: 'book' })).toBe('menu');
+    expect(tabOf({ name: 'battle', stageId: '1-1' })).toBeNull();
+    expect(tabOf({ name: 'result' })).toBeNull();
   });
 });
 

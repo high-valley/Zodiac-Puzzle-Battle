@@ -2,6 +2,7 @@
 import type { AppContext } from '../app';
 import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
+import { HEROES } from '../data/heroes';
 import { ALL_STAGES, STAR3_HP_RATIO, findStage } from '../data/stages';
 import type { BattleOutcome } from './battle';
 
@@ -43,13 +44,25 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
       <div><dt>${win ? '残りHP' : '敵の残りHP'}</dt><dd>${win ? `${num(outcome.partyHp)} / ${num(outcome.partyMaxHp)}` : num(outcome.enemyHp)}</dd></div>
     </dl>
 
+    <section class="result-growth" aria-label="経験値">
+      <p class="rg-title">経験値 +${outcome.exp}</p>
+      <ul>
+        ${outcome.growth
+          .map(
+            (g) => `<li><span class="rg-sym" aria-hidden="true">${HEROES[g.id].symbol}</span>${HEROES[g.id].name}
+              <span class="rg-lv">Lv.${g.before}${g.after > g.before ? ` → <b>Lv.${g.after}</b><span class="rg-up">レベルアップ</span>` : ''}</span></li>`,
+          )
+          .join('')}
+      </ul>
+    </section>
+
     <div class="result-actions">
       ${
         win
           ? `<button type="button" class="primary-btn next">${next ? `次へ（${next.id}）` : 'クエスト選択へ'}</button>
-             <div class="result-sub"><button type="button" class="text-btn again">もう一度</button><button type="button" class="text-btn to-quest">クエスト選択へ</button></div>`
+             <div class="result-sub"><button type="button" class="text-btn again">もう一度</button><button type="button" class="text-btn to-party">編成へ</button></div>`
           : `<button type="button" class="primary-btn again">もう一度</button>
-             <div class="result-sub"><button type="button" class="text-btn to-quest">クエスト選択へ</button></div>`
+             <div class="result-sub"><button type="button" class="text-btn to-party">編成へ</button><button type="button" class="text-btn to-quest">クエスト選択へ</button></div>`
       }
     </div>
   </main>`;
@@ -60,6 +73,7 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
   container.querySelectorAll('.again').forEach((b) =>
     b.addEventListener('click', () => ctx.navigate({ name: 'battle', stageId: stage.id })),
   );
+  container.querySelectorAll('.to-party').forEach((b) => b.addEventListener('click', () => ctx.navigate({ name: 'party' })));
   container.querySelectorAll('.to-quest').forEach((b) =>
     b.addEventListener('click', () => ctx.navigate({ name: 'quest', stageId: stage.id })),
   );

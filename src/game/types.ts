@@ -1,7 +1,26 @@
 // ゲームエンジンの型。画面やブラウザ固有 API には依存しない
 
 export type OrbColor = 'red' | 'blue' | 'green' | 'pink';
-export type HeroId = 'aries' | 'sagittarius' | 'virgo';
+/** 12星座（仕様書 12.1） */
+export type HeroId =
+  | 'aries'
+  | 'taurus'
+  | 'gemini'
+  | 'cancer'
+  | 'leo'
+  | 'virgo'
+  | 'libra'
+  | 'scorpio'
+  | 'sagittarius'
+  | 'capricorn'
+  | 'aquarius'
+  | 'pisces';
+
+/** 編成の1人：キャラとレベル（1〜MAX_LEVEL） */
+export interface PartyMember {
+  id: HeroId;
+  level: number;
+}
 export type Direction = 'clockwise' | 'counterclockwise';
 
 /** 5×5。board[row][col]、row 0 が一番上 */
@@ -28,6 +47,8 @@ export interface BattleStats {
 
 export interface BattleState {
   board: Board;
+  /** 出撃した3人（バトルの間は変わらない） */
+  party: PartyMember[];
   selectedHero: HeroId;
   turn: number;
   partyHp: number;
@@ -67,8 +88,20 @@ export interface MatchGroup {
   cells: Pos[];
 }
 
-/** L：縦3＋横3で角を共有する5個、cross：十字5個、square：2×2の4個（仕様書 9.2） */
-export type SpecialShape = 'L' | 'cross' | 'square';
+/** 必殺の形（配置は src/game/specials.ts、仕様書 9.2） */
+export type SpecialShape =
+  | 'L'
+  | 'cross'
+  | 'square'
+  | 'T'
+  | 'smallT'
+  | 'pillars'
+  | 'line5'
+  | 'line4'
+  | 'Z'
+  | 'horns'
+  | 'S'
+  | 'corners';
 
 export interface SpecialResult {
   heroId: HeroId;

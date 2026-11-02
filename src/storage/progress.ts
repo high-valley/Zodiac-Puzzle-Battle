@@ -2,10 +2,12 @@
 // 報酬や通貨はここに置かない（課金を入れる段階でサーバーに持つ。仕様書 19章）
 import { BOARD_SIZE, ORB_COLORS } from '../data/balance';
 import { ENEMIES } from '../data/enemies';
-import { PARTY } from '../data/heroes';
-import { partyMaxHp } from '../game/combat';
+import { MAX_LEVEL, expToNext } from '../data/growth';
+import { DEFAULT_PARTY, isHeroId } from '../data/heroes';
+import { NEW_HERO, type HeroGrowth } from '../game/growth';
+import { partyMaxHp, partyProblem } from '../game/party';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
-import type { BattleState, Rotation } from '../game/types';
+import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
 import { isValidIntersection } from '../game/board';
 import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
 
@@ -28,12 +30,25 @@ export interface Progress {
   stages: Record<string, StageRecord>;
   /** 途中のバトル（なければ null） */
   battle: SavedBattle | null;
+  /** 次に出撃する3人（編成画面で決める） */
+  party: HeroId[];
+  /** キャラごとのレベルと経験値（無いキャラはレベル1） */
+  heroes: Partial<Record<HeroId, HeroGrowth>>;
 }
 
 const KEY = 'zodiac-puzzle-battle:progress';
 
 export function emptyProgress(): Progress {
-  return { version: 1, stages: {}, battle: null };
+  return { version: 1, stages: {}, battle: null, party: DEFAULT_PARTY.map((m) => m.id), heroes: {} };
+}
+
+export function heroGrowth(progress: Progress, id: HeroId): HeroGrowth {
+  return progress.heroes[id] ?? NEW_HERO;
+}
+
+/** 編成の3人を、それぞれのレベルつきで */
+export function partyMembers(progress: Progress): PartyMember[] {
+  return progress.party.map((id) => ({ id, level: heroGrowth(progress, id).level }));
 }
 
 const isInt = (v: unknown, min = -Infinity, max = Infinity): v is number =>
@@ -49,12 +64,16 @@ export function isBattleState(v: unknown): v is BattleState {
     if (!Array.isArray(row) || row.length !== BOARD_SIZE) return false;
     if (!row.every((c) => (ORB_COLORS as readonly unknown[]).includes(c))) return false;
   }
-  if (!(PARTY as readonly unknown[]).includes(s.selectedHero)) return false;
+  // 出撃した3人が編成のルールに合い、選んでいるキャラがその中にいること
+  if (!Array.isArray(s.party) || s.party.some((m) => typeof m !== 'object' || m === null)) return false;
+  const party = s.party as PartyMember[];
+  if (partyProblem(party) !== null) return false;
+  if (!party.some((m) => m.id === s.selectedHero)) return false;
   if (typeof s.enemyId !== 'string' || !ENEMIES[s.enemyId]) return false;
   const enemy = ENEMIES[s.enemyId];
   if (!isInt(s.turn, 1)) return false;
   // 最大HPは今の設定データと同じであること（数値を調整したあとの古い途中バトルは続けず、はじめからにする）
-  if (s.partyMaxHp !== partyMaxHp() || s.enemyMaxHp !== enemy.maxHp) return false;
+  if (s.partyMaxHp !== partyMaxHp(party) || s.enemyMaxHp !== enemy.maxHp) return false;
   // 戦闘中なので、どちらのHPも1以上
   if (!isInt(s.partyHp, 1, s.partyMaxHp as number) || !isInt(s.enemyHp, 1, s.enemyMaxHp as number)) return false;
   // 強攻撃の残りターンは、その敵の強攻撃の間隔の中に収まっていること
@@ -98,6 +117,22 @@ export function parseProgress(raw: string | null): Progress {
       if (!isInt(r.stars, 0, 3)) continue;
       progress.stages[id] = { stars: r.stars, bestTurns: isInt(r.bestTurns, 1) ? r.bestTurns : null };
     }
+  }
+  // キャラのレベルと経験値
+  if (typeof d.heroes === 'object' && d.heroes !== null) {
+    for (const [id, rec] of Object.entries(d.heroes as Record<string, unknown>)) {
+      if (!isHeroId(id) || typeof rec !== 'object' || rec === null) continue;
+      const r = rec as Record<string, unknown>;
+      if (!isInt(r.level, 1, MAX_LEVEL)) continue;
+      const level = r.level as number;
+      const exp = level >= MAX_LEVEL ? 0 : isInt(r.exp, 0, expToNext(level) - 1) ? (r.exp as number) : 0;
+      progress.heroes[id as HeroId] = { level, exp };
+    }
+  }
+  // 編成（ルールに合わなければ最初の編成に戻す）
+  if (Array.isArray(d.party) && d.party.every(isHeroId)) {
+    const ids = d.party as HeroId[];
+    if (partyProblem(ids.map((id) => ({ id, level: 1 }))) === null) progress.party = [...ids];
   }
   // 途中のバトルは、まだ開いていないステージのものなら捨てる
   const b = d.battle as Record<string, unknown> | null | undefined;

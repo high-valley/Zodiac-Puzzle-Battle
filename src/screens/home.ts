@@ -1,8 +1,9 @@
-// ホーム（M3 の簡易版）：ロゴ・3人・冒険・つづきから・遊び方・設定
+// ホーム：ロゴ・編成中の3人・冒険・編成／育成／図鑑・つづきから（仕様書 11.5）
 import type { AppContext } from '../app';
 import { constellationSvg } from '../components/constellations';
-import { HEROES, PARTY } from '../data/heroes';
+import { HEROES } from '../data/heroes';
 import { CHAPTERS, findStage, stageEnemyName } from '../data/stages';
+import { heroGrowth } from '../storage/progress';
 
 export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   const saved = ctx.progress.battle;
@@ -23,13 +24,13 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <p class="logo-sub">回して、そろえて、星座の力で戦う</p>
 
     <ul class="home-heroes" aria-label="パーティー">
-      ${PARTY.map(
+      ${ctx.progress.party.map(
         (id) => `
         <li class="home-hero hero-${id}">
           ${constellationSvg(id, `${HEROES[id].name}の星座`)}
           <span class="home-hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="home-hero-name">${HEROES[id].name}</span>
-          <span class="home-hero-role">${HEROES[id].role === 'healer' ? 'ヒーラー' : 'アタッカー'}</span>
+          <span class="home-hero-role">${HEROES[id].role === 'healer' ? 'ヒーラー' : 'アタッカー'}・Lv.${heroGrowth(ctx.progress, id).level}</span>
         </li>`,
       ).join('')}
     </ul>
@@ -44,6 +45,11 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
           ? `<button type="button" class="text-btn wide resume">つづきから　${savedStage.id} ${stageEnemyName(savedStage)}（ターン ${saved.state.turn}）</button>`
           : ''
       }
+      <div class="home-rounds">
+        <button type="button" class="round-btn go-party"><span class="rb-icon" aria-hidden="true">✦</span>編成</button>
+        <button type="button" class="round-btn go-heroes"><span class="rb-icon" aria-hidden="true">★</span>育成</button>
+        <button type="button" class="round-btn go-book"><span class="rb-icon" aria-hidden="true">❖</span>図鑑</button>
+      </div>
     </div>
   </main>`;
 
@@ -55,6 +61,9 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   container.querySelector('.resume')?.addEventListener('click', () => {
     if (saved) ctx.navigate({ name: 'battle', stageId: saved.stageId });
   });
+  container.querySelector('.go-party')?.addEventListener('click', () => ctx.navigate({ name: 'party' }));
+  container.querySelector('.go-heroes')?.addEventListener('click', () => ctx.navigate({ name: 'heroes' }));
+  container.querySelector('.go-book')?.addEventListener('click', () => ctx.navigate({ name: 'book' }));
   container.querySelector('.help')?.addEventListener('click', () => ctx.openTutorial(main));
   container.querySelector('.settings')?.addEventListener('click', () => ctx.openSettings(main, { allowClear: true }));
 
