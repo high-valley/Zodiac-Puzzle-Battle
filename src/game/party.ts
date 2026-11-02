@@ -5,14 +5,23 @@ import type { HeroId, PartyMember } from './types';
 
 export type PartyProblem = 'size' | 'duplicate' | 'unknown' | 'level' | 'noAttacker';
 
-/** 編成のルール：3人、同じキャラは1人まで、攻撃キャラが1人以上（回復役は0〜2人。仕様書 12.5）。問題がなければ null */
-export function partyProblem(party: readonly PartyMember[]): PartyProblem | null {
+/** キャラの役割（ふつうは設定データから引く） */
+export type RoleOf = (id: HeroId) => 'attacker' | 'healer';
+
+/**
+ * 編成のルール：3人、同じキャラは1人まで、攻撃キャラが1人以上（1回の編成に入れる回復役は0〜2人。仕様書 12.5）。
+ * 問題がなければ null。roleOf はテストで役割を差し替えるためのもの
+ */
+export function partyProblem(
+  party: readonly PartyMember[],
+  roleOf: RoleOf = (id) => HEROES[id].role,
+): PartyProblem | null {
   if (party.length !== PARTY_SIZE) return 'size';
   if (party.some((m) => typeof m !== 'object' || m === null)) return 'unknown';
   if (party.some((m) => !isHeroId(m.id))) return 'unknown';
   if (new Set(party.map((m) => m.id)).size !== party.length) return 'duplicate';
   if (party.some((m) => !Number.isInteger(m.level) || m.level < 1 || m.level > MAX_LEVEL)) return 'level';
-  if (!party.some((m) => HEROES[m.id].role === 'attacker')) return 'noAttacker';
+  if (!party.some((m) => roleOf(m.id) === 'attacker')) return 'noAttacker';
   return null;
 }
 
