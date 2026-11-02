@@ -59,7 +59,8 @@ export interface MatchGroup {
   cells: Pos[];
 }
 
-export type SpecialShape = 'L' | 'cross' | 'square';
+/** horns：角（つの）5個、x：×字5個、square：2×2の4個。どれも縦横に3個並ぶところを含まない（仕様書 9.2） */
+export type SpecialShape = 'horns' | 'x' | 'square';
 
 export interface SpecialResult {
   heroId: HeroId;

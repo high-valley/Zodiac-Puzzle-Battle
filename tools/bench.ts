@@ -124,5 +124,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   }
   const a = shapeAvailability(400);
   console.log(`\n== 必殺の形の作りやすさ（実戦に近い盤面 ${a.boards} 面で、1回の回転で作れる割合）`);
-  console.log(`おひつじ座（赤L字） ${pct(a.rate.aries)}／いて座（青十字） ${pct(a.rate.sagittarius)}／おとめ座（ピンク2×2） ${pct(a.rate.virgo)}`);
+  console.log(`おひつじ座（赤の角） ${pct(a.rate.aries)}／いて座（青の×字） ${pct(a.rate.sagittarius)}／おとめ座（ピンク2×2） ${pct(a.rate.virgo)}`);
 }

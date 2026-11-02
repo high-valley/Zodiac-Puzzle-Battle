@@ -5,26 +5,50 @@ import type { Board, HeroId, Pos, SpecialResult, SpecialShape } from './types';
 
 type Offsets = readonly (readonly [number, number])[];
 
+/** 右に90度回した配置 */
+function rotateOffsets(offsets: Offsets): Offsets {
+  const height = Math.max(...offsets.map(([r]) => r));
+  return offsets.map(([r, c]) => [c, height - r] as const);
+}
+
+// 角（つの）：上に2本の角、下に顔。●・● / ●・● / ・●・
+const HORNS: Offsets = [
+  [0, 0],
+  [1, 0],
+  [0, 2],
+  [1, 2],
+  [2, 1],
+];
+
 /**
  * 形ごとの配置（[行, 列] の相対位置）。
- * L字：縦3＋横3で角の1個を共有する5個。角から伸びる向きで4方向
+ * どの形も縦横に同じ色が3個並ぶところを含まない。3個並ぶと通常マッチで先に消えるので、
+ * 3個の並びを含む形（以前のL字・十字）は少しずつ組み立てられなかった（docs/decisions.md）
  */
 export const SHAPES: Record<SpecialShape, readonly Offsets[]> = {
-  L: [
-    // 角が左上：下と右へ
-    [[0, 0], [1, 0], [2, 0], [0, 1], [0, 2]],
-    // 角が右上：下と左へ
-    [[0, 2], [1, 2], [2, 2], [0, 1], [0, 0]],
-    // 角が左下：上と右へ
-    [[2, 0], [1, 0], [0, 0], [2, 1], [2, 2]],
-    // 角が右下：上と左へ
-    [[2, 2], [1, 2], [0, 2], [2, 1], [2, 0]],
+  // 角は90度ずつ回した4方向（角が上・右・下・左）
+  horns: [HORNS, rotateOffsets(HORNS), rotateOffsets(rotateOffsets(HORNS)), rotateOffsets(rotateOffsets(rotateOffsets(HORNS)))],
+  // ×字：中央と斜め4つ
+  x: [
+    [
+      [0, 0],
+      [0, 2],
+      [1, 1],
+      [2, 0],
+      [2, 2],
+    ],
   ],
-  cross: [[[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]]],
-  square: [[[0, 0], [0, 1], [1, 0], [1, 1]]],
+  square: [
+    [
+      [0, 0],
+      [0, 1],
+      [1, 0],
+      [1, 1],
+    ],
+  ],
 };
 
-/** 選んだキャラの必殺の形が盤面にあれば、最初に見つかった1つを返す（左上から順に探す） */
+/** 選んだキャラの必殺の形が盤面にあれば、最初に見つかった1つを返す（向きの順に、それぞれ左上から探す） */
 export function detectHeroSpecial(board: Board, heroId: HeroId): SpecialResult | null {
   const { color, shape } = HEROES[heroId].special;
   for (const offsets of SHAPES[shape]) {

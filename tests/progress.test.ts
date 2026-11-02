@@ -28,8 +28,8 @@ describe('敵の強攻撃と記録', () => {
   });
 
   it('強攻撃が来るはずのターンに勝てば、敵は攻撃せず残りターンも減らない', () => {
-    const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
-    const start = stateWith(createBattle(5, 'shadow'), redL, { enemyHp: 5, enemyChargeIn: 1 });
+    const redHorns = ['RBRPR', 'RPRBG', 'BRGPR', 'GPRBG', 'RBGPR'];
+    const start = stateWith(createBattle(5, 'shadow'), redHorns, { enemyHp: 5, enemyChargeIn: 1 });
     const r = resolveTurn(start, { hero: 'aries', row: 3, col: 3, direction: 'clockwise' });
     expect(r.state.status).toBe('victory');
     expect(r.events.some((e) => e.type === 'enemyAttack')).toBeFalsy();
@@ -65,8 +65,8 @@ describe('敵の強攻撃と記録', () => {
   });
 
   it('とどめのダメージは、敵の残りHPを超えた分を数えない', () => {
-    const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
-    const start = stateWith(createBattle(1, 'stardust'), redL, { enemyHp: 5 });
+    const redHorns = ['RBRPR', 'RPRBG', 'BRGPR', 'GPRBG', 'RBGPR'];
+    const start = stateWith(createBattle(1, 'stardust'), redHorns, { enemyHp: 5 });
     const r = resolveTurn(start, { hero: 'aries', row: 3, col: 3, direction: 'clockwise' });
     expect(r.state.status).toBe('victory');
     expect(r.state.stats.damageDealt).toBe(5);
