@@ -16,7 +16,7 @@ import { openModal } from './components/modal';
 import { mountBook } from './screens/book';
 import { mountHeroes } from './screens/heroes';
 import { mountParty } from './screens/party';
-import { FEATURES, mountComingSoon } from './screens/comingSoon';
+import { featureShortName, mountComingSoon } from './screens/comingSoon';
 import { FEATURE_IDS } from './routes';
 
 export type { Route };
@@ -170,7 +170,7 @@ export function mountApp(root: HTMLElement): void {
         <button type="button" class="text-btn wide m-settings">設定</button>
         <p class="sheet-note">準備中</p>
         <div class="sheet-grid">
-          ${FEATURE_IDS.map((id) => `<button type="button" class="text-btn m-feature" data-id="${id}">${FEATURES[id].title}</button>`).join('')}
+          ${FEATURE_IDS.map((id) => `<button type="button" class="text-btn m-feature" data-id="${id}">${featureShortName(id)}</button>`).join('')}
         </div>
         <button type="button" class="primary-btn m-close">とじる</button>
       </div>`;

@@ -5,17 +5,16 @@ import { constellationSvg } from '../components/constellations';
 import { HEROES } from '../data/heroes';
 import { CHAPTERS, findStage, stageEnemyName } from '../data/stages';
 import { heroGrowth } from '../storage/progress';
-import { FEATURES, FEATURE_ICON } from './comingSoon';
+import { FEATURE_ICON, featureShortName } from './comingSoon';
 import type { FeatureId } from '../routes';
 
 const LEFT: FeatureId[] = ['news', 'gift', 'mission', 'exchange'];
 const RIGHT: FeatureId[] = ['gacha', 'shop', 'friend', 'guild'];
-const SHORT: Partial<Record<FeatureId, string>> = { event: 'イベント' };
 
 const sideBtn = (id: FeatureId) => `
   <button type="button" class="side-btn${id === 'gacha' ? ' gacha' : ''}" data-feature="${id}">
     <span class="side-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${FEATURE_ICON[id]}</svg></span>
-    <span class="side-label">${SHORT[id] ?? FEATURES[id].title}</span>
+    <span class="side-label">${featureShortName(id)}</span>
   </button>`;
 
 export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
@@ -29,11 +28,10 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <header class="home-top">
       <div class="player-chip" aria-label="プレイヤー情報（準備中）">
         <span class="player-avatar" aria-hidden="true">${HEROES[ctx.progress.party[0]].symbol}</span>
-        <span class="player-text"><span class="player-name">プレイヤー</span><span class="player-rank">ランク —</span></span>
+        <span class="player-text"><span class="player-name">プレイヤー</span><span class="player-rank">準備中</span></span>
       </div>
       <div class="wallet" aria-label="通貨（準備中）">
-        <span class="coin gold-coin" aria-hidden="true"></span><span class="wallet-v">—</span>
-        <span class="coin gem" aria-hidden="true"></span><span class="wallet-v">—</span>
+        <span class="wallet-label">通貨</span><span class="wallet-v">—</span>
       </div>
       <button type="button" class="icon-btn help" aria-label="遊び方">?</button>
       <button type="button" class="icon-btn settings" aria-label="設定">

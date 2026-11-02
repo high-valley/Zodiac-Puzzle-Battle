@@ -32,6 +32,11 @@ const skeletonRows = (n: number, cls = '') =>
 const tabs = (names: string[]) =>
   `<div class="sk-tabs" aria-hidden="true">${names.map((n, i) => `<span class="${i === 0 ? 'on' : ''}">${n}</span>`).join('')}</div>`;
 
+/** ボタン用の短い名前 */
+export function featureShortName(id: FeatureId): string {
+  return id === 'event' ? 'イベント' : FEATURES[id].title;
+}
+
 export const FEATURES: Record<FeatureId, FeatureDef> = {
   news: {
     title: 'お知らせ',
@@ -53,7 +58,7 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   },
   friend: {
     title: 'フレンド',
-    lead: 'ほかのプレイヤーとフレンドになり、助っ人を借りる画面です。',
+    lead: 'ほかのプレイヤーとフレンドになる画面です（できることは未決定）。',
     plans: ['フレンドの一覧・申請・検索', 'アカウントとサーバーが要る（仕様書 19.1）', '入れる時期は未決定（仕様書 16章-11）'],
     body: () => `${tabs(['フレンド', '申請', '検索'])}<ul class="sk-list">${skeletonRows(3)}</ul>`,
   },
@@ -71,17 +76,17 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   },
   exchange: {
     title: '交換所',
-    lead: 'バトルで集めた物を、ほかの物と交換する画面です。',
+    lead: '物を交換する画面です（交換に使う物と交換できる物は未決定）。',
     plans: ['交換に使う物と交換できる物は未決定（仕様書 16章-10）'],
     body: () => `<ul class="sk-list">${skeletonRows(4)}</ul>`,
   },
   gacha: {
     title: 'ガチャ',
-    lead: 'キャラや装備を手に入れる画面です。',
+    lead: 'ガチャを回す画面です（出る物は未決定）。',
     plans: ['回す前に排出確率を見せる（仕様書 19.2）', '出る物・確率・天井は未決定（仕様書 19.4）', '抽選はサーバーで行う（仕様書 19.1）'],
     body: () => `
       <div class="sk-banner tall" aria-hidden="true"></div>
-      <div class="sk-gacha-btns" aria-hidden="true"><span>1回</span><span>10回</span></div>
+      <div class="sk-gacha-btns" aria-hidden="true"><span></span><span></span></div>
       <p class="sk-note">排出確率の表示</p>`,
   },
   event: {
