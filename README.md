@@ -24,7 +24,7 @@ npm install
 npm run dev      # http://localhost:5173/Zodiac-Puzzle-Battle/
 npm test         # エンジンと入力判定の単体テスト
 npm run build    # 型チェック ＋ dist/ へビルド
-npm run bench    # 自動プレイヤーでステージごとの勝率・ターン数・必殺の発生率を計測（npm run bench -- 300 1-5 で戦闘数とステージ、npm run bench -- 200 1-5 leo,cancer,pisces で編成も指定）
+npm run bench    # 自動プレイヤーでステージごとの勝率・ターン数・必殺の発生率を計測（npm run bench -- 300 1-5 で戦闘数とステージ、npm run bench -- 200 1-5 leo,cancer,virgo で編成も指定）
 ```
 
 ## 公開（GitHub Pages）

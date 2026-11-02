@@ -53,28 +53,20 @@ describe('12星座のデータ', () => {
 });
 
 describe('編成のルール', () => {
-  it('攻撃キャラのいない編成は noAttacker（回復役が3人いたとしたら）', async () => {
-    const heroes = await import('../src/data/heroes');
-    const healer = heroes.HEROES.virgo;
-    const original = heroes.HEROES.leo.role;
-    // 一時的にしし座を回復役として扱う（データの書き換えは試験の中だけ）
-    (heroes.HEROES.leo as { role: string }).role = healer.role;
-    try {
-      expect(partyProblem([m('cancer'), m('virgo'), m('leo')])).toBe('noAttacker');
-    } finally {
-      (heroes.HEROES.leo as { role: string }).role = original;
-    }
+  it('攻撃キャラのいない編成は noAttacker（回復役が3人いたとしたら）', () => {
+    // 今の回復役は2人なので、しし座も回復役として扱う役割の引き方を渡す
+    const roleOf = (id: HeroId) => (id === 'leo' ? 'healer' : HEROES[id].role);
+    expect(partyProblem([m('cancer'), m('virgo'), m('leo')], roleOf)).toBe('noAttacker');
+    expect(partyProblem([m('cancer'), m('virgo'), m('aries')], roleOf)).toBeNull();
   });
 
-  it('3人・同じキャラは1人まで・攻撃キャラが1人以上（回復役は0〜2人）', () => {
+  it('3人・同じキャラは1人まで・攻撃キャラが1人以上（1回の編成に入れる回復役は0〜2人）', () => {
     expect(partyProblem(DEFAULT_PARTY)).toBeNull();
     expect(partyProblem([m('aries'), m('leo'), m('cancer')])).toBeNull();
     expect(partyProblem([m('aries'), m('leo'), m('taurus')])).toBeNull(); // 攻撃3人（攻撃特化）
     expect(partyProblem([m('leo'), m('cancer'), m('virgo')])).toBeNull(); // 攻撃1人＋回復2人
     expect(partyProblem([m('aries'), m('virgo')])).toBe('size');
     expect(partyProblem([m('aries'), m('aries'), m('virgo')])).toBe('duplicate');
-    // 回復役は2人だけなので、3人そろえば必ず攻撃キャラが入る（ルールは回復役が増えたときのために残す）
-    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'healer')).toEqual(['cancer', 'virgo']);
     expect(partyProblem([m('aries'), m('leo'), m('virgo', 0)])).toBe('level');
     expect(partyProblem([m('aries'), m('leo'), m('virgo', MAX_LEVEL + 1)])).toBe('level');
     expect(partyProblem([m('aries'), m('nobody' as HeroId), m('virgo')])).toBe('unknown');
@@ -230,7 +222,7 @@ describe('途中のバトルの編成', () => {
     expect(b?.state.partyMaxHp).toBe(partyMaxHp([m('leo', 7), m('scorpio'), m('pisces', 3)]));
   });
 
-  it('ルールに合わない・選んでいるキャラが編成にいない・壊れた編成は捨てる', () => {
+  it('同じキャラが2人いる・選んでいるキャラが編成にいない・壊れた編成は捨てる', () => {
     const s = base();
     expect(saved({ ...s, party: [m('cancer'), m('virgo'), m('virgo')], selectedHero: 'cancer', partyMaxHp: 330, partyHp: 330 })).toBeNull();
     // 攻撃3人の途中バトルは読み込める
