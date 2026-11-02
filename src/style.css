@@ -1987,6 +1987,11 @@ html[data-speed='2'] .popup {
   color: var(--hurt);
 }
 
+/* 組めるが注意がいる編成（回復役なし） */
+.party-status.warn {
+  color: var(--gold);
+}
+
 /* ───────── 育成（くわしい画面） ───────── */
 .hero-hero {
   display: grid;

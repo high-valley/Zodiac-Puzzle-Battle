@@ -3,16 +3,16 @@ import { MAX_LEVEL, levelPercent } from '../data/growth';
 import { HEROES, PARTY_SIZE, isHeroId } from '../data/heroes';
 import type { HeroId, PartyMember } from './types';
 
-export type PartyProblem = 'size' | 'duplicate' | 'unknown' | 'level' | 'noHealer';
+export type PartyProblem = 'size' | 'duplicate' | 'unknown' | 'level' | 'noAttacker';
 
-/** 編成のルール：3人、同じキャラは1人まで、回復役が1人以上（仕様書 12.5）。問題がなければ null */
+/** 編成のルール：3人、同じキャラは1人まで、攻撃キャラが1人以上（回復役は0〜2人。仕様書 12.5）。問題がなければ null */
 export function partyProblem(party: readonly PartyMember[]): PartyProblem | null {
   if (party.length !== PARTY_SIZE) return 'size';
   if (party.some((m) => typeof m !== 'object' || m === null)) return 'unknown';
   if (party.some((m) => !isHeroId(m.id))) return 'unknown';
   if (new Set(party.map((m) => m.id)).size !== party.length) return 'duplicate';
   if (party.some((m) => !Number.isInteger(m.level) || m.level < 1 || m.level > MAX_LEVEL)) return 'level';
-  if (!party.some((m) => HEROES[m.id].role === 'healer')) return 'noHealer';
+  if (!party.some((m) => HEROES[m.id].role === 'attacker')) return 'noAttacker';
   return null;
 }
 
@@ -21,7 +21,7 @@ export const PARTY_PROBLEM_TEXT: Record<PartyProblem, string> = {
   duplicate: '同じキャラは1人までです',
   unknown: '知らないキャラがいます',
   level: 'レベルがおかしいキャラがいます',
-  noHealer: '回復役（ピンクで回復）を1人以上入れてください',
+  noAttacker: '攻撃キャラを1人以上入れてください（回復役だけでは敵にダメージを与えられません）',
 };
 
 /** レベルをかけた値（小数は四捨五入。.5 がそろって切り上がるよう整数で計算する） */
