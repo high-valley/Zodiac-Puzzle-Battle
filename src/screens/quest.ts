@@ -107,7 +107,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
       </ul>
       <p class="stage-record">${
         record && record.stars > 0
-          ? `これまでの記録　${starsText(record.stars)}　${record.bestTurns}ターン`
+          ? `これまでの記録　${starsText(record.stars)}${record.bestTurns ? `　${record.bestTurns}ターン` : ''}`
           : 'まだクリアしていません'
       }</p>
       ${savedElsewhere ? `<p class="stage-note">出撃すると、途中の ${savedElsewhere} のバトルは消えます</p>` : ''}

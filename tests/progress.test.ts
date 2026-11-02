@@ -6,22 +6,35 @@ import { emptyProgress, isBattleState, isUnlocked, nextStageId, parseProgress, r
 import { QUIET_ROWS, stateWith } from './helpers';
 
 describe('敵の強攻撃と記録', () => {
-  it('強攻撃のある敵は、決まったターンごとに強攻撃し、残りターンを数え直す', () => {
+  it('強攻撃のある敵は、決まったターンごとに強攻撃し、残りターンを数え直す（3周）', () => {
     const enemy = ENEMIES.shadow;
     const heavy = enemy.heavy!;
     let state = stateWith(createBattle(5, 'shadow'), QUIET_ROWS);
     expect(state.enemyChargeIn).toBe(heavy.every);
-    const kinds: boolean[] = [];
-    for (let t = 0; t < heavy.every * 2; t++) {
-      const r = resolveTurn(state, { hero: 'aries', row: 3, col: 3, direction: t % 2 ? 'counterclockwise' : 'clockwise' });
+    const heavyTurns: number[] = [];
+    const charges: (number | null)[] = [];
+    for (let t = 1; t <= heavy.every * 3; t++) {
+      const r = resolveTurn(state, { hero: 'aries', row: 3, col: 3, direction: t % 2 ? 'clockwise' : 'counterclockwise' });
       const attack = r.events.find((e) => e.type === 'enemyAttack');
       if (attack?.type !== 'enemyAttack') throw new Error('攻撃がない');
       expect(attack.amount).toBe(attack.heavy ? heavy.attack : enemy.attack);
-      kinds.push(attack.heavy);
-      state = r.state;
+      if (attack.heavy) heavyTurns.push(t);
+      charges.push(r.state.enemyChargeIn);
+      state = { ...r.state, partyHp: r.state.partyMaxHp }; // 負けないように満タンに戻す
     }
-    // every=4 なら 4ターン目と8ターン目が強攻撃
-    expect(kinds.map((h, i) => (h ? i + 1 : 0)).filter(Boolean)).toEqual([heavy.every, heavy.every * 2]);
+    expect(heavyTurns).toEqual([heavy.every, heavy.every * 2, heavy.every * 3]);
+    // every=4 なら 3,2,1,4,3,2,1,4,...
+    expect(charges.slice(0, heavy.every)).toEqual([...Array(heavy.every - 1)].map((_, i) => heavy.every - 1 - i).concat([heavy.every]));
+  });
+
+  it('強攻撃が来るはずのターンに勝てば、敵は攻撃せず残りターンも減らない', () => {
+    const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
+    const start = stateWith(createBattle(5, 'shadow'), redL, { enemyHp: 5, enemyChargeIn: 1 });
+    const r = resolveTurn(start, { hero: 'aries', row: 3, col: 3, direction: 'clockwise' });
+    expect(r.state.status).toBe('victory');
+    expect(r.events.some((e) => e.type === 'enemyAttack')).toBeFalsy();
+    expect(r.state.enemyChargeIn).toBe(1);
+    expect(r.state.partyHp).toBe(start.partyHp);
   });
 
   it('強攻撃のない敵は残りターンを持たず、いつも同じ攻撃', () => {
@@ -35,16 +48,20 @@ describe('敵の強攻撃と記録', () => {
     expect(() => createBattle(1, 'nobody')).toThrow();
   });
 
-  it('記録（最大連鎖・必殺の回数・与えたダメージ・回復量）がターンごとに積み上がる', () => {
+  it('記録：ピンク2×2の必殺だけのターン（必殺1回・回復110・連鎖0・ダメージ0）', () => {
     const pink = ['PPGPR', 'PPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
     const start = stateWith(createBattle(1, 'stardust'), pink, { partyHp: 100 });
     const r1 = resolveTurn(start, { hero: 'virgo', row: 3, col: 3, direction: 'clockwise' });
-    expect(r1.state.stats.specials).toBe(1);
-    const healed = r1.events.reduce((s, e) => (e.type === 'heal' ? s + e.amount : s), 0);
-    expect(r1.state.stats.healed).toBe(healed);
-    const maxChain = r1.events.reduce((m, e) => (e.type === 'clear' ? Math.max(m, e.chain) : m), 0);
-    expect(r1.state.stats.maxChain).toBe(maxChain);
-    expect(r1.state.stats.damageDealt).toBe(start.enemyHp - r1.state.enemyHp);
+    // 必殺だけの消去は連鎖0。回復は必殺の110だけ（必殺で消えたピンクは通常の回復を出さない）
+    expect(r1.state.stats).toEqual({ maxChain: 0, specials: 1, damageDealt: 0, healed: 110 });
+  });
+
+  it('記録は前のターンの値に積み上がる（最大連鎖は大きいほう）', () => {
+    const start = stateWith(createBattle(1, 'stardust'), QUIET_ROWS, {
+      stats: { maxChain: 4, specials: 2, damageDealt: 100, healed: 30 },
+    });
+    const r = resolveTurn(start, { hero: 'aries', row: 3, col: 3, direction: 'clockwise' });
+    expect(r.state.stats).toEqual({ maxChain: 4, specials: 2, damageDealt: 100, healed: 30 });
   });
 
   it('とどめのダメージは、敵の残りHPを超えた分を数えない', () => {
@@ -118,16 +135,40 @@ describe('進行の保存', () => {
   });
 
   it('続けられない途中のバトルは捨てる', () => {
+    const unlocked = { '1-1': { stars: 1, bestTurns: 9 }, '1-2': { stars: 1, bestTurns: 9 }, '1-3': { stars: 1, bestTurns: 9 }, '1-4': { stars: 1, bestTurns: 9 } };
+    const parseWith = (stageId: string, state: unknown) =>
+      parseProgress(JSON.stringify({ stages: unlocked, battle: { stageId, state } })).battle;
     const good = createBattle(3, 'stardust');
-    const bad = (patch: Record<string, unknown>) =>
-      parseProgress(JSON.stringify({ stages: {}, battle: { stageId: '1-1', state: { ...good, ...patch } } })).battle;
+    const bad = (patch: Record<string, unknown>) => parseWith('1-1', { ...good, ...patch });
     expect(bad({})).not.toBeNull();
     expect(bad({ status: 'victory' })).toBeNull();
     expect(bad({ partyHp: 9999 })).toBeNull();
     expect(bad({ enemyId: 'nobody' })).toBeNull();
-    expect(bad({ enemyId: 'shadow', enemyHp: 1, enemyMaxHp: 1250 })).toBeNull(); // ステージと敵が合わない
     expect(bad({ board: [['red']] })).toBeNull();
     expect(bad({ stats: undefined })).toBeNull();
+    // HP 0 のまま「戦闘中」にはしない
+    expect(bad({ partyHp: 0 })).toBeNull();
+    expect(bad({ enemyHp: 0 })).toBeNull();
+    // 最大HPは今の設定データと同じであること
+    expect(bad({ partyMaxHp: 99999, partyHp: 50 })).toBeNull();
+    expect(bad({ enemyMaxHp: 9999 })).toBeNull();
+    // 強攻撃のない敵に残りターンがある
+    expect(bad({ enemyChargeIn: 2 })).toBeNull();
+    // ステージと敵が合わない
+    expect(parseWith('1-1', createBattle(3, 'shadow'))).toBeNull();
     expect(isBattleState(null)).toBeFalsy();
+
+    // 強攻撃のある敵：残りターンは 1〜間隔 の中だけ
+    const shadow = createBattle(3, 'shadow');
+    const every = ENEMIES.shadow.heavy!.every;
+    expect(parseWith('1-5', shadow)).not.toBeNull();
+    expect(parseWith('1-5', { ...shadow, enemyChargeIn: null })).toBeNull();
+    expect(parseWith('1-5', { ...shadow, enemyChargeIn: every + 1 })).toBeNull();
+    expect(parseWith('1-5', { ...shadow, enemyChargeIn: 0 })).toBeNull();
+  });
+
+  it('まだ開いていないステージの途中バトルは捨てる', () => {
+    const raw = JSON.stringify({ stages: {}, battle: { stageId: '1-5', state: createBattle(3, 'shadow') } });
+    expect(parseProgress(raw).battle).toBeNull();
   });
 });

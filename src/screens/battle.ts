@@ -131,7 +131,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       return;
     }
     el.classList.toggle('imminent', chargeIn === 1);
-    el.textContent = chargeIn === 1 ? `次のターンに強攻撃（${enemy.heavy.attack}）` : `強攻撃まで あと${chargeIn}ターン`;
+    el.textContent =
+      chargeIn === 1 ? `このターンの終わりに強攻撃（${enemy.heavy.attack}）` : `強攻撃まで あと${chargeIn}ターン`;
   }
 
   function renderStatus(enemyHp = state.enemyHp, partyHp = state.partyHp) {
@@ -234,7 +235,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     }
   }
 
-  function finish() {
+  /** 勝敗を記録する。演出より先に呼ぶ（演出の途中で再読み込みや「戻る」をしても、結果が消えたりやり直せたりしないように） */
+  function recordOutcome() {
     const victory = state.status === 'victory';
     const turns = state.turn - 1;
     const stars = starsFor(stage, { victory, turns, partyHp: state.partyHp, partyMaxHp: state.partyMaxHp });
@@ -253,7 +255,6 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     };
     ctx.setProgress(recordResult(ctx.progress, stage.id, stars, victory ? turns : null));
     ctx.lastOutcome = outcome;
-    ctx.navigate({ name: 'result' }, { replace: true });
   }
 
   async function playTurn(at: Pos, direction: Direction) {
@@ -263,9 +264,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       const turn = resolveTurn(state, { hero, row: at.row, col: at.col, direction });
       const hp = { enemy: state.enemyHp, party: state.partyHp };
       const special = turnHasSpecial(turn.events);
-      // 状態は先に進めて保存しておく。演出の途中で何か失敗しても、表示は最後に state から描き直す
+      // 状態は先に進めて保存しておく（勝敗が決まったら、ここで記録まで済ませる）。
+      // 演出の途中で何か失敗しても、表示は最後に state から描き直す
       state = turn.state;
       if (state.status === 'playing') ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state } });
+      else recordOutcome();
       try {
         for (const ev of turn.events) {
           if (disposed) return;
@@ -279,13 +282,14 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         board.render(state.board);
         renderStatus();
         renderCharge(state.enemyChargeIn);
-        setBusy(false);
+        // 勝敗が決まったら操作を止めたままにする（リザルトへ移るまでにメニューを開いたりリタイアしたりできないように）
+        if (state.status === 'playing') setBusy(false);
       }
     }
     if (disposed) return;
     if (state.status !== 'playing') {
       await wait(ms(500));
-      if (!disposed) finish();
+      if (!disposed) ctx.navigate({ name: 'result' }, { replace: true });
     }
   }
 

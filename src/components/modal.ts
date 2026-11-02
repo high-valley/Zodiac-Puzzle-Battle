@@ -12,6 +12,11 @@ export function isModalOpen(): boolean {
   return current !== null;
 }
 
+/** 開いているダイアログがあれば閉じる。画面を切り替えるときに必ず呼ぶ（閉じずに要素だけ消すと、次のダイアログが開けなくなる） */
+export function closeModal(): void {
+  current?.close();
+}
+
 export function openModal(
   root: HTMLElement,
   background: HTMLElement,

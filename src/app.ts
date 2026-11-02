@@ -1,5 +1,6 @@
 // アプリの入れ物：画面の切り替え（URL の # で決める）と、画面をまたいで使うもの（音・設定・進行）
 import { createSoundPlayer, type SoundPlayer } from './audio/sound';
+import { closeModal } from './components/modal';
 import { openSettingsDialog } from './components/settingsDialog';
 import { openTutorial } from './components/tutorial';
 import { findStage } from './data/stages';
@@ -84,6 +85,7 @@ export function mountApp(root: HTMLElement): void {
   }
 
   function render() {
+    closeModal();
     cleanup?.();
     cleanup = null;
     root.replaceChildren();
@@ -98,6 +100,7 @@ export function mountApp(root: HTMLElement): void {
       if (!stage || !isUnlocked(ctx.progress, stage.id)) route = { name: 'quest' };
     }
     if (route.name === 'result' && !ctx.lastOutcome) route = { name: 'quest' };
+    if (route.name === 'quest' && route.stageId && !isUnlocked(ctx.progress, route.stageId)) route = { name: 'quest' };
     if (routeToHash(route) !== location.hash && location.hash !== '' && location.hash !== '#/') {
       history.replaceState(null, '', routeToHash(route));
     }

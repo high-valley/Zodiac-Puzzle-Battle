@@ -3,6 +3,7 @@
 import { BOARD_SIZE, ORB_COLORS } from '../data/balance';
 import { ENEMIES } from '../data/enemies';
 import { PARTY } from '../data/heroes';
+import { partyMaxHp } from '../game/combat';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
 import type { BattleState } from '../game/types';
 
@@ -46,10 +47,14 @@ export function isBattleState(v: unknown): v is BattleState {
   }
   if (!(PARTY as readonly unknown[]).includes(s.selectedHero)) return false;
   if (typeof s.enemyId !== 'string' || !ENEMIES[s.enemyId]) return false;
+  const enemy = ENEMIES[s.enemyId];
   if (!isInt(s.turn, 1)) return false;
-  if (!isInt(s.partyMaxHp, 1) || !isInt(s.partyHp, 0, s.partyMaxHp as number)) return false;
-  if (!isInt(s.enemyMaxHp, 1) || !isInt(s.enemyHp, 0, s.enemyMaxHp as number)) return false;
-  if (!(s.enemyChargeIn === null || isInt(s.enemyChargeIn, 1))) return false;
+  // 最大HPは今の設定データと同じであること（数値を調整したあとの古い途中バトルは続けず、はじめからにする）
+  if (s.partyMaxHp !== partyMaxHp() || s.enemyMaxHp !== enemy.maxHp) return false;
+  // 戦闘中なので、どちらのHPも1以上
+  if (!isInt(s.partyHp, 1, s.partyMaxHp as number) || !isInt(s.enemyHp, 1, s.enemyMaxHp as number)) return false;
+  // 強攻撃の残りターンは、その敵の強攻撃の間隔の中に収まっていること
+  if (enemy.heavy ? !isInt(s.enemyChargeIn, 1, enemy.heavy.every) : s.enemyChargeIn !== null) return false;
   if (!isInt(s.rngSeed, 0, 0xffffffff)) return false;
   if (s.status !== 'playing') return false;
   const st = s.stats as Record<string, unknown> | null;
@@ -77,8 +82,9 @@ export function parseProgress(raw: string | null): Progress {
       progress.stages[id] = { stars: r.stars, bestTurns: isInt(r.bestTurns, 1) ? r.bestTurns : null };
     }
   }
+  // 途中のバトルは、まだ開いていないステージのものなら捨てる
   const b = d.battle as Record<string, unknown> | null | undefined;
-  if (b && typeof b.stageId === 'string' && findStage(b.stageId) && isBattleState(b.state)) {
+  if (b && typeof b.stageId === 'string' && isUnlocked(progress, b.stageId) && isBattleState(b.state)) {
     const stage = findStage(b.stageId)!;
     if (stage.enemyId === (b.state as BattleState).enemyId) {
       progress.battle = { stageId: b.stageId, state: b.state as BattleState };
