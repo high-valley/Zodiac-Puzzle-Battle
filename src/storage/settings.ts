@@ -1,5 +1,6 @@
 // 端末に保存する設定（効果音・演出の速さ・回転ボタン・遊び方を見たか）
 // 保存できない環境（プライベートブラウズなど）でも動くよう、失敗は無視して既定値を使う
+import { DEV_TOOLS } from '../data/devTools';
 
 export interface Settings {
   soundOn: boolean;
@@ -8,9 +9,11 @@ export interface Settings {
   speed: 1 | 2;
   /** バトルの「左回転」「右回転」ボタンを出すか */
   rotateButtons: boolean;
+  /** 開発者モード：キャラとステージをすべて解放して見る（保存した進行は書き換えない） */
+  devUnlockAll: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { soundOn: true, tutorialSeen: false, speed: 1, rotateButtons: true };
+export const DEFAULT_SETTINGS: Settings = { soundOn: true, tutorialSeen: false, speed: 1, rotateButtons: true, devUnlockAll: false };
 const KEY = 'zodiac-puzzle-battle:settings';
 
 /** 保存されていた文字列を読み、壊れていたり足りない項目は既定値で補う */
@@ -26,6 +29,8 @@ export function parseSettings(raw: string | null): Settings {
       tutorialSeen: bool(d.tutorialSeen, DEFAULT_SETTINGS.tutorialSeen),
       speed: d.speed === 1 || d.speed === 2 ? d.speed : DEFAULT_SETTINGS.speed,
       rotateButtons: bool(d.rotateButtons, DEFAULT_SETTINGS.rotateButtons),
+      // 開発者の機能を外した版では、保存されていても使わない
+      devUnlockAll: DEV_TOOLS && bool(d.devUnlockAll, DEFAULT_SETTINGS.devUnlockAll),
     };
   } catch {
     return { ...DEFAULT_SETTINGS };

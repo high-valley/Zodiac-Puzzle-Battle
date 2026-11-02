@@ -56,6 +56,15 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
       </ul>
     </section>
 
+    ${
+      outcome.joined.length
+        ? `<section class="result-join" aria-label="新しい仲間">
+             <p class="rj-title">新しい仲間</p>
+             <ul>${outcome.joined.map((id) => `<li><span class="rj-sym" aria-hidden="true">${HEROES[id].symbol}</span>${HEROES[id].name}が仲間になった</li>`).join('')}</ul>
+           </section>`
+        : ''
+    }
+
     <div class="result-actions">
       ${
         win

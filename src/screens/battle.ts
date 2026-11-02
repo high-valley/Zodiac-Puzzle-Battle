@@ -13,7 +13,7 @@ import { createBattle, enemyOf, resolveTurn } from '../game/combat';
 import { findMatches, matchedMask, maskToCells } from '../game/matching';
 import { detectHeroSpecial } from '../game/specials';
 import type { BattleEvent, BattleState, BattleStats, Direction, HeroId, Pos, Rotation } from '../game/types';
-import { applyBattleExp, partyMembers, recordResult, type GrowthChange } from '../storage/progress';
+import { applyBattleExp, heroesJoinedBy, partyMembers, recordResult, type GrowthChange } from '../storage/progress';
 import { battleExp } from '../game/growth';
 
 /** バトルが終わったときの結果（リザルト画面に渡す） */
@@ -32,6 +32,8 @@ export interface BattleOutcome {
   exp: number;
   /** 3人それぞれのレベル（前と後） */
   growth: GrowthChange[];
+  /** このステージを初めてクリアして仲間になったキャラ（仕様書 12.6） */
+  joined: HeroId[];
 }
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -41,7 +43,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   const stage = findStage(stageId)!;
   const saved = ctx.progress.battle;
   const resuming = saved !== null && saved.stageId === stageId;
-  let state: BattleState = resuming ? saved.state : createBattle(newSeed(), stage.enemyId, partyMembers(ctx.progress));
+  let state: BattleState = resuming ? saved.state : createBattle(newSeed(), stage.enemyId, partyMembers(ctx.progress, (id) => ctx.heroJoined(id)));
   // このターンにすでに回した分（「攻撃」を押すまでは何も消えない）。途中で閉じても続きから回せるよう保存する
   let pending: Rotation[] = resuming ? [...saved.pending] : [];
   let rotating = false;
@@ -304,6 +306,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       newBestTurns: victory && prev?.bestTurns != null && turns < prev.bestTurns,
       exp: battleExp(stage.exp, victory),
       growth: [],
+      joined: heroesJoinedBy(ctx.progress, stage.id, victory),
     };
     // 経験値：出撃した3人それぞれに入る（端末に保存。課金を入れる段階でサーバーへ移す）
     const gained = applyBattleExp(recordResult(ctx.progress, stage.id, stars, victory ? turns : null), state.party, outcome.exp);

@@ -3,7 +3,7 @@
 import type { AppContext } from '../app';
 import { constellationSvg } from '../components/constellations';
 import { ORB_LABEL } from '../components/board';
-import { ROLE_TEXT, heroCardInner } from '../components/heroCard';
+import { ROLE_TEXT, heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { specialPreviewSvg } from '../components/specialPreview';
 import { MAX_LEVEL, expToNext, levelMultiplier } from '../data/growth';
 import { ALL_HEROES, HEROES } from '../data/heroes';
@@ -16,6 +16,9 @@ import { heroGrowth } from '../storage/progress';
 const DIFFICULTY_TEXT = { easy: 'やさしい', normal: 'ふつう', hard: 'むずかしい' } as const;
 
 export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: HeroId): () => void {
+  const party = ctx.party();
+  // 前後の切り替えは仲間の中だけで
+  const joined = ALL_HEROES.filter((id) => ctx.heroJoined(id));
   if (!heroId) {
     container.innerHTML = `
     <main class="heroes-screen">
@@ -25,17 +28,20 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
       </header>
       <p class="screen-lead">バトルに出撃すると経験値が入り、レベルが上がります。</p>
       <div class="roster" role="list">
-        ${ALL_HEROES.map(
-          (id) => `
+        ${ALL_HEROES.map((id) =>
+          ctx.heroJoined(id)
+            ? `
           <button type="button" role="listitem" class="hero-card" data-id="${id}">
             ${heroCardInner(id, heroGrowth(ctx.progress, id).level)}
-            ${ctx.progress.party.includes(id) ? '<span class="hc-badge">出撃</span>' : ''}
-          </button>`,
+            ${party.includes(id) ? '<span class="hc-badge">出撃</span>' : ''}
+          </button>`
+            : `
+          <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
         ).join('')}
       </div>
     </main>`;
     container.querySelector('.back')?.addEventListener('click', () => ctx.navigate({ name: 'home' }));
-    container.querySelectorAll<HTMLButtonElement>('.hero-card').forEach((b) =>
+    container.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) =>
       b.addEventListener('click', () => ctx.navigate({ name: 'heroes', heroId: b.dataset.id as HeroId })),
     );
     return () => undefined;
@@ -43,9 +49,9 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
 
   const h = HEROES[heroId];
   const g = heroGrowth(ctx.progress, heroId);
-  const index = ALL_HEROES.indexOf(heroId);
-  const prev = ALL_HEROES[(index + ALL_HEROES.length - 1) % ALL_HEROES.length];
-  const next = ALL_HEROES[(index + 1) % ALL_HEROES.length];
+  const index = joined.indexOf(heroId);
+  const prev = joined[(index + joined.length - 1) % joined.length];
+  const next = joined[(index + 1) % joined.length];
   const maxed = g.level >= MAX_LEVEL;
   const need = maxed ? 0 : expToNext(g.level);
   const colors: OrbColor[] = ['red', 'blue', 'green', 'pink'];

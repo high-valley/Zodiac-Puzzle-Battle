@@ -3,7 +3,7 @@
 import { BOARD_SIZE, ORB_COLORS } from '../data/balance';
 import { ENEMIES } from '../data/enemies';
 import { MAX_LEVEL, expToNext } from '../data/growth';
-import { DEFAULT_PARTY, isHeroId } from '../data/heroes';
+import { ALL_HEROES, DEFAULT_PARTY, HERO_JOIN_STAGE, isHeroId } from '../data/heroes';
 import { NEW_HERO, gainExp, type HeroGrowth } from '../game/growth';
 import { partyMaxHp, partyProblem } from '../game/party';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
@@ -47,8 +47,33 @@ export function heroGrowth(progress: Progress, id: HeroId): HeroGrowth {
 }
 
 /** 編成の3人を、それぞれのレベルつきで */
-export function partyMembers(progress: Progress): PartyMember[] {
-  return progress.party.map((id) => ({ id, level: heroGrowth(progress, id).level }));
+/** 仲間になっているか：最初からいるか、加入のステージをクリアしているか（仕様書 12.6） */
+export function isHeroJoined(progress: Progress, id: HeroId): boolean {
+  const stageId = HERO_JOIN_STAGE[id];
+  return stageId === null || (progress.stages[stageId]?.stars ?? 0) > 0;
+}
+
+/** 仲間の一覧（星座の順） */
+export function joinedHeroes(progress: Progress, joined = (id: HeroId) => isHeroJoined(progress, id)): HeroId[] {
+  return ALL_HEROES.filter(joined);
+}
+
+/**
+ * 出撃する3人。保存した編成にまだ仲間でないキャラがいれば（開発者モードで組んだ編成を、モードを切ったあとなど）、最初の編成にする。
+ * joined は開発者モードのときに差し替える
+ */
+export function activeParty(progress: Progress, joined = (id: HeroId) => isHeroJoined(progress, id)): HeroId[] {
+  return progress.party.every(joined) ? [...progress.party] : DEFAULT_PARTY.map((m) => m.id);
+}
+
+export function partyMembers(progress: Progress, joined = (id: HeroId) => isHeroJoined(progress, id)): PartyMember[] {
+  return activeParty(progress, joined).map((id) => ({ id, level: heroGrowth(progress, id).level }));
+}
+
+/** そのステージを初めてクリアしたことで加入するキャラ（before はクリアを記録する前の進行） */
+export function heroesJoinedBy(before: Progress, stageId: string, victory: boolean): HeroId[] {
+  if (!victory || (before.stages[stageId]?.stars ?? 0) > 0) return [];
+  return ALL_HEROES.filter((id) => HERO_JOIN_STAGE[id] === stageId);
 }
 
 const isInt = (v: unknown, min = -Infinity, max = Infinity): v is number =>

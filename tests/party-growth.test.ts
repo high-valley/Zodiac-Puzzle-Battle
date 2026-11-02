@@ -156,7 +156,8 @@ describe('編成とレベルの保存', () => {
     const p = { ...emptyProgress(), party: ['leo', 'scorpio', 'pisces'] as HeroId[], heroes: { leo: { level: 5, exp: 12 } } };
     const back = parseProgress(JSON.stringify(p));
     expect(back.party).toEqual(['leo', 'scorpio', 'pisces']);
-    expect(partyMembers(back)).toEqual([m('leo', 5), m('scorpio'), m('pisces')]);
+    // うお座は第2章で加入するので、仲間として扱ったときの3人を見る（加入の判定は join.test.ts）
+    expect(partyMembers(back, () => true)).toEqual([m('leo', 5), m('scorpio'), m('pisces')]);
   });
 
   it('ルールに合わない編成やおかしいレベルは、読むときに直す', () => {

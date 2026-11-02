@@ -8,7 +8,10 @@ import { mountBattle, type BattleOutcome } from './screens/battle';
 import { mountHome } from './screens/home';
 import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
-import { clearAllData, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
+import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
+import { DEV_TOOLS } from './data/devTools';
+import { mountDev } from './screens/dev';
+import type { HeroId } from './game/types';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './storage/settings';
 import { hashToRoute, routeToHash, tabOf, type Route } from './routes';
 import { tabBarHtml } from './components/tabBar';
@@ -33,6 +36,12 @@ export interface AppContext {
   navigate(route: Route, options?: { replace?: boolean }): void;
   openSettings(background: HTMLElement, options?: { allowClear?: boolean }): void;
   openTutorial(background: HTMLElement): void;
+  /** 仲間になっているか（開発者モードでは全員） */
+  heroJoined(id: HeroId): boolean;
+  /** 遊べるステージか（開発者モードでは全部） */
+  stageOpen(stageId: string): boolean;
+  /** 出撃する3人（まだ仲間でないキャラがいれば最初の編成） */
+  party(): HeroId[];
 }
 
 export function mountApp(root: HTMLElement): void {
@@ -50,6 +59,7 @@ export function mountApp(root: HTMLElement): void {
       ctx.sound.setEnabled(next.soundOn);
       saveSettings(next);
       document.documentElement.dataset.speed = String(next.speed);
+      document.documentElement.toggleAttribute('data-dev', next.devUnlockAll);
       window.dispatchEvent(new Event('zodiac:settings'));
     },
     setProgress(next) {
@@ -82,7 +92,16 @@ export function mountApp(root: HTMLElement): void {
       });
     },
     openTutorial(background) {
-      openTutorial(root, background, () => ctx.setSettings({ ...ctx.settings, tutorialSeen: true }), ctx.progress.party);
+      openTutorial(root, background, () => ctx.setSettings({ ...ctx.settings, tutorialSeen: true }), ctx.party());
+    },
+    heroJoined(id) {
+      return ctx.settings.devUnlockAll || isHeroJoined(ctx.progress, id);
+    },
+    stageOpen(stageId) {
+      return ctx.settings.devUnlockAll ? !!findStage(stageId) : isUnlocked(ctx.progress, stageId);
+    },
+    party() {
+      return activeParty(ctx.progress, (id) => ctx.heroJoined(id));
     },
   };
 
@@ -104,10 +123,13 @@ export function mountApp(root: HTMLElement): void {
     // 開いていないステージや、結果のないリザルトには入れない
     if (route.name === 'battle') {
       const stage = findStage(route.stageId);
-      if (!stage || !isUnlocked(ctx.progress, stage.id)) route = { name: 'quest' };
+      if (!stage || !ctx.stageOpen(stage.id)) route = { name: 'quest' };
     }
     if (route.name === 'result' && !ctx.lastOutcome) route = { name: 'quest' };
-    if (route.name === 'quest' && route.stageId && !isUnlocked(ctx.progress, route.stageId)) route = { name: 'quest' };
+    if (route.name === 'quest' && route.stageId && !ctx.stageOpen(route.stageId)) route = { name: 'quest' };
+    // まだ仲間でないキャラの詳しい画面は開かない
+    if (route.name === 'heroes' && route.heroId && !ctx.heroJoined(route.heroId)) route = { name: 'heroes' };
+    if (route.name === 'dev' && !DEV_TOOLS) route = { name: 'home' };
     if (routeToHash(route) !== location.hash && location.hash !== '' && location.hash !== '#/') {
       history.replaceState(null, '', routeToHash(route));
     }
@@ -136,6 +158,9 @@ export function mountApp(root: HTMLElement): void {
         break;
       case 'feature':
         cleanup = mountComingSoon(container, ctx, route.id);
+        break;
+      case 'dev':
+        cleanup = mountDev(container, ctx);
         break;
     }
 
@@ -168,6 +193,7 @@ export function mountApp(root: HTMLElement): void {
         <button type="button" class="text-btn wide m-book">図鑑</button>
         <button type="button" class="text-btn wide m-how">遊び方</button>
         <button type="button" class="text-btn wide m-settings">設定</button>
+        ${DEV_TOOLS ? '<button type="button" class="text-btn wide m-dev">開発者画面</button>' : ''}
         <p class="sheet-note">準備中</p>
         <div class="sheet-grid">
           ${FEATURE_IDS.map((id) => `<button type="button" class="text-btn m-feature" data-id="${id}">${featureShortName(id)}</button>`).join('')}
@@ -186,6 +212,10 @@ export function mountApp(root: HTMLElement): void {
       modal.close();
       ctx.openSettings(background, { allowClear: true });
     });
+    modal.overlay.querySelector('.m-dev')?.addEventListener('click', () => {
+      modal.close();
+      ctx.navigate({ name: 'dev' });
+    });
     modal.overlay.querySelectorAll<HTMLButtonElement>('.m-feature').forEach((b) =>
       b.addEventListener('click', () => {
         modal.close();
@@ -197,6 +227,7 @@ export function mountApp(root: HTMLElement): void {
   }
 
   document.documentElement.dataset.speed = String(settings.speed);
+  document.documentElement.toggleAttribute('data-dev', settings.devUnlockAll);
   window.addEventListener('popstate', render);
   render();
 }

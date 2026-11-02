@@ -10,7 +10,8 @@ export type Route =
   | { name: 'party' }
   | { name: 'heroes'; heroId?: HeroId }
   | { name: 'book' }
-  | { name: 'feature'; id: FeatureId };
+  | { name: 'feature'; id: FeatureId }
+  | { name: 'dev' };
 
 /** まだ中身の決まっていない画面（準備中。仕様書 11.3）。URL は #/<id> */
 export const FEATURE_IDS = ['news', 'gift', 'mission', 'friend', 'guild', 'shop', 'exchange', 'gacha', 'event'] as const;
@@ -40,6 +41,8 @@ export function tabOf(route: Route): Tab | null {
     case 'feature':
       // ホームのアイコンから開く
       return 'home';
+    case 'dev':
+      return 'menu';
     case 'battle':
     case 'result':
       return null;
@@ -64,6 +67,8 @@ export function routeToHash(route: Route): string {
       return '#/book';
     case 'feature':
       return `#/${route.id}`;
+    case 'dev':
+      return '#/dev';
   }
 }
 
@@ -78,5 +83,6 @@ export function hashToRoute(hash: string): Route {
   }
   if (parts[0] === 'book') return { name: 'book' };
   if (isFeatureId(parts[0])) return { name: 'feature', id: parts[0] };
+  if (parts[0] === 'dev') return { name: 'dev' };
   return { name: 'home' };
 }
