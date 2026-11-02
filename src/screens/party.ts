@@ -1,4 +1,4 @@
-// 編成：出撃する3人を選ぶ。ルール（3人・回復役1人以上）に合えば、そのまま保存する（仕様書 11.7・12.5）
+// 編成：出撃する3人を選ぶ。ルール（3人・攻撃キャラ1人以上）に合えば、そのまま保存する（仕様書 11.7・12.5）
 import type { AppContext } from '../app';
 import { heroCardInner } from '../components/heroCard';
 import { specialPreviewSvg } from '../components/specialPreview';
@@ -18,7 +18,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
       <button type="button" class="text-btn back">‹ ホーム</button>
       <h1 class="screen-title">編成</h1>
     </header>
-    <p class="screen-lead">出撃する3人を選ぶ。回復役（ピンクで回復）を1人以上入れる。</p>
+    <p class="screen-lead">出撃する3人を選ぶ。攻撃キャラを1人以上入れる（回復役は0〜2人）。</p>
     <section class="party-slots" aria-label="出撃する3人"></section>
     <p class="party-status" aria-live="polite"></p>
     <h2 class="section-title">キャラ一覧</h2>
@@ -50,12 +50,14 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
       .join('');
     const members = picked.map((id) => ({ id, level: level(id) }));
     const problem = partyProblem(members);
-    const noAttacker = problem === null && members.every((m) => HEROES[m.id].role === 'healer');
-    status.classList.toggle('bad', problem !== null || noAttacker);
+    // 回復役がいない編成も組めるが、HPを回復できないことは知らせる（保存はする）
+    const noHealer = problem === null && members.every((m) => HEROES[m.id].role === 'attacker');
+    status.classList.toggle('bad', problem !== null);
+    status.classList.toggle('warn', noHealer);
     status.textContent =
       problem === null
-        ? noAttacker
-          ? `パーティーHP ${partyMaxHp(members)}　攻撃キャラがいないので、敵にダメージを与えられません`
+        ? noHealer
+          ? `パーティーHP ${partyMaxHp(members)}　回復役がいないので、HPは回復できません（攻撃特化）`
           : `パーティーHP ${partyMaxHp(members)}　この3人で出撃します`
         : picked.length < PARTY_SIZE
           ? `あと${PARTY_SIZE - picked.length}人選んでください（今の編成はまだ保存されていません）`

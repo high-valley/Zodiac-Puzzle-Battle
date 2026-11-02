@@ -53,20 +53,22 @@ describe('12星座のデータ', () => {
 });
 
 describe('編成のルール', () => {
-  it('3人・同じキャラは1人まで・回復役が1人以上', () => {
+  it('3人・同じキャラは1人まで・攻撃キャラが1人以上（回復役は0〜2人）', () => {
     expect(partyProblem(DEFAULT_PARTY)).toBeNull();
     expect(partyProblem([m('aries'), m('leo'), m('cancer')])).toBeNull();
-    expect(partyProblem([m('cancer'), m('virgo'), m('pisces')])).toBeNull(); // 回復だけでもよい
+    expect(partyProblem([m('aries'), m('leo'), m('taurus')])).toBeNull(); // 攻撃3人（攻撃特化）
+    expect(partyProblem([m('leo'), m('cancer'), m('pisces')])).toBeNull(); // 攻撃1人＋回復2人
     expect(partyProblem([m('aries'), m('virgo')])).toBe('size');
     expect(partyProblem([m('aries'), m('aries'), m('virgo')])).toBe('duplicate');
-    expect(partyProblem([m('aries'), m('leo'), m('taurus')])).toBe('noHealer');
+    expect(partyProblem([m('cancer'), m('virgo'), m('pisces')])).toBe('noAttacker'); // 回復だけは組めない
     expect(partyProblem([m('aries'), m('leo'), m('virgo', 0)])).toBe('level');
     expect(partyProblem([m('aries'), m('leo'), m('virgo', MAX_LEVEL + 1)])).toBe('level');
     expect(partyProblem([m('aries'), m('nobody' as HeroId), m('virgo')])).toBe('unknown');
   });
 
   it('ルールに合わない編成では戦闘を始められない', () => {
-    expect(() => createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus')])).toThrow();
+    expect(() => createBattle(1, 'stardust', [m('cancer'), m('virgo'), m('pisces')])).toThrow();
+    expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus')]).partyMaxHp).toBe(310);
   });
 
   it('編成にいないキャラでは行動できない', () => {
@@ -153,7 +155,8 @@ describe('編成とレベルの保存', () => {
 
   it('ルールに合わない編成やおかしいレベルは、読むときに直す', () => {
     const read = (o: object) => parseProgress(JSON.stringify({ ...emptyProgress(), ...o }));
-    expect(read({ party: ['aries', 'leo', 'taurus'] }).party).toEqual(emptyProgress().party); // 回復役なし
+    expect(read({ party: ['cancer', 'virgo', 'pisces'] }).party).toEqual(emptyProgress().party); // 攻撃キャラなし
+    expect(read({ party: ['aries', 'leo', 'taurus'] }).party).toEqual(['aries', 'leo', 'taurus']); // 攻撃3人は組める
     expect(read({ party: ['aries', 'aries', 'virgo'] }).party).toEqual(emptyProgress().party);
     expect(read({ party: ['aries', 'nobody', 'virgo'] }).party).toEqual(emptyProgress().party);
     expect(read({ heroes: { leo: { level: 0, exp: 0 } } }).heroes).toEqual({});
@@ -213,9 +216,11 @@ describe('途中のバトルの編成', () => {
     expect(b?.state.partyMaxHp).toBe(partyMaxHp([m('leo', 7), m('scorpio'), m('pisces', 3)]));
   });
 
-  it('回復役がいない・選んでいるキャラが編成にいない・壊れた編成は捨てる', () => {
+  it('攻撃キャラがいない・選んでいるキャラが編成にいない・壊れた編成は捨てる', () => {
     const s = base();
-    expect(saved({ ...s, party: [m('leo'), m('scorpio'), m('taurus')], partyMaxHp: 300, partyHp: 300 })).toBeNull();
+    expect(saved({ ...s, party: [m('cancer'), m('virgo'), m('pisces')], selectedHero: 'cancer', partyMaxHp: 330, partyHp: 330 })).toBeNull();
+    // 攻撃3人の途中バトルは読み込める
+    expect(saved({ ...s, party: [m('leo'), m('scorpio'), m('taurus')], selectedHero: 'leo', partyMaxHp: 300, partyHp: 300 })?.state.party).toHaveLength(3);
     expect(saved({ ...s, selectedHero: 'aries' })).toBeNull();
     expect(saved({ ...s, party: [null, m('scorpio'), m('pisces')] })).toBeNull();
     expect(saved({ ...s, party: 'leo' })).toBeNull();
