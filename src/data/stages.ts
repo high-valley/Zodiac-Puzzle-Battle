@@ -26,11 +26,11 @@ export const CHAPTERS: ChapterDef[] = [
     name: '星降る神殿',
     tagline: '星の導きが、再び世界を結ぶ',
     stages: [
-      { id: '1-1', chapter: 1, enemyId: 'stardust', targetTurns: 6 },
-      { id: '1-2', chapter: 1, enemyId: 'mistbeast', targetTurns: 9 },
-      { id: '1-3', chapter: 1, enemyId: 'moonwarden', targetTurns: 12 },
-      { id: '1-4', chapter: 1, enemyId: 'hunter', targetTurns: 14 },
-      { id: '1-5', chapter: 1, enemyId: 'shadow', targetTurns: 18 },
+      { id: '1-1', chapter: 1, enemyId: 'stardust', targetTurns: 5 },
+      { id: '1-2', chapter: 1, enemyId: 'mistbeast', targetTurns: 7 },
+      { id: '1-3', chapter: 1, enemyId: 'moonwarden', targetTurns: 9 },
+      { id: '1-4', chapter: 1, enemyId: 'hunter', targetTurns: 12 },
+      { id: '1-5', chapter: 1, enemyId: 'shadow', targetTurns: 14 },
     ],
   },
 ];

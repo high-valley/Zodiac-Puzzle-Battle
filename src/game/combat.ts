@@ -1,6 +1,6 @@
 // 戦闘の開始と1ターンの解決
-// 処理順：回転 → 固有形判定 → 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
-import { MAX_CHAIN, ORB_COLORS, chainMultiplier } from '../data/balance';
+// 処理順：回転（1〜3回。この間は何も消えない）→ 攻撃で確定 → 固有形判定 → 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
+import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, ORB_COLORS, chainMultiplier } from '../data/balance';
 import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
 import { HEROES, PARTY } from '../data/heroes';
 import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
@@ -66,22 +66,32 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
   if (!PARTY.includes(action.hero)) {
     throw new RangeError(`編成にいないキャラです: ${action.hero}`);
   }
-  if (!isValidIntersection(action.row, action.col)) {
-    throw new RangeError(`交点が範囲外です: (${action.row}, ${action.col})`);
+  const rotations = action.rotations;
+  if (!Array.isArray(rotations) || rotations.length < 1 || rotations.length > MAX_ROTATIONS_PER_TURN) {
+    throw new RangeError(`回転は1〜${MAX_ROTATIONS_PER_TURN}回です`);
   }
-  if (action.direction !== 'clockwise' && action.direction !== 'counterclockwise') {
-    throw new RangeError(`回転方向が不正です: ${String(action.direction)}`);
+  for (const r of rotations) {
+    if (!isValidIntersection(r.row, r.col)) {
+      throw new RangeError(`交点が範囲外です: (${r.row}, ${r.col})`);
+    }
+    if (r.direction !== 'clockwise' && r.direction !== 'counterclockwise') {
+      throw new RangeError(`回転方向が不正です: ${String(r.direction)}`);
+    }
   }
 
+  // 回している間は何も消えない。回し終えた盤面で、必殺と消去を判定する
   const events: BattleEvent[] = [];
-  let board = rotate2x2(state.board, action.row, action.col, action.direction);
+  let board = state.board;
+  for (const r of rotations) {
+    board = rotate2x2(board, r.row, r.col, r.direction);
+    events.push({ type: 'rotate', row: r.row, col: r.col, direction: r.direction, board });
+  }
   let seed = state.rngSeed;
-  events.push({ type: 'rotate', row: action.row, col: action.col, direction: action.direction, board });
 
   let damage = 0;
   let heal = 0;
 
-  // 必殺は回転直後、通常マッチを消す前に判定する。選んだキャラだけ、1ターン1回
+  // 必殺は回し終えた盤面で、通常マッチを消す前に判定する。選んだキャラだけ、1ターン1回
   const hero = HEROES[action.hero];
   const special = detectHeroSpecial(board, action.hero);
   if (special) {

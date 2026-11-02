@@ -5,10 +5,14 @@ import { createBoardView } from '../components/board';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialPreviewSvg } from '../components/specialPreview';
+import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
 import { HEROES, PARTY } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
+import { rotate2x2 } from '../game/board';
 import { createBattle, enemyOf, resolveTurn } from '../game/combat';
-import type { BattleEvent, BattleState, BattleStats, Direction, HeroId, Pos } from '../game/types';
+import { findMatches, matchedMask, maskToCells } from '../game/matching';
+import { detectHeroSpecial } from '../game/specials';
+import type { BattleEvent, BattleState, BattleStats, Direction, HeroId, Pos, Rotation } from '../game/types';
 import { recordResult } from '../storage/progress';
 
 /** バトルが終わったときの結果（リザルト画面に渡す） */
@@ -31,8 +35,11 @@ const wait = (n: number) => new Promise<void>((resolve) => setTimeout(resolve, n
 export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: string): () => void {
   const stage = findStage(stageId)!;
   const saved = ctx.progress.battle;
-  let state: BattleState =
-    saved && saved.stageId === stageId ? saved.state : createBattle(newSeed(), stage.enemyId);
+  const resuming = saved !== null && saved.stageId === stageId;
+  let state: BattleState = resuming ? saved.state : createBattle(newSeed(), stage.enemyId);
+  // このターンにすでに回した分（「攻撃」を押すまでは何も消えない）。途中で閉じても続きから回せるよう保存する
+  let pending: Rotation[] = resuming ? [...saved.pending] : [];
+  let rotating = false;
   const enemy = enemyOf(state);
   let hero: HeroId = state.selectedHero;
   let busy = false;
@@ -69,7 +76,13 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     <div class="board-wrap">
       <div class="banner" hidden></div>
     </div>
-    <p class="hint">星（交点）を押して右へスワイプで右回転、左へで左回転</p>
+    <div class="turn-bar">
+      <div class="rot-left">
+        <span class="rot-dots" aria-hidden="true"></span>
+        <span class="rot-text" aria-live="polite"></span>
+      </div>
+      <button type="button" class="attack-btn">攻撃</button>
+    </div>
 
     <div class="controls">
       <button type="button" class="rotate-btn ccw" aria-label="左回転（反時計回り）">
@@ -110,7 +123,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   </main>`;
 
   const $ = <T extends Element>(sel: string) => container.querySelector(sel) as T;
-  const board = createBoardView((at, direction) => void playTurn(at, direction));
+  const board = createBoardView((at, direction) => void rotateOnce(at, direction));
   $('.board-wrap').prepend(board.el);
 
   const banner = $<HTMLElement>('.banner');
@@ -133,6 +146,36 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     el.classList.toggle('imminent', chargeIn === 1);
     el.textContent =
       chargeIn === 1 ? `このターンの終わりに強攻撃（${enemy.heavy.attack}）` : `強攻撃まで あと${chargeIn}ターン`;
+  }
+
+  /** このターンに回した分を反映した盤面（まだ何も消えていない） */
+  function previewBoard() {
+    return pending.reduce((b, r) => rotate2x2(b, r.row, r.col, r.direction), state.board);
+  }
+
+  /** 「攻撃」で消える3個並びと、選んでいるキャラの必殺の形に印をつける */
+  function renderMarks() {
+    const b = previewBoard();
+    const clear = maskToCells(matchedMask(findMatches(b)));
+    const special = detectHeroSpecial(b, hero)?.cells ?? [];
+    board.mark(clear, special);
+  }
+
+  function renderTurnBar() {
+    const left = MAX_ROTATIONS_PER_TURN - pending.length;
+    $('.rot-dots').innerHTML = [...Array(MAX_ROTATIONS_PER_TURN)]
+      .map((_, i) => `<span class="${i < left ? 'on' : ''}"></span>`)
+      .join('');
+    $('.rot-text').textContent =
+      pending.length === 0
+        ? `交点を押して左右にスワイプ（${MAX_ROTATIONS_PER_TURN}回まで）`
+        : left > 0
+          ? `あと${left}回まわせる`
+          : '「攻撃」で確定';
+    const attack = $<HTMLButtonElement>('.attack-btn');
+    attack.disabled = busy || pending.length === 0;
+    attack.classList.toggle('ready', pending.length > 0 && !busy);
+    battleEl.classList.toggle('rotations-used', left === 0);
   }
 
   function renderStatus(enemyHp = state.enemyHp, partyHp = state.partyHp) {
@@ -176,15 +219,15 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     board.setLocked(value);
     // ターンの演出中はメニューも止める（途中でリタイアや遊び方を開くと、背後で勝敗が決まってしまう）
     container.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .menu').forEach((b) => (b.disabled = value));
+    renderTurnBar();
   }
 
   async function showEvent(ev: BattleEvent, hp: { enemy: number; party: number }, special: boolean) {
+    // 回転は回したときにもう見せているので、ここでは何もしない
+    if (ev.type === 'rotate') return;
     const cue = cueForEvent(ev, special);
     if (cue) sound.play(cue);
     switch (ev.type) {
-      case 'rotate':
-        await board.animateRotate(ev.board, { row: ev.row, col: ev.col }, ev.direction, ms(170));
-        break;
       case 'special': {
         // 必殺演出：形を星座の線で結び、キャラ名と技名を大きく出す
         const owner = HEROES[ev.special.heroId];
@@ -257,18 +300,50 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     ctx.lastOutcome = outcome;
   }
 
-  async function playTurn(at: Pos, direction: Direction) {
-    if (busy || disposed || state.status !== 'playing') return;
+  /** 1回まわす（まだ何も消えない）。回せるのは1ターンに MAX_ROTATIONS_PER_TURN 回まで */
+  async function rotateOnce(at: Pos, direction: Direction) {
+    if (busy || rotating || disposed || state.status !== 'playing') return;
+    if (pending.length >= MAX_ROTATIONS_PER_TURN) {
+      const bar = $<HTMLElement>('.turn-bar');
+      bar.classList.remove('nudge');
+      void bar.offsetWidth;
+      bar.classList.add('nudge');
+      return;
+    }
+    rotating = true;
+    board.setLocked(true);
+    const before = previewBoard();
+    const rotation: Rotation = { row: at.row, col: at.col, direction };
+    pending = [...pending, rotation];
+    ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state, pending } });
+    sound.play({ name: 'rotate' });
+    renderTurnBar();
+    try {
+      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(170));
+    } finally {
+      rotating = false;
+      if (!disposed) {
+        board.setLocked(busy);
+        renderMarks();
+      }
+    }
+  }
+
+  /** 「攻撃」：回し終えた盤面で、必殺と消去と敵の行動を進める */
+  async function attack() {
+    if (busy || rotating || disposed || state.status !== 'playing' || pending.length === 0) return;
     setBusy(true);
     try {
-      const turn = resolveTurn(state, { hero, row: at.row, col: at.col, direction });
+      const turn = resolveTurn(state, { hero, rotations: pending });
       const hp = { enemy: state.enemyHp, party: state.partyHp };
       const special = turnHasSpecial(turn.events);
       // 状態は先に進めて保存しておく（勝敗が決まったら、ここで記録まで済ませる）。
       // 演出の途中で何か失敗しても、表示は最後に state から描き直す
       state = turn.state;
-      if (state.status === 'playing') ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state } });
+      pending = [];
+      if (state.status === 'playing') ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state, pending } });
       else recordOutcome();
+      board.mark([], []);
       try {
         for (const ev of turn.events) {
           if (disposed) return;
@@ -284,6 +359,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         renderCharge(state.enemyChargeIn);
         // 勝敗が決まったら操作を止めたままにする（リザルトへ移るまでにメニューを開いたりリタイアしたりできないように）
         if (state.status === 'playing') setBusy(false);
+        renderTurnBar();
+        renderMarks();
       }
     }
     if (disposed) return;
@@ -338,6 +415,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       if (busy) return;
       hero = b.dataset.hero as HeroId;
       renderHero();
+      renderMarks();
       sound.play({ name: 'select' });
     }),
   );
@@ -349,10 +427,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         setTimeout(() => board.el.classList.remove('nudge'), 400);
         return;
       }
-      void playTurn(at, b.classList.contains('cw') ? 'clockwise' : 'counterclockwise');
+      void rotateOnce(at, b.classList.contains('cw') ? 'clockwise' : 'counterclockwise');
     }),
   );
   $('.menu').addEventListener('click', openMenu);
+  $('.attack-btn').addEventListener('click', () => void attack());
   $('.speed-toggle').addEventListener('click', () => {
     ctx.setSettings({ ...ctx.settings, speed: ctx.settings.speed === 2 ? 1 : 2 });
     renderSettings();
@@ -362,11 +441,13 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   const onSettingsChanged = () => renderSettings();
   window.addEventListener('zodiac:settings', onSettingsChanged);
 
-  board.render(state.board);
+  board.render(previewBoard());
   renderHero();
   renderStatus();
   renderCharge(state.enemyChargeIn);
   renderSettings();
+  renderTurnBar();
+  renderMarks();
   if (!ctx.settings.tutorialSeen) ctx.openTutorial(battleEl);
 
   return () => {

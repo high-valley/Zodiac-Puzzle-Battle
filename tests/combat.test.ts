@@ -3,22 +3,26 @@ import { chainMultiplier } from '../src/data/balance';
 import { ENEMIES } from '../src/data/enemies';
 import { HEROES } from '../src/data/heroes';
 import { createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game/combat';
+import { rotate2x2 } from '../src/game/board';
 import { findMatches } from '../src/game/matching';
 import { detectHeroSpecial } from '../src/game/specials';
 import type { BattleState, Direction, HeroId, TurnAction } from '../src/game/types';
-import { QUIET_ROWS, boardToStrings, stateWith } from './helpers';
+import { QUIET_ROWS, boardToStrings, parseBoard, stateWith } from './helpers';
 
 // 強攻撃のない敵で、ふつうの攻撃だけを確かめる
 const base = createBattle(1, 'stardust');
 const ENEMY = ENEMIES.stardust;
 
 // QUIET_ROWS で交点(3,3)を回しても、マッチも必殺の形もできない
-const quietMove = (hero: HeroId, direction: Direction = 'clockwise'): TurnAction => ({ hero, row: 3, col: 3, direction });
+const quietMove = (hero: HeroId, direction: Direction = 'clockwise'): TurnAction => ({
+  hero,
+  rotations: [{ row: 3, col: 3, direction }],
+});
 
 // 左上にピンク2×2（どの縦横にも3個は並ばない）
 const PINK_SQUARE = ['PPGPR', 'PPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
-// 左上に赤の角（●・● / ●・● / ・●・）。交点(3,3)を回してもマッチはできない
-const RED_HORNS = ['RBRPR', 'RPRBG', 'BRGPR', 'GPRBG', 'RBGPR'];
+// 左上に赤L字（縦3＋横3、角を共有）
+const RED_L = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
 
 describe('戦闘の開始', () => {
   it('パーティー最大HPは3人の寄与値の合計で、共通HPは満タンから', () => {
@@ -44,7 +48,7 @@ describe('resolveTurn', () => {
   });
 
   it('引数の状態は変更しない', () => {
-    const state = stateWith(base, RED_HORNS);
+    const state = stateWith(base, RED_L);
     const before = JSON.stringify(state);
     resolveTurn(state, quietMove('aries'));
     expect(JSON.stringify(state)).toBe(before);
@@ -68,68 +72,28 @@ describe('resolveTurn', () => {
     }
   });
 
-  it('攻撃の必殺：回転直後に判定し、形のオーブは必殺だけで消える（連鎖0・通常効果なし）。ダメージは必殺の威力', () => {
-    const state = stateWith(base, RED_HORNS);
+  it('必殺は回転直後に判定し、そのあと通常マッチを消す（必殺に使った赤も消える）', () => {
+    const state = stateWith(base, RED_L);
     const { events } = resolveTurn(state, quietMove('aries'));
     const types = events.map((e) => e.type);
-    expect(types.slice(0, 3)).toEqual(['rotate', 'special', 'clear']);
+    expect(types.indexOf('special')).toBe(1);
+    expect(types.indexOf('clear')).toBeGreaterThan(1);
     const special = events.find((e) => e.type === 'special');
     expect(special && special.type === 'special' && special.damage).toBe(HEROES.aries.special.power);
     const firstClear = events.find((e) => e.type === 'clear');
-    if (firstClear?.type !== 'clear') throw new Error('clear がない');
-    expect(firstClear.chain).toBe(0);
-    expect(firstClear.cells).toHaveLength(5);
-    expect(firstClear.counts).toEqual({ red: 0, blue: 0, green: 0, pink: 0 });
-    expect(firstClear.damage).toBe(0);
+    expect(firstClear && firstClear.type === 'clear' && firstClear.counts.red).toBe(5);
   });
 
-  it('いて座：青の×字で必殺が出る', () => {
-    const blueX = ['BRBPR', 'GBRBG', 'BGBPR', 'GPRBG', 'RBGPR'];
-    const { events } = resolveTurn(stateWith(base, blueX), quietMove('sagittarius'));
-    const special = events.find((e) => e.type === 'special');
-    if (special?.type !== 'special') throw new Error('必殺が出ない');
-    expect(special.special.shape).toBe('x');
-    expect(special.damage).toBe(HEROES.sagittarius.special.power);
-    // ×字のオーブも必殺だけで消える（連鎖0・通常効果なし）
-    const first = events.find((e) => e.type === 'clear');
-    if (first?.type !== 'clear') throw new Error('clear がない');
-    expect(first.chain).toBe(0);
-    expect(first.cells).toHaveLength(5);
-    expect(first.counts).toEqual({ red: 0, blue: 0, green: 0, pink: 0 });
-  });
-
-  it('必殺は1ターンに1回まで（形が2つあっても、残ったほうは次のターンまで出ない）', () => {
-    // 赤の角が2つ（上向きと下向き）。交点(0,3)の回転はどちらも崩さない
-    const twoHorns = ['RPRBP', 'RBRBG', 'PRPRP', 'GPRBR', 'PPRPR'];
-    const state = stateWith(base, twoHorns);
-    const { state: next, events } = resolveTurn(state, { hero: 'aries', row: 0, col: 3, direction: 'clockwise' });
+  it('必殺は1ターンに1回まで', () => {
+    // 赤L字が2つ
+    const twoL = ['RRRPB', 'RPGBG', 'RBRRR', 'GPRBR', 'BBGPR'];
+    // 交点(3,0)の回転はどちらのL字も崩さない
+    const { events } = resolveTurn(stateWith(base, twoL), { hero: 'aries', rotations: [{ row: 3, col: 0, direction: 'clockwise' }] });
     expect(events.filter((e) => e.type === 'special')).toHaveLength(1);
-    // 消えるのは見つかった1つの形の5個だけ
-    const first = events.find((e) => e.type === 'clear');
-    expect(first && first.type === 'clear' && first.cells.length).toBe(5);
-    // もう1つの角（下向き）は消えずに残っている
-    expect(detectHeroSpecial(next.board, 'aries')).not.toBeNull();
-    // 敵へのダメージは必殺1回分＋通常効果だけ
-    const normal = events.reduce((sum, e) => (e.type === 'clear' ? sum + e.damage : sum), 0);
-    expect(state.enemyHp - next.enemyHp).toBe(HEROES.aries.special.power + normal);
-  });
-
-  it('角の一部が通常マッチと重なるときは、同時に1回で消し、通常効果は通常マッチの分だけ', () => {
-    // 回すと、角の顔 (2,1) を通る縦の赤3個ができる
-    const rows = ['RBRGG', 'RBRPP', 'PRBBG', 'BBGPP', 'BRRPP'];
-    const { events } = resolveTurn(stateWith(base, rows), { hero: 'aries', row: 3, col: 1, direction: 'clockwise' });
-    expect(events.filter((e) => e.type === 'special')).toHaveLength(1);
-    const first = events.find((e) => e.type === 'clear');
-    if (first?.type !== 'clear') throw new Error('clear がない');
-    expect(first.chain).toBe(1);
-    // 角の5個＋縦3個のうち角でない2個 = 7個（重なった顔は1回だけ）
-    expect(first.cells).toHaveLength(7);
-    expect(first.counts.red).toBe(3);
-    expect(first.damage).toBe(HEROES.aries.actions.red!.coef * 3);
   });
 
   it('ダメージ合計は 必殺 ＋ 各連鎖の通常効果 で、敵HPに反映される', () => {
-    const state = stateWith(base, RED_HORNS);
+    const state = stateWith(base, RED_L);
     const { state: next, events } = resolveTurn(state, quietMove('aries'));
     let total = 0;
     for (const e of events) if (e.type === 'special' || e.type === 'clear') total += e.damage;
@@ -154,7 +118,7 @@ describe('resolveTurn', () => {
   });
 
   it('敵HPが0になったら勝利し、敵は攻撃しない', () => {
-    const state = stateWith(base, RED_HORNS, { enemyHp: 1 });
+    const state = stateWith(base, RED_L, { enemyHp: 1 });
     const { state: next, events } = resolveTurn(state, quietMove('aries'));
     expect(next.enemyHp).toBe(0);
     expect(next.status).toBe('victory');
@@ -174,20 +138,24 @@ describe('resolveTurn', () => {
   it('終わった戦闘や不正な操作は受け付けない', () => {
     const quiet = stateWith(base, QUIET_ROWS);
     expect(() => resolveTurn({ ...quiet, status: 'victory' }, quietMove('aries'))).toThrow();
-    expect(() => resolveTurn(quiet, { hero: 'leo' as HeroId, row: 0, col: 0, direction: 'clockwise' })).toThrow();
-    expect(() => resolveTurn(quiet, { hero: 'aries', row: 4, col: 0, direction: 'clockwise' })).toThrow();
-    expect(() => resolveTurn(quiet, { hero: 'aries', row: 0, col: -1, direction: 'clockwise' })).toThrow();
-    expect(() => resolveTurn(quiet, { hero: 'aries', row: 0, col: 0, direction: 'up' as Direction })).toThrow();
+    expect(() => resolveTurn(quiet, { hero: 'leo' as HeroId, rotations: [{ row: 0, col: 0, direction: 'clockwise' }] })).toThrow();
+    // 回転は1〜3回
+    expect(() => resolveTurn(quiet, { hero: 'aries', rotations: [] })).toThrow();
+    const r = { row: 3, col: 3, direction: 'clockwise' as const };
+    expect(() => resolveTurn(quiet, { hero: 'aries', rotations: [r, r, r, r] })).toThrow();
+    expect(() => resolveTurn(quiet, { hero: 'aries', rotations: [r, { row: 4, col: 0, direction: 'clockwise' }] })).toThrow();
+    expect(() => resolveTurn(quiet, { hero: 'aries', rotations: [{ row: 4, col: 0, direction: 'clockwise' }] })).toThrow();
+    expect(() => resolveTurn(quiet, { hero: 'aries', rotations: [{ row: 0, col: -1, direction: 'clockwise' }] })).toThrow();
+    expect(() => resolveTurn(quiet, { hero: 'aries', rotations: [{ row: 0, col: 0, direction: 'up' as Direction }] })).toThrow();
   });
 
   it('連鎖は8段まで。各段の盤面は消去・落下・補充の後のもの', () => {
-    const state = stateWith(base, RED_HORNS);
+    const state = stateWith(base, RED_L);
     const { state: next, events } = resolveTurn(state, quietMove('aries'));
     const clears = events.filter((e) => e.type === 'clear');
     expect(clears.length).toBeGreaterThan(0);
     expect(clears.length).toBeLessThan(9);
-    // 1段目は必殺の形だけの消去（連鎖0）、そのあと落ちてきたオーブの連鎖が 1, 2, ... と続く
-    clears.forEach((e, i) => e.type === 'clear' && expect(e.chain).toBe(i));
+    clears.forEach((e, i) => e.type === 'clear' && expect(e.chain).toBe(i + 1));
     const last = clears[clears.length - 1];
     if (last.type === 'clear') expect(boardToStrings(last.board)).toEqual(boardToStrings(next.board));
   });
@@ -255,13 +223,72 @@ describe('必殺に使ったオーブを消す', () => {
   });
 });
 
+describe('1ターンに3回まで回して「攻撃」で確定', () => {
+  // 1回目の回転で縦か横に3個並ぶが、そのまま2回目で崩せる盤面
+  const BOARD = ['GRGPP', 'BGGBP', 'BBRBR', 'RBRGP', 'BRBBG'];
+
+  it('回している途中に3個並んでも消えない。回し終えた盤面だけで判定する', () => {
+    const state = stateWith(base, BOARD);
+    // 1回目（左回転）で3個並ぶ → 2回目（同じ交点を右回転）で元に戻す
+    const { state: next, events } = resolveTurn(state, {
+      hero: 'aries',
+      rotations: [
+        { row: 0, col: 0, direction: 'counterclockwise' },
+        { row: 0, col: 0, direction: 'clockwise' },
+      ],
+    });
+    expect(findMatches(rotate2x2(parseBoard(BOARD), 0, 0, 'counterclockwise')).length).toBeGreaterThan(0);
+    expect(events.map((e) => e.type)).toEqual(['rotate', 'rotate', 'enemyAttack']);
+    expect(boardToStrings(next.board)).toEqual(BOARD);
+    // 回した回数に関係なく1ターン
+    expect(next.turn).toBe(state.turn + 1);
+  });
+
+  it('1回では作れない十字も、途中で3個並べながら2回で作れる', () => {
+    const state = stateWith(base, BOARD);
+    const { events } = resolveTurn(state, {
+      hero: 'sagittarius',
+      rotations: [
+        { row: 0, col: 0, direction: 'counterclockwise' },
+        { row: 1, col: 2, direction: 'clockwise' },
+      ],
+    });
+    const special = events.find((e) => e.type === 'special');
+    if (special?.type !== 'special') throw new Error('必殺が出ない');
+    expect(special.special.shape).toBe('cross');
+    expect(special.damage).toBe(HEROES.sagittarius.special.power);
+    // 十字は縦3＋横3の通常マッチでもあるので、1段目に一緒に消える（連鎖1。隣の青で4個並ぶと青は5個より多い）
+    const first = events.find((e) => e.type === 'clear');
+    if (first?.type !== 'clear') throw new Error('clear がない');
+    expect(first.chain).toBe(1);
+    expect(first.counts.blue).toBeGreaterThan(4);
+    for (const p of special.special.cells) {
+      expect(first.cells.some((c) => c.row === p.row && c.col === p.col)).toBeTruthy();
+    }
+  });
+
+  it('回転の出来事は回した回数だけ並び、それぞれの盤面は回したあとのもの', () => {
+    const rotations = [
+      { row: 0, col: 0, direction: 'counterclockwise' as const },
+      { row: 1, col: 2, direction: 'clockwise' as const },
+      { row: 3, col: 3, direction: 'clockwise' as const },
+    ];
+    const { events } = resolveTurn(stateWith(base, BOARD), { hero: 'aries', rotations });
+    const rotates = events.filter((e) => e.type === 'rotate');
+    expect(rotates).toHaveLength(3);
+    let b = parseBoard(BOARD);
+    rotates.forEach((e, i) => {
+      b = rotate2x2(b, rotations[i].row, rotations[i].col, rotations[i].direction);
+      if (e.type === 'rotate') expect(boardToStrings(e.board)).toEqual(boardToStrings(b));
+    });
+  });
+});
+
 describe('連鎖の上限', () => {
   // seed 47 で下の操作列を流すと、6ターン目（t = 5）で連鎖が8段に達し、マッチが残る
   const scripted = (t: number): TurnAction => ({
     hero: (['aries', 'sagittarius', 'virgo'] as HeroId[])[t % 3],
-    row: (t * 7) % 4,
-    col: (t * 3) % 4,
-    direction: t % 2 === 0 ? 'clockwise' : 'counterclockwise',
+    rotations: [{ row: (t * 7) % 4, col: (t * 3) % 4, direction: t % 2 === 0 ? 'clockwise' : 'counterclockwise' }],
   });
 
   it('8段で止め、残ったマッチは次の回転のあとに消える', () => {
@@ -307,9 +334,7 @@ describe('再現性', () => {
     for (let t = 0; t < 60 && state.status === 'playing'; t++) {
       const action: TurnAction = {
         hero: heroes[t % 3],
-        row: (t * 7) % 4,
-        col: (t * 3) % 4,
-        direction: t % 2 === 0 ? 'clockwise' : 'counterclockwise',
+        rotations: [{ row: (t * 7) % 4, col: (t * 3) % 4, direction: t % 2 === 0 ? 'clockwise' : 'counterclockwise' }],
       };
       const result = resolveTurn(state, action);
       log.push(JSON.stringify(result.events));

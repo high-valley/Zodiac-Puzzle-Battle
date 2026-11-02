@@ -18,6 +18,8 @@ export interface BoardView {
   animateRotate(board: Board, at: Pos, direction: Direction, ms: number): Promise<void>;
   animateClear(cells: Pos[], ms: number): Promise<void>;
   animateDrop(board: Board, cleared: Pos[], ms: number): Promise<void>;
+  /** 「攻撃」で消えるマス（clear）と、必殺の形になっているマス（special）に印をつける */
+  mark(clear: Pos[], special: Pos[]): void;
   /** 必殺の形を星座の線で結んで光らせる */
   drawConstellation(cells: Pos[], ms: number): Promise<void>;
 }
@@ -166,6 +168,11 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
         for (let r = 0; r <= bottom; r++) orbs[r][col].classList.add('dropping');
       }
       await wait(ms);
+    },
+    mark(clear, special) {
+      for (const row of orbs) for (const o of row) o.classList.remove('will-clear', 'will-special');
+      for (const p of clear) orbAt(p).classList.add('will-clear');
+      for (const p of special) orbAt(p).classList.add('will-special');
     },
     async drawConstellation(cells, ms) {
       // 必殺のオーブ同士を星座の線で結ぶ（盤面を 5×5 の座標にした SVG）

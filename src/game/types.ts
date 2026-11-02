@@ -44,12 +44,20 @@ export interface BattleState {
   stats: BattleStats;
 }
 
-export interface TurnAction {
-  hero: HeroId;
-  /** 交点の位置（0..3）。2×2 の左上のマス */
+/** 1回の回転。row・col は交点の位置（0..3）＝回す 2×2 の左上のマス */
+export interface Rotation {
   row: number;
   col: number;
   direction: Direction;
+}
+
+/**
+ * 1ターンの操作：行動するキャラと、1〜3回の回転（MAX_ROTATIONS_PER_TURN）。
+ * 回している間は何も消えず、「攻撃」で確定したときに必殺と消去が起きる
+ */
+export interface TurnAction {
+  hero: HeroId;
+  rotations: Rotation[];
 }
 
 export interface MatchGroup {
@@ -59,8 +67,8 @@ export interface MatchGroup {
   cells: Pos[];
 }
 
-/** horns：角（つの）5個、x：×字5個、square：2×2の4個。どれも縦横に3個並ぶところを含まない（仕様書 9.2） */
-export type SpecialShape = 'horns' | 'x' | 'square';
+/** L：縦3＋横3で角を共有する5個、cross：十字5個、square：2×2の4個（仕様書 9.2） */
+export type SpecialShape = 'L' | 'cross' | 'square';
 
 export interface SpecialResult {
   heroId: HeroId;
