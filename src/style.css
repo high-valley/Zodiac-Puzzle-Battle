@@ -11,6 +11,8 @@
   --pink: #ef7fbf;
   --hurt: #ff8a8a;
   --heal: #8ff0b8;
+  /* 見出し・ロゴは明朝系（仕様書 11.1） */
+  --font-display: 'Hiragino Mincho ProN', 'Yu Mincho', 'YuMincho', 'Noto Serif JP', serif;
   --font: 'Hiragino Maru Gothic ProN', 'Hiragino Maru Gothic Pro', 'Zen Maru Gothic', 'M PLUS Rounded 1c',
     'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
   color-scheme: dark;
@@ -606,38 +608,603 @@ button:focus-visible {
   translate: 0 -34px;
 }
 
-/* 結果 */
-.result {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
+/* ───────── 画面共通 ───────── */
+.home,
+.quest,
+.result-screen {
+  max-width: 440px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) 16px max(20px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+.bar-top {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.bar-top .back {
+  min-height: 36px;
+}
+.screen-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gold);
+  text-align: center;
+  padding-right: 56px; /* 左の「戻る」と釣り合わせる */
+}
+.text-btn.wide {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 14px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.text-btn.danger {
+  color: var(--hurt);
+  border-color: #ff8a8a55;
+}
+.chip {
+  min-width: 44px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #ffffff2e;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.chip[aria-pressed='true'] {
+  color: var(--gold);
+  border-color: #e9c46a99;
+}
+
+/* ───────── ホーム ───────── */
+.home-top {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.logo {
+  margin: 4vh 0 0;
+  font-family: var(--font-display);
+  font-size: clamp(34px, 10.5vw, 44px);
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  letter-spacing: 0.06em;
+  color: transparent;
+  background: linear-gradient(180deg, #fff3c4 0%, var(--gold) 45%, #b8892e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 2px 10px #e9c46a40);
+}
+.logo-sub {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+}
+.home-heroes {
+  list-style: none;
+  margin: 5vh 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.home-hero {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding-bottom: 4px;
+}
+.constellation-art {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: visible;
+}
+.c-lines line {
+  stroke: #e9c46a99;
+  stroke-width: 0.9;
+}
+.c-stars circle {
+  fill: #fff;
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px var(--gold));
+}
+.home-hero-symbol {
+  margin-top: -8px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  padding: 24px;
-  background: #0b0f2ecc;
+  border-radius: 50%;
+  border: 1px solid #e9c46a99;
+  background: var(--sky);
+  color: var(--gold);
+  font-size: 20px;
+}
+.home-hero-name {
+  margin-top: 6px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.home-hero-role {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.home-actions {
+  margin-top: auto;
+  padding-top: 24px;
+  display: grid;
+  gap: 12px;
+}
+.adventure {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 18px 16px 16px;
+  border-radius: 20px;
+  border: 1px solid #fff3c4;
+  background: linear-gradient(180deg, #f3d488 0%, var(--gold) 55%, #c79a3c 100%);
+  color: #1a1a3a;
+  box-shadow:
+    0 0 0 4px #e9c46a2e,
+    0 10px 30px #e9c46a33;
+  cursor: pointer;
+}
+.adventure-label {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  padding-left: 0.3em;
+}
+.adventure-sub {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+.resume {
+  color: var(--gold);
+  border-color: #e9c46a77;
+}
+
+/* ───────── クエスト選択 ───────── */
+.chapter {
+  margin-top: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #e9c46a55;
+  background: linear-gradient(90deg, #2b2266cc, #151b45cc);
+  text-align: center;
+}
+.chapter-no {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  letter-spacing: 0.2em;
+}
+.chapter-name {
+  margin: 2px 0 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--gold);
+}
+.chapter-tagline {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.map {
+  position: relative;
+  height: 168px;
+  margin: 10px 4px 0;
+}
+.map-path {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.map-path path {
+  fill: none;
+  stroke: #e9c46a88;
+  stroke-width: 1.2;
+  stroke-dasharray: 1.5 2.5;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2;
+}
+.map-node-wrap {
+  position: absolute;
+  translate: -50% -50%;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.map-node {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid #e9c46a99;
+  background: radial-gradient(circle at 50% 35%, #3a3388, var(--sky));
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  box-shadow: 0 0 12px #0008;
+}
+.map-node.cleared {
+  border-color: var(--gold);
+}
+.map-node.selected {
+  border-color: #fff3c4;
+  box-shadow:
+    0 0 0 4px #e9c46a55,
+    0 0 20px #e9c46a88;
+  scale: 1.08;
+}
+.map-node.locked {
+  opacity: 0.45;
+  cursor: default;
+  font-size: 16px;
+}
+.map-node-stars {
+  min-height: 14px;
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.stage-panel {
+  margin-top: 6px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e9c46a66;
+  background: #151b45e6;
+}
+.stage-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stage-id {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #1a1a3a;
+  font-weight: 800;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.stage-enemy {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 20px;
+}
+.stage-body {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+.stage-art svg,
+.result-enemy svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.stage-stats {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.stage-stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #ffffff14;
+  padding-bottom: 3px;
+}
+.stage-stats dt {
+  color: var(--ink-soft);
+}
+.stage-stats dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.star-rules {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+}
+.star-mark {
+  display: inline-block;
+  width: 3.4em;
+  color: var(--gold);
+  letter-spacing: -1px;
+}
+.stage-record,
+.stage-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.stage-note {
+  color: var(--hurt);
+}
+.stage-actions {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.stage-actions:has(.restart-stage) {
+  grid-template-columns: auto 1fr;
+}
+.stage-actions .text-btn {
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 14px;
+}
+
+/* ───────── リザルト ───────── */
+.result-screen {
+  text-align: center;
+}
+.result-label {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.result-heading {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: 56px;
+  line-height: 1.1;
+  letter-spacing: 0.2em;
+  padding-left: 0.2em;
+  color: transparent;
+  background: linear-gradient(180deg, #fff3c4 0%, var(--gold) 50%, #b8892e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.result-screen.lose .result-heading {
+  background: linear-gradient(180deg, #e3e6ff 0%, #8d93c4 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.result-enemy {
+  width: 120px;
+  margin: 4px auto 0;
+}
+.result-screen.lose .result-enemy {
+  opacity: 1;
+}
+.result-screen.win .result-enemy {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+.result-stars {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 40px;
+  line-height: 1;
+}
+.result-stars span {
+  color: #ffffff26;
+}
+.result-stars span.on {
+  color: var(--gold);
+  text-shadow: 0 0 14px #e9c46aaa;
+  animation: star-in 0.45s calc(var(--i) * 0.18s) ease-out backwards;
+}
+.new-best {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.result-rules {
+  list-style: none;
+  margin: 12px auto 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: left;
+  width: fit-content;
+}
+.result-rules li.met {
+  color: var(--ink);
+}
+.result-rules li span {
+  display: inline-block;
+  width: 1.4em;
+  color: var(--gold);
+}
+.result-stats {
+  margin: 16px 0 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.result-stats div {
+  padding: 8px 4px;
+  border-radius: 12px;
+  background: #ffffff0d;
+  border: 1px solid #ffffff14;
+}
+.result-stats dt {
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.result-stats dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.result-stats small {
+  margin-left: 4px;
+  font-size: 10px;
+  color: var(--gold);
+}
+.result-actions {
+  margin-top: auto;
+  padding-top: 20px;
+  display: grid;
+  gap: 10px;
+}
+.result-sub {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 10px;
+}
+.result-sub .text-btn {
+  min-height: 44px;
+  border-radius: 14px;
+  color: var(--ink);
+}
+
+/* ───────── シート（設定・一時停止） ───────── */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 20px 16px;
+  background: #0b0f2ee0;
   backdrop-filter: blur(4px);
 }
-.result[hidden] {
-  display: none;
-}
-.result-card {
-  width: min(320px, 100%);
-  padding: 24px;
+.sheet-card {
+  width: min(360px, 100%);
+  padding: 20px;
   border-radius: 20px;
   background: var(--sky-raise);
   border: 1px solid #e9c46a66;
+  display: grid;
+  gap: 10px;
+}
+.sheet-card h2 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--gold);
   text-align: center;
 }
-.result-title {
-  margin: 0;
-  font-size: 34px;
-  font-weight: 800;
-  color: var(--gold);
-}
-.result-detail {
-  margin: 6px 0 20px;
+.sheet-note {
+  margin: -6px 0 4px;
+  text-align: center;
+  font-size: 12px;
   color: var(--ink-soft);
 }
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.seg {
+  display: inline-grid;
+  grid-auto-flow: column;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid #ffffff2e;
+  background: #0b0f2e;
+  cursor: pointer;
+}
+.seg span {
+  min-width: 64px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.seg span.on {
+  background: var(--gold);
+  color: #1a1a3a;
+  font-weight: 700;
+}
+
+/* ───────── バトル：敵の強攻撃・速さ・回転ボタン ───────── */
+.enemy-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.enemy-charge {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.enemy-charge.imminent {
+  color: var(--hurt);
+  font-weight: 700;
+}
+.battle.heavy-hit::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 100%, #e5484d55, transparent 70%);
+  animation: flash 0.5s ease-out;
+}
+.battle.no-rotate-buttons .rotate-btn {
+  visibility: hidden;
+}
+html[data-speed='2'] .orb.moving {
+  transition-duration: 0.085s;
+}
+html[data-speed='2'] .orb.clearing {
+  transition-duration: 0.1s;
+}
+html[data-speed='2'] .orb.dropping {
+  animation-duration: 0.115s;
+}
+html[data-speed='2'] .banner,
+html[data-speed='2'] .battle.special-flash::after {
+  animation-duration: 0.55s;
+}
+html[data-speed='2'] .constellation line {
+  animation-duration: 0.22s;
+}
+html[data-speed='2'] .popup {
+  animation-duration: 0.55s;
+}
+
+@keyframes star-in {
+  from {
+    opacity: 0;
+    scale: 2.2;
+  }
+  70% {
+    scale: 0.9;
+  }
+}
+
 .primary-btn {
   width: 100%;
   min-height: 48px;
@@ -666,6 +1233,51 @@ button:focus-visible {
   border-radius: 20px;
   background: var(--sky-raise);
   border: 1px solid #e9c46a66;
+}
+.tutorial-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 3px;
+  border-radius: 12px;
+  background: #0b0f2e;
+}
+.tutorial-tab {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.tutorial-tab[aria-selected='true'] {
+  background: #e9c46a26;
+  color: var(--gold);
+  font-weight: 700;
+}
+.t-stars {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+.t-charge {
+  font-size: 14px;
+  color: var(--hurt);
+}
+.t-charge b {
+  font-size: 20px;
+  margin: 0 2px;
+}
+.t-star-row {
+  font-size: 34px;
+  letter-spacing: 6px;
+  color: #ffffff26;
+}
+.t-star-row .on {
+  color: var(--gold);
+  text-shadow: 0 0 12px #e9c46aaa;
 }
 .tutorial-card h2 {
   margin: 14px 0 6px;
@@ -938,5 +1550,57 @@ button:focus-visible {
   *::after {
     animation-duration: 1ms !important;
     transition-duration: 1ms !important;
+  }
+}
+
+/* hidden 属性を display の指定より優先する（必殺の帯が常に見えていた） */
+[hidden] {
+  display: none !important;
+}
+
+/* ホーム：3人を上下の真ん中あたりに置く */
+.home .home-heroes {
+  margin-block: auto;
+}
+
+/* 背の低い端末（iPhone SE など）：敵の欄と説明を縮めて、盤面の大きさを保つ（仕様書 11.9） */
+@media (max-height: 740px) {
+  .battle {
+    gap: 6px;
+  }
+  .enemy {
+    grid-template-columns: 64px 1fr;
+  }
+  .enemy-figure svg {
+    width: 64px;
+  }
+  .enemy-name {
+    font-size: 14px;
+  }
+  .battle .hint {
+    display: none;
+  }
+  .special-shape svg {
+    width: 44px;
+    height: 44px;
+  }
+  .rotate-btn {
+    min-height: 44px;
+  }
+  .hero {
+    padding: 4px 4px 6px;
+  }
+  .hero-symbol {
+    font-size: 18px;
+    line-height: 1.1;
+  }
+  .hero-name {
+    font-size: 13px;
+  }
+  .hero-role {
+    font-size: 10px;
+  }
+  .party-bar {
+    height: 10px;
   }
 }

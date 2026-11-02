@@ -8,12 +8,14 @@
 
 - `src/game/` … ゲームエンジン（画面・ブラウザに依存しない純粋な関数）
   - `board.ts` 盤面の生成・2×2回転・落下と補充／`matching.ts` 通常マッチ／`specials.ts` 必殺の形の判定／`combat.ts` 1ターンの解決／`rng.ts` seed 付き乱数／`types.ts` 型
-- `src/data/` … 数値の設定データ（`balance.ts` 盤面・連鎖・敵・スワイプ閾値、`heroes.ts` キャラ）。仕様書の数値は仮
+- `src/data/` … 数値の設定データ（`balance.ts` 盤面・連鎖・スワイプ閾値、`heroes.ts` キャラ、`enemies.ts` 敵、`stages.ts` ステージと★の条件）。仕様書の数値は仮
 - `src/input/swipe.ts` … 交点の選び方とスワイプの向きの判定（純粋な関数）
 - `src/audio/` … 効果音（`cues.ts` 出来事と音の対応、`sound.ts` Web Audio での合成）
-- `src/storage/settings.ts` … 端末に保存する設定（効果音・遊び方を見たか）
+- `src/storage/` … 端末に保存するもの（`settings.ts` 設定、`progress.ts` クリアの記録と途中のバトル）
+- `src/app.ts`・`src/routes.ts` … 画面の切り替え（URL の # で決める）
 - `src/components/`・`src/screens/` … 画面（DOM ＋ Pointer Events）
 - `tests/` … Vitest の単体テスト
+- `tools/` … 計測用の自動プレイヤー（`bot.ts`）とバランスの計測（`bench.ts`）
 
 ## 開発
 
@@ -22,6 +24,7 @@ npm install
 npm run dev      # http://localhost:5173/Zodiac-Puzzle-Battle/
 npm test         # エンジンと入力判定の単体テスト
 npm run build    # 型チェック ＋ dist/ へビルド
+npm run bench    # 自動プレイヤーでステージごとの勝率・ターン数・必殺の発生率を計測（npm run bench -- 300 1-5 で戦闘数とステージを指定）
 ```
 
 ## 公開（GitHub Pages）

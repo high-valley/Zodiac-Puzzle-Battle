@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMY, chainMultiplier } from '../src/data/balance';
+import { chainMultiplier } from '../src/data/balance';
+import { ENEMIES } from '../src/data/enemies';
 import { HEROES } from '../src/data/heroes';
 import { createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game/combat';
 import { findMatches } from '../src/game/matching';
@@ -7,7 +8,9 @@ import { detectHeroSpecial } from '../src/game/specials';
 import type { BattleState, Direction, HeroId, TurnAction } from '../src/game/types';
 import { QUIET_ROWS, boardToStrings, stateWith } from './helpers';
 
-const base = createBattle(1);
+// 強攻撃のない敵で、ふつうの攻撃だけを確かめる
+const base = createBattle(1, 'stardust');
+const ENEMY = ENEMIES.stardust;
 
 // QUIET_ROWS で交点(3,3)を回しても、マッチも必殺の形もできない
 const quietMove = (hero: HeroId, direction: Direction = 'clockwise'): TurnAction => ({ hero, row: 3, col: 3, direction });

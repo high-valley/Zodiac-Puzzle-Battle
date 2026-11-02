@@ -16,7 +16,7 @@ describe('cueForEvent', () => {
       { type: 'clear', chain: 2, cells: [], counts: zero, damage: 0, heal: 0, board },
       { type: 'heal', amount: 1, partyHp: 1 },
       { type: 'damage', amount: 1, enemyHp: 1 },
-      { type: 'enemyAttack', amount: 1, partyHp: 1 },
+      { type: 'enemyAttack', amount: 1, partyHp: 1, heavy: false },
       { type: 'end', status: 'victory' },
       { type: 'end', status: 'defeat' },
     ];
@@ -78,7 +78,7 @@ describe('loadSettings / saveSettings', () => {
     };
     withWindow(broken, () => {
       expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
-      expect(() => saveSettings({ soundOn: false, tutorialSeen: true })).not.toThrow();
+      expect(() => saveSettings({ ...DEFAULT_SETTINGS, soundOn: false, tutorialSeen: true })).not.toThrow();
     });
     const throwing = {
       localStorage: {
@@ -100,8 +100,8 @@ describe('loadSettings / saveSettings', () => {
     const store = new Map<string, string>();
     const w = { localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) } };
     withWindow(w, () => {
-      saveSettings({ soundOn: false, tutorialSeen: true });
-      expect(loadSettings()).toEqual({ soundOn: false, tutorialSeen: true });
+      saveSettings({ ...DEFAULT_SETTINGS, soundOn: false, tutorialSeen: true });
+      expect(loadSettings()).toEqual({ ...DEFAULT_SETTINGS, soundOn: false, tutorialSeen: true });
     });
   });
 });
@@ -175,18 +175,24 @@ describe('createSoundPlayer', () => {
 
 describe('parseSettings', () => {
   it('何も保存されていなければ既定値（音はオン、遊び方は未表示）', () => {
-    expect(parseSettings(null)).toEqual({ soundOn: true, tutorialSeen: false });
+    expect(parseSettings(null)).toEqual({ soundOn: true, tutorialSeen: false, speed: 1, rotateButtons: true });
     expect(DEFAULT_SETTINGS.soundOn).toBe(true);
   });
 
   it('保存された値を読む', () => {
-    expect(parseSettings('{"soundOn":false,"tutorialSeen":true}')).toEqual({ soundOn: false, tutorialSeen: true });
+    expect(parseSettings('{"soundOn":false,"tutorialSeen":true,"speed":2,"rotateButtons":false}')).toEqual({
+      soundOn: false,
+      tutorialSeen: true,
+      speed: 2,
+      rotateButtons: false,
+    });
   });
 
   it('壊れた値・型の違う値・足りない項目は既定値で補う', () => {
     expect(parseSettings('not json')).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings('null')).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings('{"soundOn":"no"}')).toEqual(DEFAULT_SETTINGS);
-    expect(parseSettings('{"tutorialSeen":true}')).toEqual({ soundOn: true, tutorialSeen: true });
+    expect(parseSettings('{"tutorialSeen":true}')).toEqual({ ...DEFAULT_SETTINGS, tutorialSeen: true });
+    expect(parseSettings('{"speed":3,"rotateButtons":"no"}')).toEqual(DEFAULT_SETTINGS);
   });
 });

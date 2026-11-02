@@ -14,14 +14,6 @@ export function chainMultiplier(chain: number): number {
   return 1 + 0.25 * (chain - 1);
 }
 
-/** MVP の敵（1体） */
-export const ENEMY = {
-  name: '星喰いの影',
-  maxHp: 900,
-  /** 毎ターンの攻撃量 */
-  attack: 32,
-};
-
 /** 交点スワイプの判定（CSS px） */
 export const SWIPE = {
   /** 水平方向にこれ以上動いたら回転 */

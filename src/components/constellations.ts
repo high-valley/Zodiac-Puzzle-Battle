@@ -1,0 +1,77 @@
+// 星座の線画（仮）。本番の絵が届くまで、ホームやクエスト画面で使う
+import type { HeroId } from '../game/types';
+
+interface Figure {
+  stars: [number, number, number][]; // x, y, 大きさ
+  lines: [number, number][];
+}
+
+// 星の並びは実際の星座をおおまかになぞった形（100×100 の座標）
+const FIGURES: Record<HeroId, Figure> = {
+  aries: {
+    stars: [
+      [14, 62, 2.2],
+      [48, 40, 3.4],
+      [66, 46, 2.6],
+      [74, 54, 1.8],
+    ],
+    lines: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+    ],
+  },
+  sagittarius: {
+    stars: [
+      [22, 40, 2.4],
+      [38, 30, 2.8],
+      [56, 34, 2.6],
+      [70, 26, 2.2],
+      [74, 46, 2.6],
+      [56, 54, 3.2],
+      [36, 58, 2.6],
+      [20, 70, 2.2],
+    ],
+    lines: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [2, 4],
+      [4, 5],
+      [5, 2],
+      [5, 6],
+      [6, 1],
+      [6, 7],
+    ],
+  },
+  virgo: {
+    stars: [
+      [18, 30, 2.2],
+      [34, 38, 2.4],
+      [50, 42, 3.4],
+      [64, 34, 2.4],
+      [80, 26, 2.2],
+      [48, 62, 2.6],
+      [36, 80, 2.2],
+      [62, 76, 2.4],
+    ],
+    lines: [
+      [0, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [2, 5],
+      [5, 6],
+      [5, 7],
+    ],
+  },
+};
+
+export function constellationSvg(hero: HeroId, label: string): string {
+  const f = FIGURES[hero];
+  const lines = f.lines
+    .map(([a, b]) => `<line x1="${f.stars[a][0]}" y1="${f.stars[a][1]}" x2="${f.stars[b][0]}" y2="${f.stars[b][1]}"/>`)
+    .join('');
+  const stars = f.stars.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('');
+  return `<svg class="constellation-art" viewBox="0 0 100 100" role="img" aria-label="${label}"><g class="c-lines">${lines}</g><g class="c-stars">${stars}</g></svg>`;
+}

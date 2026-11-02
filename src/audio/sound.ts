@@ -80,7 +80,12 @@ function tonesFor(cue: SoundCue): { tones: Tone[]; noise?: { at: number; dur: nu
         ],
       };
     case 'hurt':
-      return { tones: [{ wave: 'square', from: 180, to: 90, at: 0, dur: 0.16, gain: 0.05 }] };
+      return cue.heavy
+        ? {
+            tones: [{ wave: 'square', from: 140, to: 50, at: 0, dur: 0.32, gain: 0.07 }],
+            noise: { at: 0, dur: 0.22, gain: 0.1 },
+          }
+        : { tones: [{ wave: 'square', from: 180, to: 90, at: 0, dur: 0.16, gain: 0.05 }] };
     case 'victory':
       return {
         tones: [0, 4, 7, 12].map((n, i) => ({

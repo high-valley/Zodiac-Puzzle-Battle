@@ -1,5 +1,5 @@
 import './style.css';
-import { mountBattle } from './screens/battle';
+import { mountApp } from './app';
 
 const root = document.getElementById('app');
-if (root) mountBattle(root);
+if (root) mountApp(root);
