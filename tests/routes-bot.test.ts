@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashToRoute, routeToHash, tabOf, type Route } from '../src/routes';
+import { FEATURE_IDS, hashToRoute, routeToHash, tabOf, type Route } from '../src/routes';
 import { parseBoard } from './helpers';
 import { createBattle, resolveTurn } from '../src/game/combat';
 import { MAX_ROTATIONS_PER_TURN } from '../src/data/balance';
@@ -18,6 +18,7 @@ describe('画面の行き先と URL', () => {
       { name: 'heroes' },
       { name: 'heroes', heroId: 'scorpio' },
       { name: 'book' },
+      ...FEATURE_IDS.map((id) => ({ name: 'feature', id }) as Route),
     ];
     for (const r of routes) expect(hashToRoute(routeToHash(r))).toEqual(r);
   });
@@ -43,6 +44,15 @@ describe('画面の行き先と URL', () => {
     expect(tabOf({ name: 'book' })).toBe('menu');
     expect(tabOf({ name: 'battle', stageId: '1-1' })).toBeNull();
     expect(tabOf({ name: 'result' })).toBeNull();
+  });
+
+  it('準備中の画面は #/<名前> で開け、ホームのタブを光らせる', () => {
+    expect(FEATURE_IDS).toHaveLength(9);
+    expect(hashToRoute('#/gacha')).toEqual({ name: 'feature', id: 'gacha' });
+    expect(routeToHash({ name: 'feature', id: 'shop' })).toBe('#/shop');
+    expect(tabOf({ name: 'feature', id: 'news' })).toBe('home');
+    // Object の持ち物の名前は画面名として通さない
+    expect(hashToRoute('#/constructor')).toEqual({ name: 'home' });
   });
 });
 
