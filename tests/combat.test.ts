@@ -90,16 +90,42 @@ describe('resolveTurn', () => {
     if (special?.type !== 'special') throw new Error('必殺が出ない');
     expect(special.special.shape).toBe('x');
     expect(special.damage).toBe(HEROES.sagittarius.special.power);
+    // ×字のオーブも必殺だけで消える（連鎖0・通常効果なし）
+    const first = events.find((e) => e.type === 'clear');
+    if (first?.type !== 'clear') throw new Error('clear がない');
+    expect(first.chain).toBe(0);
+    expect(first.cells).toHaveLength(5);
+    expect(first.counts).toEqual({ red: 0, blue: 0, green: 0, pink: 0 });
   });
 
-  it('必殺は1ターンに1回まで', () => {
+  it('必殺は1ターンに1回まで（形が2つあっても、残ったほうは次のターンまで出ない）', () => {
     // 赤の角が2つ（上向きと下向き）。交点(0,3)の回転はどちらも崩さない
     const twoHorns = ['RPRBP', 'RBRBG', 'PRPRP', 'GPRBR', 'PPRPR'];
-    const { events } = resolveTurn(stateWith(base, twoHorns), { hero: 'aries', row: 0, col: 3, direction: 'clockwise' });
+    const state = stateWith(base, twoHorns);
+    const { state: next, events } = resolveTurn(state, { hero: 'aries', row: 0, col: 3, direction: 'clockwise' });
     expect(events.filter((e) => e.type === 'special')).toHaveLength(1);
     // 消えるのは見つかった1つの形の5個だけ
     const first = events.find((e) => e.type === 'clear');
     expect(first && first.type === 'clear' && first.cells.length).toBe(5);
+    // もう1つの角（下向き）は消えずに残っている
+    expect(detectHeroSpecial(next.board, 'aries')).not.toBeNull();
+    // 敵へのダメージは必殺1回分＋通常効果だけ
+    const normal = events.reduce((sum, e) => (e.type === 'clear' ? sum + e.damage : sum), 0);
+    expect(state.enemyHp - next.enemyHp).toBe(HEROES.aries.special.power + normal);
+  });
+
+  it('角の一部が通常マッチと重なるときは、同時に1回で消し、通常効果は通常マッチの分だけ', () => {
+    // 回すと、角の顔 (2,1) を通る縦の赤3個ができる
+    const rows = ['RBRGG', 'RBRPP', 'PRBBG', 'BBGPP', 'BRRPP'];
+    const { events } = resolveTurn(stateWith(base, rows), { hero: 'aries', row: 3, col: 1, direction: 'clockwise' });
+    expect(events.filter((e) => e.type === 'special')).toHaveLength(1);
+    const first = events.find((e) => e.type === 'clear');
+    if (first?.type !== 'clear') throw new Error('clear がない');
+    expect(first.chain).toBe(1);
+    // 角の5個＋縦3個のうち角でない2個 = 7個（重なった顔は1回だけ）
+    expect(first.cells).toHaveLength(7);
+    expect(first.counts.red).toBe(3);
+    expect(first.damage).toBe(HEROES.aries.actions.red!.coef * 3);
   });
 
   it('ダメージ合計は 必殺 ＋ 各連鎖の通常効果 で、敵HPに反映される', () => {

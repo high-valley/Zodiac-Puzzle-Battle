@@ -154,4 +154,26 @@ describe('形を結ぶ線（画面の演出用）', () => {
   it('角は2本の角と、顔へ斜めの2本', () => {
     expect(asText(shapeLinks(pos(SHAPES.horns[0])))).toEqual(['00-10', '02-12', '10-21', '12-21']);
   });
+
+  it('どの形のどの向きも、線をたどるとすべてのオーブがつながる（線はどれも4本）', () => {
+    for (const shape of Object.keys(SHAPES) as SpecialShape[]) {
+      for (const o of SHAPES[shape]) {
+        const links = shapeLinks(pos(o));
+        expect(links).toHaveLength(4);
+        const k = (p: { row: number; col: number }) => `${p.row},${p.col}`;
+        const seen = new Set([k(pos(o)[0])]);
+        for (let changed = true; changed; ) {
+          changed = false;
+          for (const [a, b] of links) {
+            if (seen.has(k(a)) !== seen.has(k(b))) {
+              seen.add(k(a));
+              seen.add(k(b));
+              changed = true;
+            }
+          }
+        }
+        expect(seen.size).toBe(o.length);
+      }
+    }
+  });
 });

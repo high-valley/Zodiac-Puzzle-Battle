@@ -48,7 +48,7 @@ export const SHAPES: Record<SpecialShape, readonly Offsets[]> = {
   ],
 };
 
-/** 選んだキャラの必殺の形が盤面にあれば、最初に見つかった1つを返す（左上から順に探す） */
+/** 選んだキャラの必殺の形が盤面にあれば、最初に見つかった1つを返す（向きの順に、それぞれ左上から探す） */
 export function detectHeroSpecial(board: Board, heroId: HeroId): SpecialResult | null {
   const { color, shape } = HEROES[heroId].special;
   for (const offsets of SHAPES[shape]) {
