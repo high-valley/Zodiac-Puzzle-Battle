@@ -16,6 +16,8 @@ import { openModal } from './components/modal';
 import { mountBook } from './screens/book';
 import { mountHeroes } from './screens/heroes';
 import { mountParty } from './screens/party';
+import { FEATURES, mountComingSoon } from './screens/comingSoon';
+import { FEATURE_IDS } from './routes';
 
 export type { Route };
 
@@ -132,6 +134,9 @@ export function mountApp(root: HTMLElement): void {
       case 'book':
         cleanup = mountBook(container, ctx);
         break;
+      case 'feature':
+        cleanup = mountComingSoon(container, ctx, route.id);
+        break;
     }
 
     // 下のタブバー（バトルとリザルトでは出さない）
@@ -153,7 +158,7 @@ export function mountApp(root: HTMLElement): void {
     window.scrollTo(0, 0);
   }
 
-  /** メニュー：遊び方・図鑑・設定 */
+  /** メニュー：図鑑・遊び方・設定と、準備中の画面 */
   function openMenuSheet(background: HTMLElement) {
     const modal = openModal(root, background, { className: 'sheet', labelledBy: 'menu-sheet-title' });
     if (!modal) return;
@@ -163,6 +168,10 @@ export function mountApp(root: HTMLElement): void {
         <button type="button" class="text-btn wide m-book">図鑑</button>
         <button type="button" class="text-btn wide m-how">遊び方</button>
         <button type="button" class="text-btn wide m-settings">設定</button>
+        <p class="sheet-note">準備中</p>
+        <div class="sheet-grid">
+          ${FEATURE_IDS.map((id) => `<button type="button" class="text-btn m-feature" data-id="${id}">${FEATURES[id].title}</button>`).join('')}
+        </div>
         <button type="button" class="primary-btn m-close">とじる</button>
       </div>`;
     modal.overlay.querySelector('.m-book')?.addEventListener('click', () => {
@@ -177,6 +186,12 @@ export function mountApp(root: HTMLElement): void {
       modal.close();
       ctx.openSettings(background, { allowClear: true });
     });
+    modal.overlay.querySelectorAll<HTMLButtonElement>('.m-feature').forEach((b) =>
+      b.addEventListener('click', () => {
+        modal.close();
+        ctx.navigate(hashToRoute(`#/${b.dataset.id}`));
+      }),
+    );
     modal.overlay.querySelector('.m-close')?.addEventListener('click', () => modal.close());
     (modal.overlay.querySelector('.m-close') as HTMLButtonElement).focus();
   }
