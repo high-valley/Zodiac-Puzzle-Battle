@@ -17,10 +17,19 @@ export function chainMultiplier(chain: number): number {
   return 1 + 0.25 * (chain - 1);
 }
 
-/** 交点スワイプの判定（CSS px） */
+/** 交点スワイプの判定（CSS px）。横：右へ＝時計回り。縦：下へ＝時計回り（2026-11-03） */
 export const SWIPE = {
-  /** 水平方向にこれ以上動いたら回転 */
+  /** 横か縦にこれ以上動いたら回転 */
   minDistance: 22,
-  /** |dx| > ratio × |dy| を満たすこと */
+  /** 横なら |dx| > ratio × |dy|、縦なら |dy| > ratio × |dx|（どちらでもない斜めは回さない） */
   horizontalRatio: 1.2,
+};
+
+/** 回す動きの時間（ミリ秒。演出 ×2 ではこの半分）。2026-11-03 目で追えるように遅くした */
+export const ROTATE_ANIM = {
+  /** 回転ボタンで回すとき */
+  buttonMs: 600,
+  /** 指を離したあと残りを回しきる時間の下限と上限（指の速さに合わせつつ、速すぎないように） */
+  releaseMinMs: 340,
+  releaseMaxMs: 520,
 };

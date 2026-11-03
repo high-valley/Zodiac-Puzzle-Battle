@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SWIPE } from '../src/data/balance';
-import { classifySwipe, nearestIntersection } from '../src/input/swipe';
+import { classifySwipe, nearestIntersection, swipeAlong } from '../src/input/swipe';
 
 describe('nearestIntersection', () => {
   const cell = 60;
@@ -41,10 +41,26 @@ describe('classifySwipe', () => {
     expect(classifySwipe(-18, 18)).toEqual({ kind: 'select' });
   });
 
-  it('縦寄りの大きな動きはキャンセル', () => {
-    expect(classifySwipe(0, 60)).toEqual({ kind: 'cancel' });
-    // |dx| = 1.2 × |dy| ちょうどは水平と見なさない
+  it('下へ閾値以上 → 時計回り、上へ → 反時計回り（2026-11-03）', () => {
+    expect(classifySwipe(0, SWIPE.minDistance)).toEqual({ kind: 'rotate', direction: 'clockwise' });
+    expect(classifySwipe(0, -SWIPE.minDistance)).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
+    expect(classifySwipe(20, 80)).toEqual({ kind: 'rotate', direction: 'clockwise' });
+    expect(classifySwipe(0, SWIPE.minDistance - 1)).toEqual({ kind: 'select' });
+  });
+
+  it('斜め（横と縦が同じくらい）の大きな動きはキャンセル', () => {
+    // |dx| = 1.2 × |dy| ちょうどは横と見なさない（縦も同じ）
     expect(classifySwipe(36, 30)).toEqual({ kind: 'cancel' });
+    expect(classifySwipe(30, 36)).toEqual({ kind: 'cancel' });
     expect(classifySwipe(-30, -30)).toEqual({ kind: 'cancel' });
+  });
+});
+
+describe('swipeAlong（指に合わせて回すときの向き）', () => {
+  it('横か縦の大きいほうに沿った動き。斜めは null', () => {
+    expect(swipeAlong(30, 5)).toEqual({ along: 30, axis: 'x' });
+    expect(swipeAlong(-3, -40)).toEqual({ along: -40, axis: 'y' });
+    expect(swipeAlong(20, 20)).toBeNull();
+    expect(swipeAlong(3, 0)).toBeNull();
   });
 });

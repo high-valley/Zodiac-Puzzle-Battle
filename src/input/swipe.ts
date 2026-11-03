@@ -15,17 +15,29 @@ export function nearestIntersection(x: number, y: number, cellSize: number): Pos
   };
 }
 
+/** 指に合わせて回すときの、回す向きに沿った動き（横か縦の、大きいほう。右・下が正）。どちらとも言えなければ null */
+export function swipeAlong(dx: number, dy: number, rule = SWIPE): { along: number; axis: 'x' | 'y' } | null {
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+  if (ax > 4 && ax > rule.horizontalRatio * ay) return { along: dx, axis: 'x' };
+  if (ay > 4 && ay > rule.horizontalRatio * ax) return { along: dy, axis: 'y' };
+  return null;
+}
+
 export type SwipeResult =
   | { kind: 'rotate'; direction: Direction }
   | { kind: 'select' } // 縦も横も閾値未満：選択だけ
-  | { kind: 'cancel' }; // 閾値以上動いたが水平ではない：何もしない
+  | { kind: 'cancel' }; // 閾値以上動いたが斜め：何もしない
 
-/** 右へスワイプ → 時計回り、左へ → 反時計回り */
+/** 右か下へスワイプ → 時計回り、左か上へ → 反時計回り。斜め（横と縦が同じくらい）は回さない */
 export function classifySwipe(dx: number, dy: number, rule = SWIPE): SwipeResult {
   const ax = Math.abs(dx);
   const ay = Math.abs(dy);
   if (ax >= rule.minDistance && ax > rule.horizontalRatio * ay) {
     return { kind: 'rotate', direction: dx > 0 ? 'clockwise' : 'counterclockwise' };
+  }
+  if (ay >= rule.minDistance && ay > rule.horizontalRatio * ax) {
+    return { kind: 'rotate', direction: dy > 0 ? 'clockwise' : 'counterclockwise' };
   }
   if (ax < rule.minDistance && ay < rule.minDistance) return { kind: 'select' };
   return { kind: 'cancel' };

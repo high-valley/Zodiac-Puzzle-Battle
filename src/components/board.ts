@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
-import { BOARD_SIZE, SWIPE } from '../data/balance';
+import { BOARD_SIZE, ROTATE_ANIM } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
-import { classifySwipe, nearestIntersection } from '../input/swipe';
+import { classifySwipe, nearestIntersection, swipeAlong } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -76,7 +76,7 @@ export function createBoardView(
   const el = document.createElement('div');
   el.className = 'board';
   el.setAttribute('role', 'grid');
-  el.setAttribute('aria-label', '盤面。交点を押して左右にスワイプすると、その周りの4個が回ります');
+  el.setAttribute('aria-label', '盤面。交点を押して上下左右にスワイプすると、その周りの4個が回ります');
 
   const orbLayer = document.createElement('div');
   orbLayer.className = 'orbs';
@@ -149,7 +149,7 @@ export function createBoardView(
   let start: { x: number; y: number; id: number } | null = null;
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   /** 指に合わせて回している途中のようす（p は 0〜1 で 90 度、v は指の速さ px/ms） */
-  let drag: { at: Pos; direction: Direction; p: number; v: number; lastX: number; lastT: number } | null = null;
+  let drag: { at: Pos; direction: Direction; p: number; v: number; axis: 'x' | 'y'; lastX: number; lastT: number } | null = null;
   /** 指を離して回すと決まり、その続きを animateRotate に引き継ぐもの */
   let release: { at: Pos; direction: Direction; p: number; v: number } | null = null;
 
@@ -213,7 +213,7 @@ export function createBoardView(
     const result = classifySwipe(dx, dy);
     ring.classList.toggle('hint-cw', result.kind === 'rotate' && result.direction === 'clockwise');
     ring.classList.toggle('hint-ccw', result.kind === 'rotate' && result.direction === 'counterclockwise');
-    // 指に合わせて回す：横に動かした分だけ（1マス弱で 90 度）。縦寄りの動きでは回さない
+    // 指に合わせて回す：横か縦に動かした分だけ（1マス弱で 90 度）。右・下＝時計回り。斜めでは回さない
     if (!current || locked || reduceMotion.matches || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
       // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
       if (drag) {
@@ -222,18 +222,19 @@ export function createBoardView(
       }
       return;
     }
-    const horizontal = Math.abs(dx) > 4 && Math.abs(dx) > SWIPE.horizontalRatio * Math.abs(dy);
-    const direction: Direction = dx > 0 ? 'clockwise' : 'counterclockwise';
-    if (drag && (!horizontal || drag.direction !== direction || drag.at !== current)) {
+    const s = swipeAlong(dx, dy);
+    const direction: Direction = s && s.along > 0 ? 'clockwise' : 'counterclockwise';
+    if (drag && (!s || drag.direction !== direction || drag.at !== current || drag.axis !== s.axis)) {
       clearDrag(drag.at);
       drag = null;
     }
-    if (!horizontal) return;
+    if (!s) return;
     const cell = el.getBoundingClientRect().width / BOARD_SIZE;
-    const p = Math.min(1, (Math.abs(dx) - 4) / (cell * 0.9));
+    const p = Math.min(1, (Math.abs(s.along) - 4) / (cell * 0.9));
     const now = e.timeStamp;
-    const v = drag && now > drag.lastT ? Math.abs(e.clientX - drag.lastX) / (now - drag.lastT) : 0;
-    drag = { at: current, direction, p, v: drag ? drag.v * 0.5 + v * 0.5 : v, lastX: e.clientX, lastT: now };
+    const pos = s.axis === 'x' ? e.clientX : e.clientY;
+    const v = drag && now > drag.lastT ? Math.abs(pos - drag.lastX) / (now - drag.lastT) : 0;
+    drag = { at: current, direction, axis: s.axis, p, v: drag ? drag.v * 0.5 + v * 0.5 : v, lastX: pos, lastT: now };
     setDrag(current, direction, p);
   });
 
@@ -329,7 +330,10 @@ export function createBoardView(
         const cell = el.getBoundingClientRect().width / BOARD_SIZE;
         // 残りの弧の長さ（px）を、離したときの指の速さで進む時間。速すぎ・遅すぎは抑える
         const remaining = (1 - p0) * cell * 1.11;
-        duration = Math.round(Math.min(ms * 0.6, Math.max(70, remaining / Math.max(fromDrag.v, 0.5))));
+        const k = ms / ROTATE_ANIM.buttonMs; // 演出 ×2 では半分に
+        duration = Math.round(
+          Math.min(ROTATE_ANIM.releaseMaxMs * k, Math.max(ROTATE_ANIM.releaseMinMs * k, remaining / Math.max(fromDrag.v, 0.3))),
+        );
         easing = 'cubic-bezier(0.2, 0.6, 0.35, 1)';
       }
       const STEPS = 12;

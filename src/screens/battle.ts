@@ -5,7 +5,7 @@ import { createBoardView } from '../components/board';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialPreviewSvg } from '../components/specialPreview';
-import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
+import { MAX_ROTATIONS_PER_TURN, ROTATE_ANIM } from '../data/balance';
 import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { rotate2x2 } from '../game/board';
@@ -182,7 +182,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       .join('');
     $('.rot-text').textContent =
       pending.length === 0
-        ? `交点を押して左右にスワイプ（${MAX_ROTATIONS_PER_TURN}回まで）`
+        ? `交点を押して上下左右にスワイプ（${MAX_ROTATIONS_PER_TURN}回まで）`
         : left > 0
           ? `あと${left}回まわせる`
           : '「攻撃」で確定';
@@ -360,7 +360,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     renderTurnBar();
     try {
       // 回す動きは目で追える速さに（演出 ×2 なら半分）
-      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(360), reduceMotion.matches);
+      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(ROTATE_ANIM.buttonMs), reduceMotion.matches);
     } finally {
       rotating = false;
       done();
