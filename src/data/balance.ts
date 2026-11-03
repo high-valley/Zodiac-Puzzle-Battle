@@ -27,6 +27,9 @@ export const SWIPE = {
   dragDeadZone: 4,
   /** 何マス分動かすと 90 度回るか */
   dragCellsPer90: 0.9,
+  /** 選んでいる 2×2 を押し直したとみなす範囲（その交点からのマス数。縦横どちらもこれより近ければ選び直さない）。
+   *  ほかの交点は 0.5 マスより近いと選ぶので、選んでいる所を少しずれて押しても、隣の交点に移らない */
+  stickyCells: 0.8,
 };
 
 /**
@@ -44,7 +47,8 @@ export interface RotateTuning {
   dragMaxP: number;
 }
 
-export const DEFAULT_ROTATE_TUNING: RotateTuning = { buttonMs: 600, releaseMinMs: 400, releaseMaxMs: 560, dragMaxP: 0.5 };
+// 2026-11-03 ユーザーが画面で試して決めた値（ボタン 0.5秒／離したあと 0.5秒／指に付く 90度）
+export const DEFAULT_ROTATE_TUNING: RotateTuning = { buttonMs: 500, releaseMinMs: 500, releaseMaxMs: 500, dragMaxP: 1 };
 
 /** 開発者画面のつまみの範囲 */
 export const ROTATE_TUNING_RANGE: Record<keyof RotateTuning, { min: number; max: number; step: number }> = {

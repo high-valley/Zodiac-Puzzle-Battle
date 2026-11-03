@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
-import { classifySwipe, nearestIntersection, swipeAlong } from '../input/swipe';
+import { classifySwipe, pickIntersection, swipeAlong } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -89,9 +89,12 @@ export function createBoardView(
   // 16 か所の交点を小さな星で示す
   const starLayer = document.createElement('div');
   starLayer.className = 'stars';
+  const stars: HTMLElement[][] = [];
   for (let r = 0; r < BOARD_SIZE - 1; r++) {
+    stars.push([]);
     for (let c = 0; c < BOARD_SIZE - 1; c++) {
       const s = document.createElement('span');
+      stars[r].push(s);
       s.className = 'star';
       s.style.setProperty('--r', String(r + 1));
       s.style.setProperty('--c', String(c + 1));
@@ -103,6 +106,8 @@ export function createBoardView(
   const ring = document.createElement('div');
   ring.className = 'ring';
   ring.hidden = true;
+  // 選び直したときの光は一度だけ（枠が隠れてまた出たときに、もう一度光らないように）
+  ring.addEventListener('animationend', () => ring.classList.remove('moved'));
   el.append(ring);
 
   let orbs: HTMLElement[][] = [];
@@ -139,8 +144,16 @@ export function createBoardView(
     );
   }
 
+  function flashRing() {
+    ring.classList.remove('moved');
+    void ring.offsetWidth;
+    ring.classList.add('moved');
+  }
+
   function select(pos: Pos | null) {
+    if (current) stars[current.row][current.col].classList.remove('on');
     current = pos;
+    if (pos) stars[pos.row][pos.col].classList.add('on');
     ring.hidden = pos === null;
     ring.classList.remove('hint-cw', 'hint-ccw');
     if (pos) {
@@ -204,7 +217,11 @@ export function createBoardView(
     for (const a of springs) a.cancel();
     springs = [];
     const p = local(e);
-    select(nearestIntersection(p.x, p.y, p.cell));
+    const before = current;
+    select(pickIntersection(p.x, p.y, p.cell, current));
+    // 押している間は枠を少し強く光らせる。選び直したときは、移ったことが分かるように軽く光らせる
+    ring.classList.add('pressing');
+    if (before && current && (before.row !== current.row || before.col !== current.col)) flashRing();
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -247,6 +264,7 @@ export function createBoardView(
 
   el.addEventListener('pointerup', (e) => {
     if (!start || e.pointerId !== start.id) return;
+    ring.classList.remove('pressing');
     const result = classifySwipe(e.clientX - start.x, e.clientY - start.y);
     start = null;
     ring.classList.remove('hint-cw', 'hint-ccw');
@@ -281,6 +299,7 @@ export function createBoardView(
   });
 
   el.addEventListener('pointercancel', () => {
+    ring.classList.remove('pressing');
     start = null;
     ring.classList.remove('hint-cw', 'hint-ccw');
     if (drag) springBack(drag);

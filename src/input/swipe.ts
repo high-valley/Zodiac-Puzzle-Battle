@@ -15,6 +15,19 @@ export function nearestIntersection(x: number, y: number, cellSize: number): Pos
   };
 }
 
+/**
+ * 押した位置で選ぶ交点。今選んでいる交点の近く（縦横とも stickyCells マス以内）なら、それを選んだまま。
+ * それ以外は、いちばん近い交点（2026-11-03。選んでいる所でスワイプしようとして、隣を選んでしまわないように）
+ */
+export function pickIntersection(x: number, y: number, cellSize: number, current: Pos | null, rule = SWIPE): Pos {
+  if (current) {
+    const cx = (current.col + 1) * cellSize;
+    const cy = (current.row + 1) * cellSize;
+    if (Math.abs(x - cx) < rule.stickyCells * cellSize && Math.abs(y - cy) < rule.stickyCells * cellSize) return current;
+  }
+  return nearestIntersection(x, y, cellSize);
+}
+
 /** 指に合わせて回すときの、回す向きに沿った動き（横か縦の、大きいほう。右・下が正）。どちらとも言えなければ null */
 export function swipeAlong(dx: number, dy: number, rule = SWIPE): { along: number; axis: 'x' | 'y' } | null {
   const ax = Math.abs(dx);

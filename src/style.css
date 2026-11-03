@@ -3597,3 +3597,80 @@ html[data-route='result'] body::after {
   border: 1px solid #c58bff66;
   font-size: 12px;
 }
+
+/* ───────── 選んだ 2×2 を分かりやすく（2026-11-03） ───────── */
+/* 枠：太めの金の線に、うすい金の地と四隅の星。押している間は強く、選び直したときは一度光る */
+.ring {
+  border-width: 2.5px;
+  border-color: var(--gold-hi);
+  background: radial-gradient(closest-side, #f1c07322, #f1c07310 70%, transparent);
+  box-shadow:
+    0 0 0 1.5px #0d1638cc,
+    inset 0 0 0 1px #fce5a766,
+    0 0 16px #f1c073aa;
+  transition:
+    left 0.1s ease-out,
+    top 0.1s ease-out,
+    box-shadow 0.12s;
+}
+.ring::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  pointer-events: none;
+  background:
+    var(--star4) 0 0 / 14px 14px no-repeat,
+    var(--star4) 100% 0 / 14px 14px no-repeat,
+    var(--star4) 0 100% / 14px 14px no-repeat,
+    var(--star4) 100% 100% / 14px 14px no-repeat;
+  filter: drop-shadow(0 0 3px #f1c073);
+}
+.ring.pressing {
+  box-shadow:
+    0 0 0 1.5px #0d1638cc,
+    inset 0 0 0 1px #fce5a7aa,
+    0 0 26px #fce5a7cc;
+}
+.ring.moved {
+  animation: ring-moved 0.35s ease-out;
+}
+@keyframes ring-moved {
+  from {
+    scale: 1.12;
+    opacity: 0.4;
+  }
+  to {
+    scale: 1;
+    opacity: 1;
+  }
+}
+/* 回す向きの矢印：枠のまんなかに、紺の丸の上で大きく */
+.ring::after {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 30px;
+  color: var(--gold-hi);
+}
+.ring.hint-cw::after,
+.ring.hint-ccw::after {
+  background: #0d1638cc;
+  box-shadow: 0 0 0 1.5px var(--gold);
+}
+/* 選んでいる交点の星を大きく */
+.star.on {
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: #fff;
+  box-shadow:
+    0 0 6px var(--gold-hi),
+    0 0 12px var(--gold);
+  opacity: 1;
+}
+/* 選んでいない交点の星は控えめに（選んでいる所を目立たせる） */
+.board:has(.star.on) .star:not(.on) {
+  opacity: 0.45;
+}
