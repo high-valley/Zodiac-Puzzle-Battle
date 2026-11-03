@@ -1,5 +1,5 @@
 // 5×5 盤面の表示と交点スワイプの入力
-import { BOARD_SIZE } from '../data/balance';
+import { BOARD_SIZE, SWIPE } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
 import { classifySwipe, nearestIntersection } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
@@ -41,7 +41,38 @@ export interface BoardView {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-export function createBoardView(onRotate: (at: Pos, direction: Direction) => void): BoardView {
+/** 2×2 の4マス（左上・右上・右下・左下の順） */
+function quad(at: Pos): Pos[] {
+  const { row: r, col: c } = at;
+  return [
+    { row: r, col: c },
+    { row: r, col: c + 1 },
+    { row: r + 1, col: c + 1 },
+    { row: r + 1, col: c },
+  ];
+}
+
+/** 2×2 の中心のまわりを角度 p（0〜1 で 90 度）だけ回した位置の transform。1マス＝オーブの大きさの100% */
+function arcTransform(from: Pos, at: Pos, direction: Direction, p: number): string {
+  const cx = at.col + 1;
+  const cy = at.row + 1;
+  const a0 = Math.atan2(from.row + 0.5 - cy, from.col + 0.5 - cx);
+  const a = a0 + (direction === 'clockwise' ? 1 : -1) * (Math.PI / 2) * p;
+  const x = cx + Math.SQRT1_2 * Math.cos(a) - 0.5;
+  const y = cy + Math.SQRT1_2 * Math.sin(a) - 0.5;
+  // 途中で少しだけ大きくして、持ち上げて回す感じを出す
+  const lift = 1 + 0.06 * Math.sin(Math.PI * p);
+  return `translate(${x * 100}%, ${y * 100}%) scale(${lift})`;
+}
+
+/**
+ * @param onRotate 回すと決まったとき（指を離したとき・回転ボタン）
+ * @param canRotate 今回せるか（回せないときは、指に合わせて動かさない）
+ */
+export function createBoardView(
+  onRotate: (at: Pos, direction: Direction) => void,
+  canRotate: () => boolean = () => true,
+): BoardView {
   const el = document.createElement('div');
   el.className = 'board';
   el.setAttribute('role', 'grid');
@@ -73,6 +104,8 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
   let orbs: HTMLElement[][] = [];
   /** 回している途中のアニメーション */
   let running: Animation[] = [];
+  /** 元に戻している途中のアニメーション */
+  let springs: Animation[] = [];
   let current: Pos | null = null;
   let locked = false;
 
@@ -81,6 +114,11 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
   }
 
   function render(board: Board) {
+    // 指に合わせて回しかけていたら、その動きは捨てる（描き直したオーブに残さない）
+    drag = null;
+    release = null;
+    for (const a of springs) a.cancel();
+    springs = [];
     orbLayer.replaceChildren();
     orbs = board.map((row, r) =>
       row.map((color, c) => {
@@ -109,6 +147,46 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
 
   // 交点スワイプ
   let start: { x: number; y: number; id: number } | null = null;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  /** 指に合わせて回している途中のようす（p は 0〜1 で 90 度、v は指の速さ px/ms） */
+  let drag: { at: Pos; direction: Direction; p: number; v: number; lastX: number; lastT: number } | null = null;
+  /** 指を離して回すと決まり、その続きを animateRotate に引き継ぐもの */
+  let release: { at: Pos; direction: Direction; p: number; v: number } | null = null;
+
+  function setDrag(at: Pos, direction: Direction, p: number) {
+    for (const from of quad(at)) {
+      const o = orbAt(from);
+      o.classList.add('dragging');
+      o.style.transform = arcTransform(from, at, direction, p);
+    }
+  }
+
+  function clearDrag(at: Pos) {
+    for (const from of quad(at)) {
+      const o = orbAt(from);
+      o.classList.remove('dragging');
+      o.style.transform = '';
+    }
+  }
+
+  /** 回しきらずに離したときは、もとの位置へ戻す */
+  function springBack(state: { at: Pos; direction: Direction; p: number }) {
+    if (state.p <= 0 || typeof el.animate !== 'function') {
+      clearDrag(state.at);
+      return;
+    }
+    for (const from of quad(state.at)) {
+      const o = orbAt(from);
+      const anim = o.animate(
+        [{ transform: arcTransform(from, state.at, state.direction, state.p) }, { transform: arcTransform(from, state.at, state.direction, 0) }],
+        { duration: 140, easing: 'ease-out' },
+      );
+      o.style.transform = '';
+      o.classList.remove('dragging');
+      springs.push(anim);
+      void anim.finished.catch(() => undefined);
+    }
+  }
 
   function local(e: PointerEvent) {
     const rect = el.getBoundingClientRect();
@@ -117,6 +195,10 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
 
   el.addEventListener('pointerdown', (e) => {
     if (locked || start || !e.isPrimary || e.button !== 0) return;
+    // 前の回転や、元に戻す動きが残っていれば、すぐ終わらせる
+    for (const a of running) a.finish();
+    for (const a of springs) a.cancel();
+    springs = [];
     const p = local(e);
     select(nearestIntersection(p.x, p.y, p.cell));
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };
@@ -126,9 +208,33 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
 
   el.addEventListener('pointermove', (e) => {
     if (!start || e.pointerId !== start.id) return;
-    const result = classifySwipe(e.clientX - start.x, e.clientY - start.y);
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    const result = classifySwipe(dx, dy);
     ring.classList.toggle('hint-cw', result.kind === 'rotate' && result.direction === 'clockwise');
     ring.classList.toggle('hint-ccw', result.kind === 'rotate' && result.direction === 'counterclockwise');
+    // 指に合わせて回す：横に動かした分だけ（1マス弱で 90 度）。縦寄りの動きでは回さない
+    if (!current || locked || reduceMotion.matches || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
+      // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
+      if (drag) {
+        clearDrag(drag.at);
+        drag = null;
+      }
+      return;
+    }
+    const horizontal = Math.abs(dx) > 4 && Math.abs(dx) > SWIPE.horizontalRatio * Math.abs(dy);
+    const direction: Direction = dx > 0 ? 'clockwise' : 'counterclockwise';
+    if (drag && (!horizontal || drag.direction !== direction || drag.at !== current)) {
+      clearDrag(drag.at);
+      drag = null;
+    }
+    if (!horizontal) return;
+    const cell = el.getBoundingClientRect().width / BOARD_SIZE;
+    const p = Math.min(1, (Math.abs(dx) - 4) / (cell * 0.9));
+    const now = e.timeStamp;
+    const v = drag && now > drag.lastT ? Math.abs(e.clientX - drag.lastX) / (now - drag.lastT) : 0;
+    drag = { at: current, direction, p, v: drag ? drag.v * 0.5 + v * 0.5 : v, lastX: e.clientX, lastT: now };
+    setDrag(current, direction, p);
   });
 
   el.addEventListener('pointerup', (e) => {
@@ -136,12 +242,41 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
     const result = classifySwipe(e.clientX - start.x, e.clientY - start.y);
     start = null;
     ring.classList.remove('hint-cw', 'hint-ccw');
-    if (result.kind === 'rotate' && current && !locked) onRotate(current, result.direction);
+    const dragged = drag;
+    drag = null;
+    // 離す直前に指を止めていたら、そのぶん遅く回しきる
+    if (dragged && e.timeStamp - dragged.lastT > 80) dragged.v *= 80 / (e.timeStamp - dragged.lastT);
+    if (locked) {
+      if (dragged) clearDrag(dragged.at);
+      return;
+    }
+    if (result.kind === 'rotate' && current) {
+      if (dragged && dragged.direction === result.direction && dragged.at === current) {
+        // 指を離した位置と速さから続きを回す（animateRotate が引き継ぐ）
+        release = { at: dragged.at, direction: dragged.direction, p: dragged.p, v: dragged.v };
+        const mine = release;
+        onRotate(current, result.direction);
+        // 回せなかったとき（上限など）は、もとに戻す
+        setTimeout(() => {
+          if (release === mine) {
+            release = null;
+            springBack(mine);
+          }
+        }, 60);
+      } else {
+        if (dragged) clearDrag(dragged.at);
+        onRotate(current, result.direction);
+      }
+    } else if (dragged) {
+      springBack(dragged);
+    }
   });
 
   el.addEventListener('pointercancel', () => {
     start = null;
     ring.classList.remove('hint-cw', 'hint-ccw');
+    if (drag) springBack(drag);
+    drag = null;
   });
 
   return {
@@ -152,6 +287,10 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
     setLocked(value) {
       locked = value;
       el.classList.toggle('locked', value);
+      if (value && drag) {
+        clearDrag(drag.at);
+        drag = null;
+      }
     },
     finishRotate() {
       for (const a of running) a.finish();
@@ -180,28 +319,29 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
         return;
       }
       el.classList.add('rotating');
-      // 2×2 の中心のまわりを円を描いて回す（どう動いたか目で追えるように。始まりと終わりはゆっくり）
-      const cx = c + 1;
-      const cy = r + 1;
-      const radius = Math.SQRT1_2;
-      const turn = (direction === 'clockwise' ? 1 : -1) * (Math.PI / 2);
+      // 指で回していた続きなら、その位置から指の速さで回しきる。ボタンなら最初から（始まりと終わりはゆっくり）
+      const fromDrag = release && release.at.row === r && release.at.col === c && release.direction === direction ? release : null;
+      release = null;
+      const p0 = fromDrag ? fromDrag.p : 0;
+      let duration = ms;
+      let easing = 'cubic-bezier(0.45, 0.05, 0.3, 1)';
+      if (fromDrag) {
+        const cell = el.getBoundingClientRect().width / BOARD_SIZE;
+        // 残りの弧の長さ（px）を、離したときの指の速さで進む時間。速すぎ・遅すぎは抑える
+        const remaining = (1 - p0) * cell * 1.11;
+        duration = Math.round(Math.min(ms * 0.6, Math.max(70, remaining / Math.max(fromDrag.v, 0.5))));
+        easing = 'cubic-bezier(0.2, 0.6, 0.35, 1)';
+      }
       const STEPS = 12;
       await Promise.all(
         moves.map(([from]) => {
           const o = orbAt(from);
+          o.classList.remove('dragging');
+          o.style.transform = '';
           o.classList.add('moving');
-          const a0 = Math.atan2(from.row + 0.5 - cy, from.col + 0.5 - cx);
           const frames: Keyframe[] = [];
-          for (let i = 0; i <= STEPS; i++) {
-            const a = a0 + (turn * i) / STEPS;
-            // オーブの左上の位置（マス単位）。1マス＝オーブの大きさの100%
-            const x = cx + radius * Math.cos(a) - 0.5;
-            const y = cy + radius * Math.sin(a) - 0.5;
-            // 途中で少しだけ大きくして、持ち上げて回す感じを出す
-            const lift = 1 + 0.06 * Math.sin((Math.PI * i) / STEPS);
-            frames.push({ transform: `translate(${x * 100}%, ${y * 100}%) scale(${lift})` });
-          }
-          const anim = o.animate(frames, { duration: ms, easing: 'cubic-bezier(0.45, 0.05, 0.3, 1)', fill: 'forwards' });
+          for (let i = 0; i <= STEPS; i++) frames.push({ transform: arcTransform(from, at, direction, p0 + ((1 - p0) * i) / STEPS) });
+          const anim = o.animate(frames, { duration, easing, fill: 'forwards' });
           running.push(anim);
           return anim.finished.catch(() => undefined);
         }),
@@ -216,13 +356,46 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
     },
     async animateDrop(board, cleared, ms) {
       render(board);
-      // 消えたマスより上（＝落ちてきた・補充された）オーブだけ上から入れる
-      const lowest = new Map<number, number>();
-      for (const p of cleared) lowest.set(p.col, Math.max(lowest.get(p.col) ?? -1, p.row));
-      for (const [col, bottom] of lowest) {
-        for (let r = 0; r <= bottom; r++) orbs[r][col].classList.add('dropping');
+      if (typeof el.animate !== 'function' || reduceMotion.matches) {
+        // 動きを減らす設定：消えたマスより上のオーブだけ、短く上から入れる
+        const lowest = new Map<number, number>();
+        for (const p of cleared) lowest.set(p.col, Math.max(lowest.get(p.col) ?? -1, p.row));
+        for (const [col, bottom] of lowest) {
+          for (let r = 0; r <= bottom; r++) orbs[r][col].classList.add('dropping');
+        }
+        await wait(ms);
+        return;
       }
-      await wait(ms);
+      // 残ったオーブは元の位置から下へすべり落ち、新しいオーブは盤面の上から列ごとに少しずつずらして落ちてくる
+      el.classList.add('refilling');
+      const animations: Promise<unknown>[] = [];
+      for (let col = 0; col < BOARD_SIZE; col++) {
+        const gone = new Set(cleared.filter((p) => p.col === col).map((p) => p.row));
+        if (gone.size === 0) continue;
+        const k = gone.size;
+        // 残ったオーブの元の行（上から順）。落ちたあとの行 k + i に入る
+        const kept = [...Array(BOARD_SIZE).keys()].filter((r) => !gone.has(r));
+        for (let row = 0; row < BOARD_SIZE; row++) {
+          const fromRow = row < k ? row - k : kept[row - k];
+          if (fromRow === row) continue;
+          const o = orbs[row][col];
+          const distance = row - fromRow;
+          // 列ごと・上から入る順に少しずつずらす（演出の速さに合わせて縮む）
+          const delay = Math.round((ms / 380) * (col * 22 + (row < k ? (k - row) * 18 : 0)));
+          const anim = o.animate(
+            [
+              { transform: `translate(${col * 100}%, ${fromRow * 100}%)`, opacity: row < k ? 0.2 : 1 },
+              { transform: `translate(${col * 100}%, ${row * 100}%)`, opacity: 1, offset: 0.82 },
+              { transform: `translate(${col * 100}%, ${row * 100 - 4}%)`, opacity: 1, offset: 0.92 },
+              { transform: `translate(${col * 100}%, ${row * 100}%)`, opacity: 1 },
+            ],
+            { duration: Math.round(ms * (0.7 + 0.15 * Math.min(distance, 4))), delay, easing: 'ease-in', fill: 'backwards' },
+          );
+          animations.push(anim.finished.catch(() => undefined));
+        }
+      }
+      await Promise.all(animations);
+      el.classList.remove('refilling');
     },
     mark(clear, special) {
       for (const row of orbs) for (const o of row) o.classList.remove('will-clear', 'will-special');

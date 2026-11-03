@@ -133,7 +133,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   </main>`;
 
   const $ = <T extends Element>(sel: string) => container.querySelector(sel) as T;
-  const board = createBoardView((at, direction) => void rotateOnce(at, direction));
+  const board = createBoardView(
+    (at, direction) => void rotateOnce(at, direction),
+    // 指に合わせて動かしてよいとき（攻撃の演出中・回せる回数を使い切ったときは動かさない）
+    () => !busy && !disposed && state.status === 'playing' && pending.length < MAX_ROTATIONS_PER_TURN,
+  );
   $('.board-wrap').prepend(board.el);
 
   const banner = $<HTMLElement>('.banner');
@@ -256,7 +260,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       case 'clear':
         if (ev.chain > 1) popup('.enemy-popups', `${ev.chain}連鎖`, 'chain');
         await board.animateClear(ev.cells, ms(200));
-        await board.animateDrop(ev.board, ev.cells, ms(230));
+        // 補充は目で追える速さで（演出 ×2 なら半分）
+        await board.animateDrop(ev.board, ev.cells, ms(380));
         break;
       case 'heal':
         hp.party = ev.partyHp;
