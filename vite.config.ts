@@ -1,5 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
+// Node の型定義を入れていないので、使う分だけ宣言する（ビルドは Node で動く）
+declare const process: { env: Record<string, string | undefined> };
+
 // ビルドの印（版の表示と「更新」ボタン用。仕様書 11.12）。GitHub Actions では GITHUB_SHA が入る
 const BUILD_ID = (process.env.GITHUB_SHA ?? 'local').slice(0, 7);
 const BUILD_TIME = new Date().toISOString();
