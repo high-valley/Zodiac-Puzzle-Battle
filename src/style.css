@@ -2230,7 +2230,7 @@ html[data-speed='2'] .popup {
     /* 盤面以外（敵・回転の行・キャラ・HP・余白）が約450pt。残りの高さを盤面に使う */
     --col-battle: max(
       440px,
-      min(calc(100vw - 64px), calc(100dvh - 460px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))
+      min(calc(100vw - 64px), calc(100dvh - 490px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))
     );
   }
   body {
@@ -2759,4 +2759,249 @@ html[data-dev] body::before {
   border: 1px dashed var(--gold);
   font-size: 12px;
   color: var(--gold);
+}
+
+/* ═════════ 目指す見た目（2026-11-03。docs/ui-reference/10-target-home・11-target-orbs、仕様書 11.1・11.13） ═════════ */
+:root {
+  /* 夜空・雲とパネル・金（目標画像から拾った色） */
+  --sky-deep: #0d1638;
+  --sky: #1e2a54;
+  --sky-raise: #273569;
+  --cloud: #43518a;
+  --gold: #f1c073;
+  --gold-deep: #d49b59;
+  --gold-hi: #fce5a7;
+  --panel: linear-gradient(180deg, #2a3870 0%, #1e2a58 100%);
+  /* オーブ（目標画像に寄せて少し鮮やかに。記号で色覚の違いでも見分けられる） */
+  --red: #e5262e;
+  --blue: #1a7ff0;
+  --green: #36be1a;
+  --pink: #e64bc7;
+  /* 小さな四芒星の飾り（枠の角などに置く） */
+  --star4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 0C10.8 6 14 9.2 20 10 14 10.8 10.8 14 10 20 9.2 14 6 10.8 0 10 6 9.2 9.2 6 10 0Z' fill='%23f1c073'/%3E%3C/svg%3E");
+}
+
+/* 背景：紺の夜空に、紙を重ねたようなやわらかい雲の層（建物は描かない） */
+body {
+  background:
+    radial-gradient(1px 1px at 12% 18%, #fff9 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 9%, #fffa 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 64% 31%, #fff8 50%, transparent 51%),
+    radial-gradient(1px 1px at 30% 52%, #fff6 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 46%, #fff8 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 8% 40%, #fff7 50%, transparent 51%),
+    radial-gradient(60% 9% at 12% 100%, #43518acc 60%, transparent 61%),
+    radial-gradient(55% 8% at 85% 98%, #3a4780cc 60%, transparent 61%),
+    radial-gradient(70% 12% at 50% 104%, #2e3c71 60%, transparent 61%),
+    radial-gradient(40% 6% at 0% 72%, #2e3c71aa 60%, transparent 61%),
+    radial-gradient(38% 6% at 100% 64%, #2e3c71aa 60%, transparent 61%),
+    radial-gradient(45% 5% at 100% 14%, #283363aa 60%, transparent 61%),
+    linear-gradient(180deg, #0d1638 0%, #131c3f 35%, #1e2a54 100%);
+  background-attachment: fixed;
+}
+
+/* 金の二重線の枠（パネル・カード・ボタン共通） */
+.enemy,
+.hero,
+.rotate-btn,
+.attack-btn:not(.ready) {
+  border: 1px solid var(--gold-deep);
+  background: var(--panel);
+  box-shadow:
+    inset 0 0 0 2px #1a2552,
+    inset 0 0 0 3px #f1c07340;
+}
+
+/* 敵の欄：枠つきのパネル */
+.enemy {
+  padding: 8px 12px;
+  border-radius: 16px;
+}
+
+/* 盤面：暗く静かな地に、金の二重線の枠と四隅の星 */
+.board-wrap {
+  padding: 5px;
+  border-radius: 22px;
+  border: 1px solid var(--gold-deep);
+  background: #0f1840;
+  box-shadow:
+    inset 0 0 0 3px #0f1840,
+    inset 0 0 0 4px #f1c07355,
+    0 4px 18px #0006;
+}
+.board-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  pointer-events: none;
+  z-index: 6;
+  background:
+    var(--star4) 0 0 / 14px 14px no-repeat,
+    var(--star4) 100% 0 / 14px 14px no-repeat,
+    var(--star4) 0 100% / 14px 14px no-repeat,
+    var(--star4) 100% 100% / 14px 14px no-repeat,
+    var(--star4) 50% 0 / 16px 16px no-repeat;
+}
+.board {
+  border-radius: 16px;
+  background:
+    linear-gradient(#ffffff0a 1px, transparent 1px) 0 0 / 20% 20%,
+    linear-gradient(90deg, #ffffff0a 1px, transparent 1px) 0 0 / 20% 20%,
+    radial-gradient(120% 90% at 50% 0%, #1c2858 0%, #121b45 70%);
+  box-shadow: inset 0 0 18px #0008;
+}
+.star {
+  width: 5px;
+  height: 5px;
+  margin: -2.5px 0 0 -2.5px;
+  background: var(--gold-hi);
+  box-shadow: 0 0 5px var(--gold);
+  opacity: 0.8;
+}
+.ring {
+  border: 1.5px solid var(--gold);
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px #0007,
+    inset 0 0 0 1px #fce5a755,
+    0 0 14px #f1c07366;
+}
+
+/* オーブ：つやのある宝珠の中に星雲と小さな星、白い記号、外側にやわらかい光 */
+.orb-red {
+  --orb: #e5262e;
+  --orb-deep: #6e0508;
+  --orb-light: #ff6f72;
+  --orb-glow: #ff3b4166;
+}
+.orb-blue {
+  --orb: #1a7ff0;
+  --orb-deep: #04237f;
+  --orb-light: #6cc6ff;
+  --orb-glow: #2a8cff66;
+}
+.orb-green {
+  --orb: #36be1a;
+  --orb-deep: #0a4d03;
+  --orb-light: #98ef66;
+  --orb-glow: #4fd52455;
+}
+.orb-pink {
+  --orb: #e64bc7;
+  --orb-deep: #6f0a50;
+  --orb-light: #ffa6f0;
+  --orb-glow: #ff6fe066;
+}
+.orb::before {
+  inset: 7%;
+  background:
+    radial-gradient(ellipse 30% 18% at 36% 21%, #ffffffe0 0%, #ffffff00 100%),
+    radial-gradient(circle at 72% 64%, #fff 0 1.6%, transparent 3%),
+    radial-gradient(circle at 28% 66%, #ffffffd0 0 1.1%, transparent 2.3%),
+    radial-gradient(circle at 66% 32%, #ffffffb0 0 1%, transparent 2.1%),
+    radial-gradient(circle at 46% 84%, #ffffffa0 0 0.9%, transparent 2%),
+    radial-gradient(ellipse 62% 46% at 62% 68%, var(--orb-light) 0%, transparent 72%),
+    radial-gradient(ellipse 50% 40% at 28% 52%, var(--orb-deep) 0%, transparent 75%),
+    radial-gradient(circle at 50% 46%, var(--orb) 0 36%, var(--orb-deep) 100%);
+  box-shadow:
+    inset 0 0 0 1.5px #ffffff55,
+    inset 0 -5px 9px #00000059,
+    0 0 9px 1px var(--orb-glow);
+}
+.orb-symbol {
+  width: 46%;
+  height: 46%;
+  overflow: visible;
+  filter: drop-shadow(0 0 1.5px #ffffffcc) drop-shadow(0 0 4px var(--orb-light));
+}
+.orb-symbol .line {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+}
+.orb-symbol .fill {
+  fill: #ffe2f7;
+  stroke: #fff;
+  stroke-width: 1.2;
+}
+.orb.special::before {
+  box-shadow:
+    inset 0 0 0 1.5px #ffffff77,
+    0 0 0 3px var(--gold),
+    0 0 18px 4px #f1c073aa;
+}
+
+/* キャラ選択のカード */
+.hero {
+  border-radius: 14px;
+}
+.hero.active {
+  border-color: var(--gold-hi);
+  background: linear-gradient(180deg, #3a3f7a 0%, #262f66 100%);
+  box-shadow:
+    inset 0 0 0 2px #262f66,
+    inset 0 0 0 3px #fce5a777,
+    0 0 14px #f1c07355;
+}
+.hero.active .hero-symbol {
+  color: var(--gold-hi);
+  text-shadow: 0 0 10px #f1c07399;
+}
+
+/* 回転ボタン */
+.rotate-btn {
+  border-radius: 999px;
+  color: var(--ink);
+}
+.rotate-btn svg {
+  color: var(--gold);
+}
+.rotate-btn:active:not(:disabled) {
+  background: linear-gradient(180deg, #34437f 0%, #26326a 100%);
+}
+
+/* 金の主ボタン（攻撃・出撃・次へ）：金地に、両端の小さな星 */
+.attack-btn {
+  border-radius: 999px;
+}
+.attack-btn.ready,
+.primary-btn {
+  border: 1px solid var(--gold-hi);
+  background:
+    var(--star4) 10px 50% / 10px 10px no-repeat,
+    var(--star4) calc(100% - 10px) 50% / 10px 10px no-repeat,
+    linear-gradient(180deg, #fce5a7 0%, #f1c073 45%, #d49b59 100%);
+  color: #2a1e10;
+  box-shadow:
+    inset 0 0 0 2px #f1c073,
+    inset 0 0 0 3px #fff3cf99,
+    0 4px 14px #f1c07333;
+}
+.attack-btn.ready {
+  background:
+    var(--star4) 12px 50% / 11px 11px no-repeat,
+    var(--star4) calc(100% - 12px) 50% / 11px 11px no-repeat,
+    linear-gradient(180deg, #fce5a7 0%, #f1c073 45%, #d49b59 100%);
+}
+.primary-btn {
+  border-radius: 999px;
+}
+.rot-dots span {
+  border-color: #f1c07399;
+}
+
+/* HPバー：細い金の縁 */
+.bar {
+  background: #0b1233;
+  box-shadow: inset 0 0 0 1px #f1c07355;
+}
+/* 背の低い端末（iPhone SE など）：枠の余白を詰めて、1画面に収める */
+@media (max-height: 740px) {
+  .board-wrap {
+    padding: 2px;
+  }
+  .enemy {
+    padding: 0 10px;
+  }
 }
