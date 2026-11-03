@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { classifySwipe, nearestIntersection, pickIntersection, swipeAlong } from '../src/input/swipe';
+import { classifySwipe, nearestIntersection, pickIntersection, swipeAlong, turnDirection } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -167,5 +167,38 @@ describe('pickIntersection（押した位置で選ぶ交点。2026-11-03）', ()
     expect(pickIntersection(cell * 2, cell, cell, { row: 0, col: 0 })).toEqual({ row: 0, col: 1 });
     expect(pickIntersection(cell * 4, cell * 3, cell, { row: 3, col: 3 })).toEqual({ row: 2, col: 3 });
     expect(pickIntersection(cell * 5, cell * 5, cell, { row: 3, col: 3 })).toEqual({ row: 3, col: 3 });
+  });
+});
+
+describe('turnDirection（押したオーブがすべらせた向きに動くように回す。2026-11-03）', () => {
+  const cell = 60;
+  const g = (x: number, y: number) => ({ x: x * cell, y: y * cell, cell });
+
+  it('上の2個を押して右へ → 時計回り、左へ → 反時計回り', () => {
+    expect(turnDirection('x', 30, g(-0.5, -0.5))).toBe('clockwise');
+    expect(turnDirection('x', -30, g(0.5, -0.5))).toBe('counterclockwise');
+  });
+
+  it('下の2個を押して右へ → 反時計回り、左へ → 時計回り', () => {
+    expect(turnDirection('x', 30, g(0.5, 0.5))).toBe('counterclockwise');
+    expect(turnDirection('x', -30, g(-0.5, 0.5))).toBe('clockwise');
+  });
+
+  it('右の2個を押して下へ → 時計回り、左の2個を押して下へ → 反時計回り', () => {
+    expect(turnDirection('y', 30, g(0.5, -0.5))).toBe('clockwise');
+    expect(turnDirection('y', 30, g(-0.5, 0.5))).toBe('counterclockwise');
+    expect(turnDirection('y', -30, g(-0.5, -0.5))).toBe('clockwise');
+  });
+
+  it('交点のすぐ近くを押したときは、右・下へ＝時計回り', () => {
+    expect(turnDirection('x', 30, g(0, 0.1))).toBe('clockwise');
+    expect(turnDirection('y', 30, g(-0.1, 0))).toBe('clockwise');
+    expect(turnDirection('x', -30, undefined)).toBe('counterclockwise');
+  });
+
+  it('classifySwipe も押した位置で向きを決める', () => {
+    expect(classifySwipe(40, 0, SWIPE, g(0.5, 0.5))).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
+    expect(classifySwipe(0, 40, SWIPE, g(-0.5, -0.5))).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
+    expect(classifySwipe(0, 40, SWIPE, g(0.5, -0.5))).toEqual({ kind: 'rotate', direction: 'clockwise' });
   });
 });

@@ -189,7 +189,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       .join('');
     $('.rot-text').textContent =
       pending.length === 0
-        ? `交点を押して上下左右にスワイプ（${MAX_ROTATIONS_PER_TURN}回まで）`
+        ? `オーブを押して動かしたい向きにスワイプ（${MAX_ROTATIONS_PER_TURN}回まで）`
         : left > 0
           ? `あと${left}回まわせる`
           : '「攻撃」で確定';
