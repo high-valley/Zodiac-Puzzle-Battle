@@ -2620,3 +2620,129 @@ html[data-speed='2'] .popup {
     padding-block: 4px;
   }
 }
+
+/* ───────── まだ仲間でないキャラ（仕様書 12.6） ───────── */
+.hero-card.locked {
+  cursor: default;
+  border-style: dashed;
+  background: #ffffff05;
+}
+.hero-card.locked .hc-name {
+  color: var(--ink-soft);
+}
+.hc-symbol.locked {
+  color: #ffffff55;
+  border-color: #ffffff2a;
+  background: #0b0f2e;
+}
+.hc-lock {
+  margin-top: 2px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.stage-join {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.sj-hero {
+  margin-left: 6px;
+  color: var(--gold);
+  font-weight: 700;
+}
+.result-join {
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--gold);
+  background: #e9c46a1a;
+  text-align: left;
+}
+.rj-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.result-join ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.rj-sym {
+  margin-right: 6px;
+  color: var(--gold);
+}
+
+/* ───────── 開発者画面と開発者モードの印 ───────── */
+html[data-dev] body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 50;
+  height: 3px;
+  background: repeating-linear-gradient(90deg, var(--gold) 0 12px, transparent 12px 18px);
+  pointer-events: none;
+}
+.dev-screen {
+  max-width: var(--col);
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) 16px 20px;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.dev-screen .screen-lead {
+  margin: 0;
+}
+.dev-toggle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.dev-toggle input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--gold);
+}
+.dev-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.dev-row,
+.dev-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.dev-grid .text-btn,
+.dev-row .text-btn {
+  min-height: 44px;
+  padding: 0 4px;
+  font-size: 12px;
+}
+.dev-sub {
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--gold);
+}
+
+.result-dev-note {
+  margin: 12px 0 0;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px dashed var(--gold);
+  font-size: 12px;
+  color: var(--gold);
+}

@@ -1,6 +1,6 @@
 // 編成：出撃する3人を選ぶ。ルール（3人・攻撃キャラ1人以上）に合えば、そのまま保存する（仕様書 11.7・12.5）
 import type { AppContext } from '../app';
-import { heroCardInner } from '../components/heroCard';
+import { heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { specialPreviewSvg } from '../components/specialPreview';
 import { ALL_HEROES, HEROES, PARTY_SIZE } from '../data/heroes';
 import { PARTY_PROBLEM_TEXT, partyMaxHp, partyProblem } from '../game/party';
@@ -9,7 +9,7 @@ import { heroGrowth } from '../storage/progress';
 
 export function mountParty(container: HTMLElement, ctx: AppContext): () => void {
   // 画面の上で選んでいる3人（ルールに合ったときだけ保存する）
-  let picked: HeroId[] = [...ctx.progress.party];
+  let picked: HeroId[] = ctx.party();
   const level = (id: HeroId) => heroGrowth(ctx.progress, id).level;
 
   container.innerHTML = `
@@ -63,6 +63,12 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
           ? `あと${PARTY_SIZE - picked.length}人選んでください（今の編成はまだ保存されていません）`
           : `${PARTY_PROBLEM_TEXT[problem]}（今の編成はまだ保存されていません）`;
     roster.innerHTML = ALL_HEROES.map((id) => {
+      if (!ctx.heroJoined(id)) {
+        return `
+        <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">
+          ${lockedCardInner(id)}
+        </div>`;
+      }
       const on = picked.includes(id);
       return `
         <button type="button" role="listitem" class="hero-card${on ? ' picked' : ''}" data-id="${id}" aria-pressed="${on}">
@@ -78,7 +84,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
         render();
       }),
     );
-    roster.querySelectorAll<HTMLButtonElement>('.hero-card').forEach((b) =>
+    roster.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) =>
       b.addEventListener('click', () => {
         const id = b.dataset.id as HeroId;
         if (picked.includes(id)) picked = picked.filter((x) => x !== id);

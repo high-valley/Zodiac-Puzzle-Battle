@@ -8,12 +8,12 @@
 
 - `src/game/` … ゲームエンジン（画面・ブラウザに依存しない純粋な関数）
   - `board.ts` 盤面の生成・2×2回転・落下と補充／`matching.ts` 通常マッチ／`specials.ts` 必殺の形の判定／`party.ts` 編成のルールとレベルによる強さ／`growth.ts` 経験値とレベルアップ／`combat.ts` 1ターンの解決／`rng.ts` seed 付き乱数／`types.ts` 型
-- `src/data/` … 数値の設定データ（`balance.ts` 盤面・連鎖・スワイプ閾値、`heroes.ts` 12星座のキャラ、`growth.ts` レベルと経験値、`enemies.ts` 敵、`stages.ts` ステージと★の条件）。仕様書の数値は仮
+- `src/data/` … 数値の設定データ（`balance.ts` 盤面・連鎖・スワイプ閾値、`heroes.ts` 12星座のキャラと仲間になるステージ、`growth.ts` レベルと経験値、`enemies.ts` 敵、`stages.ts` ステージと★の条件、`devTools.ts` 開発者画面を入れるか）。仕様書の数値は仮
 - `src/input/swipe.ts` … 交点の選び方とスワイプの向きの判定（純粋な関数）
 - `src/audio/` … 効果音（`cues.ts` 出来事と音の対応、`sound.ts` Web Audio での合成）
 - `src/storage/` … 端末に保存するもの（`settings.ts` 設定、`progress.ts` クリアの記録・途中のバトル・編成・キャラのレベル）
 - `src/app.ts`・`src/routes.ts` … 画面の切り替え（URL の # で決める）
-- `src/components/`・`src/screens/` … 画面（DOM ＋ Pointer Events）
+- `src/components/`・`src/screens/` … 画面（DOM ＋ Pointer Events）。開発者画面は `#/dev`（メニューからも開ける。すべて解放・レベル・全画面への入口）
 - `tests/` … Vitest の単体テスト
 - `tools/` … 計測用の自動プレイヤー（`bot.ts`）とバランスの計測（`bench.ts`）
 

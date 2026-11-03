@@ -19,6 +19,7 @@ const sideBtn = (id: FeatureId) => `
 
 export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   const saved = ctx.progress.battle;
+  const party = ctx.party();
   const savedStage = saved ? findStage(saved.stageId) : undefined;
   const chapter = CHAPTERS[0];
   const stars = chapter.stages.reduce((sum, s) => sum + (ctx.progress.stages[s.id]?.stars ?? 0), 0);
@@ -27,7 +28,7 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   <main class="home">
     <header class="home-top">
       <div class="player-chip" aria-label="プレイヤー情報（準備中）">
-        <span class="player-avatar" aria-hidden="true">${HEROES[ctx.progress.party[0]].symbol}</span>
+        <span class="player-avatar" aria-hidden="true">${HEROES[party[0]].symbol}</span>
         <span class="player-text"><span class="player-name">プレイヤー</span><span class="player-rank">準備中</span></span>
       </div>
       <div class="wallet" aria-label="通貨（準備中）">
@@ -46,7 +47,7 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <p class="logo-sub">回して、そろえて、星座の力で戦う</p>
 
     <ul class="home-heroes" aria-label="パーティー">
-      ${ctx.progress.party.map(
+      ${party.map(
         (id) => `
         <li class="home-hero hero-${id}">
           ${constellationSvg(id, `${HEROES[id].name}の星座`)}
@@ -65,7 +66,7 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
         <span class="adventure-sub">第${chapter.number}章 ${chapter.name}　★ ${stars} / ${chapter.stages.length * 3}</span>
       </button>
       ${
-        saved && savedStage
+        saved && savedStage && ctx.canResume()
           ? `<button type="button" class="text-btn wide resume">つづきから　${savedStage.id} ${stageEnemyName(savedStage)}（ターン ${saved.state.turn}）</button>`
           : ''
       }

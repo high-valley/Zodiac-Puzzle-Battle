@@ -8,9 +8,11 @@ import { mountBattle, type BattleOutcome } from './screens/battle';
 import { mountHome } from './screens/home';
 import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
-import { clearAllData, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
+import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
+import { DEV_TOOLS } from './data/devTools';
+import type { HeroId } from './game/types';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './storage/settings';
-import { hashToRoute, routeToHash, tabOf, type Route } from './routes';
+import { hashToRoute, routeToHash, tabOf, type Route, type Tab } from './routes';
 import { tabBarHtml } from './components/tabBar';
 import { openModal } from './components/modal';
 import { mountBook } from './screens/book';
@@ -33,6 +35,14 @@ export interface AppContext {
   navigate(route: Route, options?: { replace?: boolean }): void;
   openSettings(background: HTMLElement, options?: { allowClear?: boolean }): void;
   openTutorial(background: HTMLElement): void;
+  /** 仲間になっているか（開発者モードでは全員） */
+  heroJoined(id: HeroId): boolean;
+  /** 遊べるステージか（開発者モードでは全部） */
+  stageOpen(stageId: string): boolean;
+  /** 出撃する3人（まだ仲間でないキャラがいれば最初の編成） */
+  party(): HeroId[];
+  /** 途中のバトルを続けられるか（ステージが開いていて、出撃した3人がみな仲間） */
+  canResume(): boolean;
 }
 
 export function mountApp(root: HTMLElement): void {
@@ -46,10 +56,14 @@ export function mountApp(root: HTMLElement): void {
     progress: loadProgress(),
     lastOutcome: null,
     setSettings(next) {
+      const leavingDev = ctx.settings.devUnlockAll && !next.devUnlockAll;
       ctx.settings = next;
+      // 開発者モードを切ったら、そのモードで組んだ編成や始めた途中バトルのうち、ふつうでは使えないものを片づける
+      if (leavingDev) tidyAfterDev();
       ctx.sound.setEnabled(next.soundOn);
       saveSettings(next);
       document.documentElement.dataset.speed = String(next.speed);
+      document.documentElement.toggleAttribute('data-dev', next.devUnlockAll);
       window.dispatchEvent(new Event('zodiac:settings'));
     },
     setProgress(next) {
@@ -82,16 +96,42 @@ export function mountApp(root: HTMLElement): void {
       });
     },
     openTutorial(background) {
-      openTutorial(root, background, () => ctx.setSettings({ ...ctx.settings, tutorialSeen: true }), ctx.progress.party);
+      openTutorial(root, background, () => ctx.setSettings({ ...ctx.settings, tutorialSeen: true }), ctx.party());
+    },
+    heroJoined(id) {
+      return ctx.settings.devUnlockAll || isHeroJoined(ctx.progress, id);
+    },
+    stageOpen(stageId) {
+      return ctx.settings.devUnlockAll ? !!findStage(stageId) : isUnlocked(ctx.progress, stageId);
+    },
+    party() {
+      return activeParty(ctx.progress, (id) => ctx.heroJoined(id));
+    },
+    canResume() {
+      const b = ctx.progress.battle;
+      return !!b && ctx.stageOpen(b.stageId) && b.state.party.every((m) => ctx.heroJoined(m.id));
     },
   };
+
+  /** ふつうの状態（開発者モードでない）で使えない編成・途中バトルを片づける */
+  function tidyAfterDev() {
+    let next = ctx.progress;
+    if (!next.party.every((id) => isHeroJoined(next, id))) next = { ...next, party: activeParty(next) };
+    if (next.battle && !ctx.canResume()) next = { ...next, battle: null };
+    if (next !== ctx.progress) ctx.setProgress(next);
+  }
+  if (!ctx.settings.devUnlockAll) tidyAfterDev();
 
   // iOS は操作の中でないと音を出せないので、操作の区切りごとに音を使えるようにする（版によって許可される操作が違う）
   for (const type of ['pointerdown', 'pointerup', 'click', 'keydown']) {
     root.addEventListener(type, () => ctx.sound.unlock(), { capture: true });
   }
 
+  /** 画面を描き直すたびに増やす（読み込みを待つ画面が、別の画面に移ったあとで描かないように） */
+  let renderToken = 0;
+
   function render() {
+    renderToken++;
     closeModal();
     cleanup?.();
     cleanup = null;
@@ -104,10 +144,13 @@ export function mountApp(root: HTMLElement): void {
     // 開いていないステージや、結果のないリザルトには入れない
     if (route.name === 'battle') {
       const stage = findStage(route.stageId);
-      if (!stage || !isUnlocked(ctx.progress, stage.id)) route = { name: 'quest' };
+      if (!stage || !ctx.stageOpen(stage.id)) route = { name: 'quest' };
     }
     if (route.name === 'result' && !ctx.lastOutcome) route = { name: 'quest' };
-    if (route.name === 'quest' && route.stageId && !isUnlocked(ctx.progress, route.stageId)) route = { name: 'quest' };
+    if (route.name === 'quest' && route.stageId && !ctx.stageOpen(route.stageId)) route = { name: 'quest' };
+    // まだ仲間でないキャラの詳しい画面は開かない
+    if (route.name === 'heroes' && route.heroId && !ctx.heroJoined(route.heroId)) route = { name: 'heroes' };
+    if (route.name === 'dev' && !DEV_TOOLS) route = { name: 'home' };
     if (routeToHash(route) !== location.hash && location.hash !== '' && location.hash !== '#/') {
       history.replaceState(null, '', routeToHash(route));
     }
@@ -137,25 +180,37 @@ export function mountApp(root: HTMLElement): void {
       case 'feature':
         cleanup = mountComingSoon(container, ctx, route.id);
         break;
+      case 'dev': {
+        // 開発者画面は必要なときだけ読む（DEV_TOOLS が false の版には入らない）
+        const token = ++renderToken;
+        void import('./screens/dev').then(({ mountDev }) => {
+          if (token !== renderToken || !container.isConnected) return;
+          cleanup = mountDev(container, ctx);
+          addTabBar(container, 'menu');
+        });
+        break;
+      }
     }
 
     // 下のタブバー（バトルとリザルトでは出さない）
     const tab = tabOf(route);
-    if (tab) {
-      container.classList.add('with-tabs');
-      container.insertAdjacentHTML('beforeend', tabBarHtml(tab));
-      container.querySelectorAll<HTMLButtonElement>('.tab-bar .tab').forEach((b) =>
-        b.addEventListener('click', () => {
-          const t = b.dataset.tab;
-          if (t === 'menu') openMenuSheet(container.querySelector('main') ?? container);
-          else if (t === 'home') ctx.navigate({ name: 'home' });
-          else if (t === 'quest') ctx.navigate({ name: 'quest' });
-          else if (t === 'party') ctx.navigate({ name: 'party' });
-          else if (t === 'heroes') ctx.navigate({ name: 'heroes' });
-        }),
-      );
-    }
+    if (tab) addTabBar(container, tab);
     window.scrollTo(0, 0);
+  }
+
+  function addTabBar(container: HTMLElement, tab: Tab) {
+    container.classList.add('with-tabs');
+    container.insertAdjacentHTML('beforeend', tabBarHtml(tab));
+    container.querySelectorAll<HTMLButtonElement>('.tab-bar .tab').forEach((b) =>
+      b.addEventListener('click', () => {
+        const t = b.dataset.tab;
+        if (t === 'menu') openMenuSheet(container.querySelector('main') ?? container);
+        else if (t === 'home') ctx.navigate({ name: 'home' });
+        else if (t === 'quest') ctx.navigate({ name: 'quest' });
+        else if (t === 'party') ctx.navigate({ name: 'party' });
+        else if (t === 'heroes') ctx.navigate({ name: 'heroes' });
+      }),
+    );
   }
 
   /** メニュー：図鑑・遊び方・設定と、準備中の画面 */
@@ -168,6 +223,7 @@ export function mountApp(root: HTMLElement): void {
         <button type="button" class="text-btn wide m-book">図鑑</button>
         <button type="button" class="text-btn wide m-how">遊び方</button>
         <button type="button" class="text-btn wide m-settings">設定</button>
+        ${DEV_TOOLS ? '<button type="button" class="text-btn wide m-dev">開発者画面</button>' : ''}
         <p class="sheet-note">準備中</p>
         <div class="sheet-grid">
           ${FEATURE_IDS.map((id) => `<button type="button" class="text-btn m-feature" data-id="${id}">${featureShortName(id)}</button>`).join('')}
@@ -186,6 +242,10 @@ export function mountApp(root: HTMLElement): void {
       modal.close();
       ctx.openSettings(background, { allowClear: true });
     });
+    modal.overlay.querySelector('.m-dev')?.addEventListener('click', () => {
+      modal.close();
+      ctx.navigate({ name: 'dev' });
+    });
     modal.overlay.querySelectorAll<HTMLButtonElement>('.m-feature').forEach((b) =>
       b.addEventListener('click', () => {
         modal.close();
@@ -197,6 +257,7 @@ export function mountApp(root: HTMLElement): void {
   }
 
   document.documentElement.dataset.speed = String(settings.speed);
+  document.documentElement.toggleAttribute('data-dev', settings.devUnlockAll);
   window.addEventListener('popstate', render);
   render();
 }

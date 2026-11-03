@@ -1,9 +1,9 @@
 // 図鑑：12星座のキャラと、倒した敵（仕様書 11.3）
 import type { AppContext } from '../app';
 import { enemySvg } from '../components/enemyArt';
-import { heroCardInner } from '../components/heroCard';
+import { heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { ENEMIES } from '../data/enemies';
-import { ALL_HEROES } from '../data/heroes';
+import { ALL_HEROES, HEROES } from '../data/heroes';
 import { ALL_STAGES } from '../data/stages';
 import type { HeroId } from '../game/types';
 import { heroGrowth } from '../storage/progress';
@@ -18,13 +18,16 @@ export function mountBook(container: HTMLElement, ctx: AppContext): () => void {
       <button type="button" class="text-btn back">‹ ホーム</button>
       <h1 class="screen-title">図鑑</h1>
     </header>
-    <h2 class="section-title">星座のキャラ <small>${ALL_HEROES.length}</small></h2>
+    <h2 class="section-title">星座のキャラ <small>${ALL_HEROES.filter((id) => ctx.heroJoined(id)).length} / ${ALL_HEROES.length}</small></h2>
     <div class="roster" role="list">
-      ${ALL_HEROES.map(
-        (id) => `
+      ${ALL_HEROES.map((id) =>
+        ctx.heroJoined(id)
+          ? `
         <button type="button" role="listitem" class="hero-card" data-id="${id}">
           ${heroCardInner(id, heroGrowth(ctx.progress, id).level)}
-        </button>`,
+        </button>`
+          : `
+        <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
       ).join('')}
     </div>
     <h2 class="section-title">敵 <small>${defeated.size} / ${enemies.length}</small></h2>
@@ -50,7 +53,7 @@ export function mountBook(container: HTMLElement, ctx: AppContext): () => void {
   </main>`;
 
   container.querySelector('.back')?.addEventListener('click', () => ctx.navigate({ name: 'home' }));
-  container.querySelectorAll<HTMLButtonElement>('.hero-card').forEach((b) =>
+  container.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) =>
     b.addEventListener('click', () => ctx.navigate({ name: 'heroes', heroId: b.dataset.id as HeroId })),
   );
   return () => undefined;

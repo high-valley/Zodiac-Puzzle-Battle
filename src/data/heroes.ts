@@ -213,6 +213,25 @@ export function isHeroId(id: unknown): id is HeroId {
   return typeof id === 'string' && (ALL_HEROES as readonly string[]).includes(id);
 }
 
+/**
+ * 仲間になる条件：そのステージを初めてクリアすると加入する（null は最初からいる）。仕様書 12.6。
+ * まだ無い章のステージ（2-1 など）は、その章を作るまで加入できない
+ */
+export const HERO_JOIN_STAGE: Record<HeroId, string | null> = {
+  aries: null,
+  sagittarius: null,
+  virgo: null,
+  cancer: '1-1',
+  gemini: '1-2',
+  leo: '1-3',
+  libra: '1-4',
+  scorpio: '1-5',
+  taurus: '2-1',
+  capricorn: '2-2',
+  aquarius: '2-3',
+  pisces: '2-4',
+};
+
 /** 最初の編成 */
 export const DEFAULT_PARTY: readonly PartyMember[] = [
   { id: 'aries', level: 1 },

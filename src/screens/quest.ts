@@ -3,7 +3,8 @@ import type { AppContext } from '../app';
 import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
 import { CHAPTERS, STAR3_HP_RATIO, findStage, stageEnemyName } from '../data/stages';
-import { isUnlocked, nextStageId } from '../storage/progress';
+import { nextStageId } from '../storage/progress';
+import { ALL_HEROES, HERO_JOIN_STAGE, HEROES } from '../data/heroes';
 
 // マップ上の点の位置（％）。ステージが増えたら章ごとに持たせる
 const NODE_POS: [number, number][] = [
@@ -20,7 +21,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
   const chapter = CHAPTERS[0];
   const stages = chapter.stages;
   let selected =
-    initialStageId && findStage(initialStageId) && isUnlocked(ctx.progress, initialStageId)
+    initialStageId && ctx.stageOpen(initialStageId)
       ? initialStageId
       : nextStageId(ctx.progress);
 
@@ -53,7 +54,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
   function renderNodes() {
     nodes.innerHTML = stages
       .map((s, i) => {
-        const open = isUnlocked(ctx.progress, s.id);
+        const open = ctx.stageOpen(s.id);
         const stars = ctx.progress.stages[s.id]?.stars ?? 0;
         const [x, y] = NODE_POS[i];
         const label = open ? `${s.id} ${stageEnemyName(s)}、★${stars}` : `${s.id}、まだ遊べません`;
@@ -85,8 +86,9 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     const enemy = ENEMIES[stage.enemyId];
     const record = ctx.progress.stages[stage.id];
     const saved = ctx.progress.battle;
-    const savedHere = saved?.stageId === stage.id;
+    const savedHere = saved?.stageId === stage.id && ctx.canResume();
     const savedElsewhere = saved && !savedHere ? saved.stageId : null;
+    const joiners = ALL_HEROES.filter((id) => HERO_JOIN_STAGE[id] === stage.id);
     panel.innerHTML = `
       <div class="stage-head">
         <span class="stage-id">${stage.id}</span>
@@ -110,6 +112,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
           ? `これまでの記録　${starsText(record.stars)}${record.bestTurns ? `　${record.bestTurns}ターン` : ''}`
           : 'まだクリアしていません'
       }</p>
+      ${joiners.length ? `<p class="stage-join">${record && record.stars > 0 ? '仲間になった' : '初めてクリアすると仲間になる'}：${joiners.map((id) => `<span class="sj-hero">${HEROES[id].symbol} ${HEROES[id].name}</span>`).join('')}</p>` : ''}
       ${savedElsewhere ? `<p class="stage-note">出撃すると、途中の ${savedElsewhere} のバトルは消えます</p>` : ''}
       <div class="stage-actions">
         ${
