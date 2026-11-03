@@ -55,8 +55,11 @@ export function runBench(
       botSeed = choice.seed;
       const before = state.enemyHp;
       const { state: next, events } = resolveTurn(state, choice.action);
-      picked[choice.action.hero]++;
-      if (events.some((e) => e.type === 'special')) specials[choice.action.hero]++;
+      // だれが動いたか（与えたダメージ・回復の量で数える）と、だれの必殺が出たか
+      for (const e of events) {
+        if (e.type === 'clear') for (const a of e.actors) picked[a.heroId] += a.damage + a.heal;
+        if (e.type === 'special') specials[e.special.heroId]++;
+      }
       const chains = events.flatMap((e) => (e.type === 'clear' ? [e.chain] : []));
       chainHist[Math.max(0, ...chains)]++;
       damage += before - next.enemyHp;
@@ -78,7 +81,7 @@ export function runBench(
     avgTurnsWin: wins ? turnsWin / wins : 0,
     avgTurns: turnsAll / battles,
     specialsPerBattle: per(specials, battles),
-    specialRatePerTurn: mapHeroes((h) => (picked[h] ? specials[h] / picked[h] : 0)),
+    specialRatePerTurn: mapHeroes((h) => specials[h] / Math.max(1, turnsAll)),
     avgDamagePerTurn: damage / turnsAll,
     maxChainHistogram: chainHist,
     heroShare: per(picked, total),
@@ -145,9 +148,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`勝率 ${pct(r.winRate)}／平均ターン（勝ち） ${r.avgTurnsWin.toFixed(1)}／平均ターン（全体） ${r.avgTurns.toFixed(1)}／1ターンの平均ダメージ ${r.avgDamagePerTurn.toFixed(1)}`);
     const ids = party.map((m) => m.id);
     const line = (f: (h: HeroId) => string) => ids.map((h) => `${HEROES[h].name} ${f(h)}`).join(' ');
-    console.log(`キャラを選んだ割合 ${line((h) => pct(r.heroShare[h]))}`);
+    console.log(`ダメージ・回復の割合 ${line((h) => pct(r.heroShare[h]))}`);
     console.log(`必殺（1戦あたり） ${line((h) => r.specialsPerBattle[h].toFixed(2))}`);
-    console.log(`必殺（そのキャラを選んだターンのうち） ${line((h) => pct(r.specialRatePerTurn[h]))}`);
+    console.log(`必殺（1ターンあたり） ${line((h) => pct(r.specialRatePerTurn[h]))}`);
     console.log(`最大連鎖の分布（0〜8） ${r.maxChainHistogram.slice(0, 9).join(' / ')}`);
   }
   if (!only) {

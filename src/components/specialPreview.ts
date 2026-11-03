@@ -1,4 +1,4 @@
-// 選んでいるキャラの必殺の形を、3×3 の星図として見せる
+// キャラの必殺の形を、3×3 の星図として見せる
 import { HEROES } from '../data/heroes';
 import { SHAPES, SHAPE_LABEL } from '../game/specials';
 import type { HeroId } from '../game/types';

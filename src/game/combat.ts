@@ -1,14 +1,15 @@
 // 戦闘の開始と1ターンの解決
-// 処理順：回転（1〜3回。この間は何も消えない）→ 攻撃で確定 → 固有形判定 → 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
-import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, ORB_COLORS, chainMultiplier } from '../data/balance';
+// 処理順：回転（1〜3回。この間は何も消えない）→ 攻撃で確定 → 固有形判定（仲間全員）→ 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
+// 出撃した仲間は全員が同時に行動し、各キャラは自分の色のオーブが消えたときだけ動く（仕様書 12.7）
+import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, TRAITS, chainMultiplier } from '../data/balance';
 import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
 import { DEFAULT_PARTY, HEROES } from '../data/heroes';
 import { levelPercent } from '../data/growth';
-import { memberLevel, partyMaxHp, partyProblem, scaled } from './party';
+import { partyMaxHp, partyProblem, scaled } from './party';
 import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
 import { findMatches, matchedMask, maskToCells } from './matching';
 import { detectHeroSpecial } from './specials';
-import type { BattleEvent, BattleState, HeroId, OrbColor, PartyMember, TurnAction, TurnResult } from './types';
+import type { Actor, BattleEvent, BattleState, HeroId, OrbColor, PartyMember, SpecialResult, TurnAction, TurnResult } from './types';
 
 export { partyMaxHp } from './party';
 
@@ -31,7 +32,6 @@ export function createBattle(
   return {
     board: initial.board,
     party: party.map((m) => ({ ...m })),
-    selectedHero: party[0].id,
     turn: 1,
     partyHp: maxHp,
     partyMaxHp: maxHp,
@@ -49,7 +49,11 @@ function emptyCounts(): Record<OrbColor, number> {
   return { red: 0, blue: 0, green: 0, pink: 0 };
 }
 
-/** 消した色ごとの個数から、選択キャラの通常効果（ダメージ・回復）を計算する。level はそのキャラのレベル */
+/**
+ * 1段の消去での、1人の通常効果（ダメージ・回復）。自分の色の個数だけを使う（仕様書 12.7）。
+ * chain はその段の連鎖段数（1〜）。特性（12.8）もここでかける。
+ * 先陣は連鎖1段目（そのターン最初の通常消去）に付く。必殺だけの消去は連鎖に数えない（9.3）ので、その次の段が1段目
+ */
 export function normalEffect(
   heroId: HeroId,
   counts: Record<OrbColor, number>,
@@ -58,9 +62,14 @@ export function normalEffect(
 ): { damage: number; heal: number } {
   const hero = HEROES[heroId];
   let amount = 0;
-  for (const color of ORB_COLORS) {
-    const action = hero.actions[color];
-    if (action) amount += action.coef * counts[color] * chainMultiplier(chain) * (levelPercent(level) / 100);
+  for (const [color, action] of Object.entries(hero.actions) as [OrbColor, { coef: number }][]) {
+    const n = counts[color];
+    if (n <= 0) continue;
+    let mult = chainMultiplier(chain);
+    if (hero.trait === 'chain') mult = 1 + TRAITS.chainStep * (chain - 1);
+    if (hero.trait === 'vanguard' && chain === 1) mult *= TRAITS.vanguardMultiplier;
+    if (hero.trait === 'mass') mult *= 1 + TRAITS.massPerExtra * Math.max(0, n - 3);
+    amount += action.coef * n * mult * (levelPercent(level) / 100);
   }
   const rounded = Math.round(amount);
   return hero.role === 'healer' ? { damage: 0, heal: rounded } : { damage: rounded, heal: 0 };
@@ -69,9 +78,6 @@ export function normalEffect(
 export function resolveTurn(state: BattleState, action: TurnAction): TurnResult {
   if (state.status !== 'playing') {
     throw new Error('戦闘は終わっています');
-  }
-  if (!state.party.some((m) => m.id === action.hero)) {
-    throw new RangeError(`編成にいないキャラです: ${action.hero}`);
   }
   const rotations = action.rotations;
   if (!Array.isArray(rotations) || rotations.length < 1 || rotations.length > MAX_ROTATIONS_PER_TURN) {
@@ -99,22 +105,24 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
   let damage = 0;
   let heal = 0;
 
-  // 必殺は回し終えた盤面で、通常マッチを消す前に判定する。選んだキャラだけ、1ターン1回
-  const hero = HEROES[action.hero];
-  const level = memberLevel(state.party, action.hero);
-  const special = detectHeroSpecial(board, action.hero);
-  if (special) {
-    const power = scaled(hero.special.power, level);
+  // 必殺は回し終えた盤面で、通常マッチを消す前に判定する。仲間それぞれ、1ターン1回（同じターンに何人出てもよい）
+  const specials: SpecialResult[] = [];
+  for (const m of state.party) {
+    const special = detectHeroSpecial(board, m.id);
+    if (!special) continue;
+    const hero = HEROES[m.id];
+    const power = scaled(hero.special.power, m.level);
     const sDamage = hero.role === 'attacker' ? power : 0;
     const sHeal = hero.role === 'healer' ? power : 0;
     damage += sDamage;
     heal += sHeal;
+    specials.push(special);
     events.push({ type: 'special', special, name: hero.special.name, damage: sDamage, heal: sHeal });
   }
 
   // 必殺に使ったオーブは、最初の消去で通常マッチと一緒に消す。
   // 必殺だけで消えたオーブは通常効果を出さず、連鎖の段数にも数えない（通常マッチの段だけ数える）
-  let specialCells = special ? special.cells : [];
+  let specialCells = specials.flatMap((sp) => sp.cells);
   let chain = 0;
   for (;;) {
     const groups = findMatches(board);
@@ -126,9 +134,18 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const matched = matchedMask(groups);
     const counts = emptyCounts();
     for (const p of maskToCells(matched)) counts[board[p.row][p.col]]++;
-    const effect = groups.length > 0 ? normalEffect(action.hero, counts, chain, level) : { damage: 0, heal: 0 };
-    damage += effect.damage;
-    heal += effect.heal;
+    // 仲間全員が同時に行動する。自分の色が消えたキャラだけ動く
+    const actors: Actor[] = [];
+    if (groups.length > 0) {
+      for (const m of state.party) {
+        const e = normalEffect(m.id, counts, chain, m.level);
+        if (e.damage > 0 || e.heal > 0) actors.push({ heroId: m.id, damage: e.damage, heal: e.heal });
+      }
+    }
+    const stepDamage = actors.reduce((sum, a) => sum + a.damage, 0);
+    const stepHeal = actors.reduce((sum, a) => sum + a.heal, 0);
+    damage += stepDamage;
+    heal += stepHeal;
     const mask = matched.map((line) => line.slice());
     for (const p of specialCells) mask[p.row][p.col] = true;
     specialCells = [];
@@ -140,8 +157,9 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       chain: groups.length > 0 ? chain : 0,
       cells: maskToCells(mask),
       counts,
-      damage: effect.damage,
-      heal: effect.heal,
+      actors,
+      damage: stepDamage,
+      heal: stepHeal,
       board,
     });
   }
@@ -189,7 +207,6 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     state: {
       ...state,
       board,
-      selectedHero: action.hero,
       turn: state.turn + 1,
       partyHp,
       enemyHp,
@@ -198,7 +215,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       status,
       stats: {
         maxChain: Math.max(state.stats.maxChain, maxChainThisTurn),
-        specials: state.stats.specials + (special ? 1 : 0),
+        specials: state.stats.specials + specials.length,
         damageDealt: state.stats.damageDealt + (state.enemyHp - enemyHp),
         healed: state.stats.healed + healedThisTurn,
       },

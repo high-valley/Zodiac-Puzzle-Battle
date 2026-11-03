@@ -14,7 +14,7 @@ describe('敵の強攻撃と記録', () => {
     const heavyTurns: number[] = [];
     const charges: (number | null)[] = [];
     for (let t = 1; t <= heavy.every * 3; t++) {
-      const r = resolveTurn(state, { hero: 'aries', rotations: [{ row: 3, col: 3, direction: t % 2 ? 'clockwise' : 'counterclockwise' }] });
+      const r = resolveTurn(state, { rotations: [{ row: 3, col: 3, direction: t % 2 ? 'clockwise' : 'counterclockwise' }] });
       const attack = r.events.find((e) => e.type === 'enemyAttack');
       if (attack?.type !== 'enemyAttack') throw new Error('攻撃がない');
       expect(attack.amount).toBe(attack.heavy ? heavy.attack : enemy.attack);
@@ -30,7 +30,7 @@ describe('敵の強攻撃と記録', () => {
   it('強攻撃が来るはずのターンに勝てば、敵は攻撃せず残りターンも減らない', () => {
     const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
     const start = stateWith(createBattle(5, 'shadow'), redL, { enemyHp: 5, enemyChargeIn: 1 });
-    const r = resolveTurn(start, { hero: 'aries', rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
+    const r = resolveTurn(start, { rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
     expect(r.state.status).toBe('victory');
     expect(r.events.some((e) => e.type === 'enemyAttack')).toBeFalsy();
     expect(r.state.enemyChargeIn).toBe(1);
@@ -40,7 +40,7 @@ describe('敵の強攻撃と記録', () => {
   it('強攻撃のない敵は残りターンを持たず、いつも同じ攻撃', () => {
     const state = createBattle(5, 'stardust');
     expect(state.enemyChargeIn).toBeNull();
-    const r = resolveTurn(stateWith(state, QUIET_ROWS), { hero: 'aries', rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
+    const r = resolveTurn(stateWith(state, QUIET_ROWS), { rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
     expect(r.state.enemyChargeIn).toBeNull();
   });
 
@@ -51,7 +51,7 @@ describe('敵の強攻撃と記録', () => {
   it('記録：ピンク2×2の必殺だけのターン（必殺1回・回復110・連鎖0・ダメージ0）', () => {
     const pink = ['PPGPR', 'PPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
     const start = stateWith(createBattle(1, 'stardust'), pink, { partyHp: 100 });
-    const r1 = resolveTurn(start, { hero: 'virgo', rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
+    const r1 = resolveTurn(start, { rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
     // 必殺だけの消去は連鎖0。回復は必殺の110だけ（必殺で消えたピンクは通常の回復を出さない）
     expect(r1.state.stats).toEqual({ maxChain: 0, specials: 1, damageDealt: 0, healed: 110 });
   });
@@ -60,14 +60,14 @@ describe('敵の強攻撃と記録', () => {
     const start = stateWith(createBattle(1, 'stardust'), QUIET_ROWS, {
       stats: { maxChain: 4, specials: 2, damageDealt: 100, healed: 30 },
     });
-    const r = resolveTurn(start, { hero: 'aries', rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
+    const r = resolveTurn(start, { rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
     expect(r.state.stats).toEqual({ maxChain: 4, specials: 2, damageDealt: 100, healed: 30 });
   });
 
   it('とどめのダメージは、敵の残りHPを超えた分を数えない', () => {
     const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
     const start = stateWith(createBattle(1, 'stardust'), redL, { enemyHp: 5 });
-    const r = resolveTurn(start, { hero: 'aries', rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
+    const r = resolveTurn(start, { rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
     expect(r.state.status).toBe('victory');
     expect(r.state.stats.damageDealt).toBe(5);
   });
@@ -117,14 +117,14 @@ describe('進行の保存', () => {
 
   it('保存した文字列から読み戻せる（途中のバトルも）', () => {
     let state = createBattle(42, 'mistbeast');
-    state = resolveTurn(state, { hero: 'aries', rotations: [{ row: 1, col: 1, direction: 'clockwise' }] }).state;
+    state = resolveTurn(state, { rotations: [{ row: 1, col: 1, direction: 'clockwise' }] }).state;
     const pending = [{ row: 1, col: 2, direction: 'clockwise' as const }];
     const p = { ...recordResult(emptyProgress(), '1-1', 3, 6), battle: { stageId: '1-2', state, pending } };
     const back = parseProgress(JSON.stringify(p));
     expect(back).toEqual(p);
     // 読み戻した状態から同じ手を指すと、同じ結果になる
     expect(back.battle!.pending).toEqual(pending);
-    const a = { hero: 'sagittarius' as const, rotations: [{ row: 2, col: 0, direction: 'counterclockwise' as const }] };
+    const a = { rotations: [{ row: 2, col: 0, direction: 'counterclockwise' as const }] };
     expect(resolveTurn(back.battle!.state, a)).toEqual(resolveTurn(state, a));
   });
 

@@ -13,7 +13,7 @@ describe('cueForEvent', () => {
     const events: BattleEvent[] = [
       { type: 'rotate', row: 0, col: 0, direction: 'clockwise', board },
       { type: 'special', special: { heroId: 'virgo', shape: 'square', color: 'pink', cells: [] }, name: 'x', damage: 0, heal: 110 },
-      { type: 'clear', chain: 2, cells: [], counts: zero, damage: 0, heal: 0, board },
+      { type: 'clear', chain: 2, cells: [], counts: zero, damage: 0, heal: 0, actors: [], board },
       { type: 'heal', amount: 1, partyHp: 1 },
       { type: 'damage', amount: 1, enemyHp: 1 },
       { type: 'enemyAttack', amount: 1, partyHp: 1, heavy: false },
@@ -35,11 +35,11 @@ describe('cueForEvent', () => {
   it('消去の音は連鎖の段数を持つ（必殺だけの消去は 0）', () => {
     const board = createBattle(1).board;
     const zero = { red: 0, blue: 0, green: 0, pink: 0 };
-    expect(cueForEvent({ type: 'clear', chain: 3, cells: [], counts: zero, damage: 0, heal: 0, board }, false)).toEqual({
+    expect(cueForEvent({ type: 'clear', chain: 3, cells: [], counts: zero, damage: 0, heal: 0, actors: [], board }, false)).toEqual({
       name: 'clear',
       step: 3,
     });
-    expect(cueForEvent({ type: 'clear', chain: 0, cells: [], counts: zero, damage: 0, heal: 0, board }, true)).toEqual({
+    expect(cueForEvent({ type: 'clear', chain: 0, cells: [], counts: zero, damage: 0, heal: 0, actors: [], board }, true)).toEqual({
       name: 'clear',
       step: 0,
     });
@@ -48,7 +48,7 @@ describe('cueForEvent', () => {
   it('必殺が出たターンだけ、攻撃・回復の音が強くなる', () => {
     const quiet = ['RBGPR', 'GPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
     const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
-    const move = { hero: 'aries' as const, rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
+    const move = { rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
     const withSpecial = resolveTurn(stateWith(createBattle(1), redL), move).events;
     const withoutSpecial = resolveTurn(stateWith(createBattle(1), quiet), move).events;
     expect(turnHasSpecial(withSpecial)).toBeTruthy();

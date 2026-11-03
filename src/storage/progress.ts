@@ -96,11 +96,10 @@ export function isBattleState(v: unknown): v is BattleState {
     if (!Array.isArray(row) || row.length !== BOARD_SIZE) return false;
     if (!row.every((c) => (ORB_COLORS as readonly unknown[]).includes(c))) return false;
   }
-  // 出撃した仲間が編成のルールに合い、選んでいるキャラがその中にいること
+  // 出撃した仲間が編成のルールに合うこと（前の版の selectedHero は使わない。仕様書 12.7）
   if (!Array.isArray(s.party) || s.party.some((m) => typeof m !== 'object' || m === null)) return false;
   const party = s.party as PartyMember[];
   if (partyProblem(party) !== null) return false;
-  if (!party.some((m) => m.id === s.selectedHero)) return false;
   if (typeof s.enemyId !== 'string' || !ENEMIES[s.enemyId]) return false;
   const enemy = ENEMIES[s.enemyId];
   if (!isInt(s.turn, 1)) return false;
@@ -171,6 +170,12 @@ export function parseProgress(raw: string | null): Progress {
   // M3 までの途中バトルには party が無い。そのころは最初の編成（レベル1）だけだったので補って続ける
   if (b && typeof b.state === 'object' && b.state !== null && !('party' in b.state)) {
     b.state = { ...(b.state as object), party: DEFAULT_PARTY.map((m) => ({ ...m })) };
+  }
+  // 行動するキャラを選んでいたころ（2026-11-03 まで）の selectedHero は使わないので落とす
+  if (b && typeof b.state === 'object' && b.state !== null && 'selectedHero' in b.state) {
+    const rest: Record<string, unknown> = { ...(b.state as Record<string, unknown>) };
+    delete rest.selectedHero;
+    b.state = rest;
   }
   if (b && typeof b.stageId === 'string' && isUnlocked(progress, b.stageId) && isBattleState(b.state)) {
     const stage = findStage(b.stageId)!;
