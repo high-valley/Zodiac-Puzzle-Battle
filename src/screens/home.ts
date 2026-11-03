@@ -1,8 +1,13 @@
 // ホーム：ロゴ・編成中の3人・冒険・編成／育成／図鑑・つづきから（仕様書 11.5）。
 // 上の帯・左右のアイコン・スタミナ・イベントのバナーは、中身が決まるまで準備中の画面へつなぐだけ（数値は出さない）
 import type { AppContext } from '../app';
+import { assetUrl } from '../components/assets';
 import { constellationSvg } from '../components/constellations';
+import { ROLE_PLATE } from '../components/heroCard';
+import { TAB_ICON } from '../components/tabBar';
+import { artHeightRatio, HERO_ART } from '../data/heroArt';
 import { HEROES } from '../data/heroes';
+import type { HeroId } from '../game/types';
 import { CHAPTERS, findStage, stageEnemyName } from '../data/stages';
 import { heroGrowth } from '../storage/progress';
 import { FEATURE_ICON, featureShortName } from './comingSoon';
@@ -11,11 +16,31 @@ import type { FeatureId } from '../routes';
 const LEFT: FeatureId[] = ['news', 'gift', 'mission', 'exchange'];
 const RIGHT: FeatureId[] = ['gacha', 'shop', 'friend', 'guild'];
 
+/** 図鑑のアイコン（開いた本） */
+const BOOK_ICON = '<path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V4.5C17 4 14 4.5 12 6zM12 6v14.5"/>';
+/** スタミナのアイコン（稲妻） */
+const BOLT_ICON = '<path d="M13 2L5 13h6l-1 9 8-11h-6z"/>';
+
+/** 3人の並び：まんなかが編成の1人目、左に2人目、右に3人目 */
+const SLOTS = ['c', 'l', 'r'] as const;
+/** 名前の札は見た目の順（左・まんなか・右）に並べる。読み上げも同じ順になる */
+const PLATE_ORDER = [1, 0, 2];
+
 const sideBtn = (id: FeatureId) => `
   <button type="button" class="side-btn${id === 'gacha' ? ' gacha' : ''}" data-feature="${id}">
     <span class="side-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${FEATURE_ICON[id]}</svg></span>
     <span class="side-label">${featureShortName(id)}</span>
   </button>`;
+
+/** 立ち絵（仮）と、その後ろの星座の線画。背丈の比のまま並べる（data/heroArt） */
+function figureHtml(id: HeroId, slot: (typeof SLOTS)[number]): string {
+  const a = HERO_ART[id];
+  return `
+      <div class="home-figure slot-${slot}" style="--h:${artHeightRatio(id).toFixed(3)};--hx:${a.headX}" aria-hidden="true">
+        ${constellationSvg(id, '')}
+        <img src="${assetUrl(a.file)}" width="${a.width}" height="${a.height}" alt="" decoding="async" draggable="false" />
+      </div>`;
+}
 
 export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   const saved = ctx.progress.battle;
@@ -44,43 +69,52 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <nav class="side-col left" aria-label="お知らせなど">${LEFT.map(sideBtn).join('')}</nav>
     <nav class="side-col right" aria-label="ガチャ・ショップなど">${RIGHT.map(sideBtn).join('')}</nav>
     <h1 class="logo"><span class="logo-ja">アストラクロニクル</span><span class="logo-en" aria-hidden="true">ASTRA CHRONICLE</span></h1>
-    <p class="logo-sub">回して、そろえて、星座の力で戦う</p>
 
-    <ul class="home-heroes" aria-label="パーティー">
-      ${party.map(
-        (id) => `
-        <li class="home-hero hero-${id}">
-          ${constellationSvg(id, `${HEROES[id].name}の星座`)}
-          <span class="home-hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
-          <span class="home-hero-name">${HEROES[id].name}</span>
-          <span class="home-hero-role">${HEROES[id].role === 'healer' ? 'ヒーラー' : 'アタッカー'}</span>
-          <span class="home-hero-role">Lv.${heroGrowth(ctx.progress, id).level}</span>
-        </li>`,
-      ).join('')}
-    </ul>
+    <div class="home-party">
+      ${party.map((id, i) => figureHtml(id, SLOTS[i])).join('')}
+      <ul class="home-plates" aria-label="パーティー">
+        ${PLATE_ORDER.map((i) => party[i])
+          .filter((id): id is HeroId => id !== undefined)
+          .map(
+            (id) => `
+          <li class="home-plate">
+            <span class="plate-badge orb-${HEROES[id].special.color}" aria-hidden="true">${HEROES[id].symbol}</span>
+            <span class="plate-text">
+              <span class="plate-name">${HEROES[id].name}</span>
+              <span class="plate-meta"><span class="plate-role">${ROLE_PLATE[HEROES[id].role]}　</span>Lv.${heroGrowth(ctx.progress, id).level}</span>
+            </span>
+          </li>`,
+          )
+          .join('')}
+      </ul>
+    </div>
     </div>
 
     <div class="home-actions">
+      <div class="adventure-wrap">
       <button type="button" class="adventure">
         <span class="adventure-label">冒険</span>
         <span class="adventure-sub">第${chapter.number}章 ${chapter.name}　★ ${stars} / ${chapter.stages.length * 3}</span>
       </button>
+      </div>
       ${
         saved && savedStage && ctx.canResume()
           ? `<button type="button" class="text-btn wide resume">つづきから　${savedStage.id} ${stageEnemyName(savedStage)}（ターン ${saved.state.turn}）</button>`
           : ''
       }
       <div class="home-rounds">
-        <button type="button" class="round-btn go-party"><span class="rb-icon" aria-hidden="true">✦</span>編成</button>
-        <button type="button" class="round-btn go-heroes"><span class="rb-icon" aria-hidden="true">★</span>育成</button>
-        <button type="button" class="round-btn go-book"><span class="rb-icon" aria-hidden="true">❖</span>図鑑</button>
+        <button type="button" class="round-btn go-party"><svg class="rb-icon" viewBox="0 0 24 24" aria-hidden="true">${TAB_ICON.party}</svg>編成</button>
+        <button type="button" class="round-btn go-heroes"><svg class="rb-icon" viewBox="0 0 24 24" aria-hidden="true">${TAB_ICON.heroes}</svg>育成</button>
+        <button type="button" class="round-btn go-book"><svg class="rb-icon" viewBox="0 0 24 24" aria-hidden="true">${BOOK_ICON}</svg>図鑑</button>
       </div>
       <div class="stamina" aria-label="スタミナ（準備中）">
+        <span class="stamina-icon" aria-hidden="true"><svg viewBox="0 0 24 24">${BOLT_ICON}</svg></span>
         <span class="stamina-label">スタミナ</span>
         <span class="bar stamina-bar" aria-hidden="true"><span class="fill"></span></span>
         <span class="stamina-v">— / —</span>
       </div>
       <button type="button" class="event-banner" data-feature="event">
+        <span class="eb-sea" aria-hidden="true"></span>
         <span class="eb-tag">期間限定イベント</span>
         <span class="eb-title">準備中</span>
       </button>

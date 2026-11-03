@@ -5,6 +5,8 @@ import type { HeroId } from '../game/types';
 
 export const ROLE_TEXT = { attacker: '赤・青・緑で攻撃', healer: 'ピンクで回復' } as const;
 export const ROLE_SHORT = { attacker: 'アタッカー', healer: 'ヒーラー' } as const;
+/** 狭い所（ホームの名前の札）での呼び方 */
+export const ROLE_PLATE = { attacker: '攻撃役', healer: '回復役' } as const;
 
 /** 仲間になる条件の文（今あるステージは「1-3 クリアで加入」、まだ無い章は「第2章で加入」、未定は「ストーリーを進めると加入」） */
 export function joinText(id: HeroId): string {
