@@ -2,7 +2,7 @@
   --sky: #151b45;
   --sky-deep: #0b0f2e;
   --sky-raise: #222a63;
-  --gold: #e9c46a;
+  --gold: #f1c073;
   --ink: #eef0ff;
   --ink-soft: #a8afe0;
   --red: #e5484d;
@@ -280,7 +280,7 @@ button:focus-visible {
 .orb.special::before {
   box-shadow:
     0 0 0 3px var(--gold),
-    0 0 18px 4px #e9c46aaa;
+    0 0 18px 4px #f1c073aa;
 }
 
 /* 交点の星 */
@@ -314,7 +314,7 @@ button:focus-visible {
   border-radius: 14px;
   box-shadow:
     0 0 0 1px #0006,
-    0 0 16px #e9c46a66;
+    0 0 16px #f1c07366;
   pointer-events: none;
   z-index: 3;
   transition:
@@ -399,8 +399,8 @@ button:focus-visible {
 }
 .board.special-glow {
   box-shadow:
-    inset 0 0 0 1px #e9c46a99,
-    0 0 28px #e9c46a55;
+    inset 0 0 0 1px #f1c07399,
+    0 0 28px #f1c07355;
 }
 .battle {
   position: relative;
@@ -412,16 +412,16 @@ button:focus-visible {
   pointer-events: none;
   opacity: 0;
   z-index: 6;
-  background: radial-gradient(circle at 50% 45%, var(--flash, #e9c46a) 0%, transparent 60%);
+  background: radial-gradient(circle at 50% 45%, var(--flash, #f1c073) 0%, transparent 60%);
 }
 .battle[data-flash='red'] {
-  --flash: #e5484d66;
+  --flash: #e5262e66;
 }
 .battle[data-flash='blue'] {
-  --flash: #3d8bf266;
+  --flash: #1a7ff066;
 }
 .battle[data-flash='pink'] {
-  --flash: #ef7fbf66;
+  --flash: #e64bc766;
 }
 .battle.special-flash::after {
   animation: flash 1.1s ease-out;
@@ -545,11 +545,11 @@ button:focus-visible {
 }
 .hero.active {
   border-color: var(--gold);
-  background: #e9c46a1f;
+  background: #f1c0731f;
 }
 .hero.active .hero-symbol {
   color: var(--gold);
-  text-shadow: 0 0 10px #e9c46a99;
+  text-shadow: 0 0 10px #f1c07399;
 }
 
 /* パーティー */
@@ -668,7 +668,7 @@ button:focus-visible {
 }
 .chip[aria-pressed='true'] {
   color: var(--gold);
-  border-color: #e9c46a99;
+  border-color: #f1c07399;
 }
 
 /* ───────── ホーム ───────── */
@@ -689,7 +689,7 @@ button:focus-visible {
   background: linear-gradient(180deg, #fff3c4 0%, var(--gold) 45%, #b8892e 100%);
   -webkit-background-clip: text;
   background-clip: text;
-  filter: drop-shadow(0 2px 10px #e9c46a40);
+  filter: drop-shadow(0 2px 10px #f1c07340);
 }
 .logo-ja,
 .logo-en {
@@ -731,7 +731,7 @@ button:focus-visible {
   overflow: visible;
 }
 .c-lines line {
-  stroke: #e9c46a99;
+  stroke: #f1c07399;
   stroke-width: 0.9;
 }
 .c-stars circle {
@@ -745,7 +745,7 @@ button:focus-visible {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid #e9c46a99;
+  border: 1px solid #f1c07399;
   background: var(--sky);
   color: var(--gold);
   font-size: 20px;
@@ -777,8 +777,8 @@ button:focus-visible {
   background: linear-gradient(180deg, #f3d488 0%, var(--gold) 55%, #c79a3c 100%);
   color: #1a1a3a;
   box-shadow:
-    0 0 0 4px #e9c46a2e,
-    0 10px 30px #e9c46a33;
+    0 0 0 4px #f1c0732e,
+    0 10px 30px #f1c07333;
   cursor: pointer;
 }
 .adventure-label {
@@ -795,7 +795,7 @@ button:focus-visible {
 }
 .resume {
   color: var(--gold);
-  border-color: #e9c46a77;
+  border-color: #f1c07377;
 }
 
 /* ───────── クエスト選択 ───────── */
@@ -803,7 +803,7 @@ button:focus-visible {
   margin-top: 8px;
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid #e9c46a55;
+  border: 1px solid #f1c07355;
   background: linear-gradient(90deg, #2b2266cc, #151b45cc);
   text-align: center;
 }
@@ -838,7 +838,7 @@ button:focus-visible {
 }
 .map-path path {
   fill: none;
-  stroke: #e9c46a88;
+  stroke: #f1c07388;
   stroke-width: 1.2;
   stroke-dasharray: 1.5 2.5;
   vector-effect: non-scaling-stroke;
@@ -855,7 +855,7 @@ button:focus-visible {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  border: 2px solid #e9c46a99;
+  border: 2px solid #f1c07399;
   background: radial-gradient(circle at 50% 35%, #3a3388, var(--sky));
   color: var(--ink);
   font-weight: 800;
@@ -870,8 +870,8 @@ button:focus-visible {
 .map-node.selected {
   border-color: #fff3c4;
   box-shadow:
-    0 0 0 4px #e9c46a55,
-    0 0 20px #e9c46a88;
+    0 0 0 4px #f1c07355,
+    0 0 20px #f1c07388;
   scale: 1.08;
 }
 .map-node.locked {
@@ -889,7 +889,7 @@ button:focus-visible {
   margin-top: 6px;
   padding: 16px;
   border-radius: 18px;
-  border: 1px solid #e9c46a66;
+  border: 1px solid #f1c07366;
   background: #151b45e6;
 }
 .stage-head {
@@ -1032,7 +1032,7 @@ button:focus-visible {
 }
 .result-stars span.on {
   color: var(--gold);
-  text-shadow: 0 0 14px #e9c46aaa;
+  text-shadow: 0 0 14px #f1c073aa;
   animation: star-in 0.45s calc(var(--i) * 0.18s) ease-out backwards;
 }
 .new-best {
@@ -1120,7 +1120,7 @@ button:focus-visible {
   padding: 20px;
   border-radius: 20px;
   background: var(--sky-raise);
-  border: 1px solid #e9c46a66;
+  border: 1px solid #f1c07366;
   display: grid;
   gap: 10px;
 }
@@ -1251,7 +1251,7 @@ html[data-speed='2'] .popup {
   padding: 20px 20px 18px;
   border-radius: 20px;
   background: var(--sky-raise);
-  border: 1px solid #e9c46a66;
+  border: 1px solid #f1c07366;
 }
 .tutorial-tabs {
   display: grid;
@@ -1272,7 +1272,7 @@ html[data-speed='2'] .popup {
   cursor: pointer;
 }
 .tutorial-tab[aria-selected='true'] {
-  background: #e9c46a26;
+  background: #f1c07326;
   color: var(--gold);
   font-weight: 700;
 }
@@ -1296,7 +1296,7 @@ html[data-speed='2'] .popup {
 }
 .t-star-row .on {
   color: var(--gold);
-  text-shadow: 0 0 12px #e9c46aaa;
+  text-shadow: 0 0 12px #f1c073aa;
 }
 .tutorial-card h2 {
   margin: 14px 0 6px;
@@ -1649,12 +1649,12 @@ html[data-speed='2'] .popup {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  border: 1.5px solid #e9c46a88;
+  border: 1.5px solid #f1c07388;
 }
 .rot-dots span.on {
   background: var(--gold);
   border-color: var(--gold);
-  box-shadow: 0 0 8px #e9c46a88;
+  box-shadow: 0 0 8px #f1c07388;
 }
 .rot-text {
   font-size: 12px;
@@ -1683,7 +1683,7 @@ html[data-speed='2'] .popup {
   border-color: #fff3c4;
   background: linear-gradient(180deg, #f3d488 0%, var(--gold) 55%, #c79a3c 100%);
   color: #1a1a3a;
-  box-shadow: 0 0 0 3px #e9c46a33, 0 6px 18px #e9c46a33;
+  box-shadow: 0 0 0 3px #f1c07333, 0 6px 18px #f1c07333;
 }
 .attack-btn:disabled {
   cursor: default;
@@ -1702,7 +1702,7 @@ html[data-speed='2'] .popup {
   animation: will-pulse 1.4s ease-in-out infinite;
 }
 .orb.will-special::after {
-  box-shadow: 0 0 0 3px var(--gold), 0 0 14px #e9c46acc;
+  box-shadow: 0 0 0 3px var(--gold), 0 0 14px #f1c073cc;
   animation: will-pulse 1.4s ease-in-out infinite;
 }
 @keyframes will-pulse {
@@ -1786,7 +1786,7 @@ html[data-speed='2'] .popup {
   margin: 0 auto;
   padding: 6px 6px max(6px, env(safe-area-inset-bottom));
   background: linear-gradient(180deg, #151b45f2, #0b0f2ef8);
-  border-top: 1px solid #e9c46a55;
+  border-top: 1px solid #f1c07355;
   backdrop-filter: blur(6px);
 }
 .tab {
@@ -1813,7 +1813,7 @@ html[data-speed='2'] .popup {
 }
 .tab.active {
   color: var(--gold);
-  background: #e9c46a1a;
+  background: #f1c0731a;
 }
 
 /* ───────── 共通：一覧・パネル ───────── */
@@ -1865,7 +1865,7 @@ html[data-speed='2'] .popup {
 }
 .hero-card.picked {
   border-color: var(--gold);
-  background: #e9c46a1a;
+  background: #f1c0731a;
 }
 .hc-symbol {
   width: 40px;
@@ -1873,7 +1873,7 @@ html[data-speed='2'] .popup {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid #e9c46a88;
+  border: 1px solid #f1c07388;
   background: var(--sky);
   color: var(--gold);
   font-size: 20px;
@@ -1911,7 +1911,7 @@ html[data-speed='2'] .popup {
   margin-top: 12px;
   padding: 14px;
   border-radius: 16px;
-  border: 1px solid #e9c46a44;
+  border: 1px solid #f1c07344;
   background: #151b45e6;
 }
 .panel-title {
@@ -2022,7 +2022,7 @@ html[data-speed='2'] .popup {
 .hero-art {
   border-radius: 18px;
   background: radial-gradient(circle at 50% 45%, #2b2266, #0b0f2e);
-  border: 1px solid #e9c46a44;
+  border: 1px solid #f1c07344;
   padding: 10px;
 }
 .hero-title h2 {
@@ -2160,7 +2160,7 @@ html[data-speed='2'] .popup {
   gap: 2px;
   padding: 12px 0;
   border-radius: 18px;
-  border: 1px solid #e9c46a77;
+  border: 1px solid #f1c07377;
   background: radial-gradient(circle at 50% 30%, #2b2266, #151b45);
   color: var(--ink);
   font-family: var(--font-display);
@@ -2264,7 +2264,7 @@ html[data-speed='2'] .popup {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid #e9c46a99;
+  border: 1px solid #f1c07399;
   background: radial-gradient(circle at 50% 35%, #2b2266, var(--sky));
   color: var(--gold);
   font-size: 20px;
@@ -2289,7 +2289,7 @@ html[data-speed='2'] .popup {
   row-gap: 2px;
   padding: 3px 10px;
   border-radius: 999px;
-  border: 1px solid #e9c46a55;
+  border: 1px solid #f1c07355;
   background: #0b0f2ecc;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -2338,7 +2338,7 @@ html[data-speed='2'] .popup {
   place-items: center;
   border-radius: 12px;
   rotate: 45deg;
-  border: 1px solid #e9c46a88;
+  border: 1px solid #f1c07388;
   background: radial-gradient(circle at 50% 30%, #2b2266, #151b45ee);
 }
 .side-icon svg {
@@ -2361,7 +2361,7 @@ html[data-speed='2'] .popup {
 .side-btn.gacha .side-icon {
   border-color: #fff3c4;
   background: radial-gradient(circle at 50% 30%, #6b4bb8, #2b2266);
-  box-shadow: 0 0 12px #e9c46a66;
+  box-shadow: 0 0 12px #f1c07366;
 }
 .home .logo {
   padding: 0 46px;
@@ -2390,7 +2390,7 @@ html[data-speed='2'] .popup {
   gap: 10px;
   padding: 6px 14px;
   border-radius: 999px;
-  border: 1px solid #e9c46a55;
+  border: 1px solid #f1c07355;
   background: #0b0f2ecc;
   font-size: 12px;
 }
@@ -2415,7 +2415,7 @@ html[data-speed='2'] .popup {
   padding: 12px 16px;
   min-height: 64px;
   border-radius: 14px;
-  border: 1px solid #e9c46a77;
+  border: 1px solid #f1c07377;
   background:
     radial-gradient(80% 140% at 85% 50%, #6b4bb866, transparent 70%),
     linear-gradient(90deg, #2b2266, #151b45);
@@ -2457,7 +2457,7 @@ html[data-speed='2'] .popup {
   display: grid;
   place-items: center;
   border-radius: 16px;
-  border: 1px solid #e9c46a88;
+  border: 1px solid #f1c07388;
   background: radial-gradient(circle at 50% 30%, #2b2266, #151b45);
 }
 .soon-icon svg {
@@ -2473,7 +2473,7 @@ html[data-speed='2'] .popup {
   display: inline-block;
   padding: 1px 10px;
   border-radius: 999px;
-  border: 1px solid #e9c46a99;
+  border: 1px solid #f1c07399;
   color: var(--gold);
   font-size: 12px;
   font-weight: 700;
@@ -2512,9 +2512,9 @@ html[data-speed='2'] .popup {
   color: var(--ink-soft);
 }
 .sk-tabs span.on {
-  border-color: #e9c46a99;
+  border-color: #f1c07399;
   color: var(--gold);
-  background: #e9c46a14;
+  background: #f1c07314;
 }
 .sk-list {
   list-style: none;
@@ -2558,7 +2558,7 @@ html[data-speed='2'] .popup {
 .sk-row.with-bar .sk-lines span:last-child {
   width: 100%;
   height: 6px;
-  background: linear-gradient(90deg, #e9c46a55 35%, #ffffff10 35%);
+  background: linear-gradient(90deg, #f1c07355 35%, #ffffff10 35%);
 }
 .sk-empty {
   margin: 8px 0 0;
@@ -2569,7 +2569,7 @@ html[data-speed='2'] .popup {
 .sk-banner {
   height: 96px;
   border-radius: 14px;
-  border: 1px solid #e9c46a55;
+  border: 1px solid #f1c07355;
   background:
     radial-gradient(70% 120% at 80% 50%, #6b4bb855, transparent 70%),
     linear-gradient(90deg, #2b2266, #151b45);
@@ -2598,11 +2598,11 @@ html[data-speed='2'] .popup {
   min-height: 48px;
   padding: 12px 0;
   border-radius: 14px;
-  border: 1px solid #e9c46a55;
+  border: 1px solid #f1c07355;
   text-align: center;
   font-family: var(--font-display);
   font-weight: 700;
-  color: #e9c46a99;
+  color: #f1c07399;
 }
 .sk-note {
   margin: 0;
@@ -2672,7 +2672,7 @@ html[data-speed='2'] .popup {
   padding: 10px 14px;
   border-radius: 14px;
   border: 1px solid var(--gold);
-  background: #e9c46a1a;
+  background: #f1c0731a;
   text-align: left;
 }
 .rj-title {
@@ -2781,8 +2781,17 @@ html[data-dev] body::before {
   --star4: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 0C10.8 6 14 9.2 20 10 14 10.8 10.8 14 10 20 9.2 14 6 10.8 0 10 6 9.2 9.2 6 10 0Z' fill='%23f1c073'/%3E%3C/svg%3E");
 }
 
-/* 背景：紺の夜空に、紙を重ねたようなやわらかい雲の層（建物は描かない） */
+/* 背景：紺の夜空に、紙を重ねたようなやわらかい雲の層（建物は描かない）。
+   iOS Safari は background-attachment: fixed を無視するので、画面に固定した層に描く（ページが長くても雲が伸びない） */
 body {
+  background: #0d1638;
+}
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background:
     radial-gradient(1px 1px at 12% 18%, #fff9 50%, transparent 51%),
     radial-gradient(1px 1px at 78% 9%, #fffa 50%, transparent 51%),
@@ -2797,7 +2806,6 @@ body {
     radial-gradient(38% 6% at 100% 64%, #2e3c71aa 60%, transparent 61%),
     radial-gradient(45% 5% at 100% 14%, #283363aa 60%, transparent 61%),
     linear-gradient(180deg, #0d1638 0%, #131c3f 35%, #1e2a54 100%);
-  background-attachment: fixed;
 }
 
 /* 金の二重線の枠（パネル・カード・ボタン共通） */
@@ -2834,7 +2842,8 @@ body {
   position: absolute;
   inset: -7px;
   pointer-events: none;
-  z-index: 6;
+  /* 必殺名の帯（5）や被弾の光（6）より下に */
+  z-index: 2;
   background:
     var(--star4) 0 0 / 14px 14px no-repeat,
     var(--star4) 100% 0 / 14px 14px no-repeat,
@@ -2925,6 +2934,25 @@ body {
   stroke: #fff;
   stroke-width: 1.2;
 }
+/* 「攻撃」で消える白い輪と、必殺の形の金の輪：オーブの縁より少し外に、暗い縁取りつきで */
+.orb.will-clear::after,
+.orb.will-special::after {
+  inset: 2%;
+}
+.orb.will-clear::after {
+  box-shadow:
+    0 0 0 1px #0009,
+    0 0 0 3.5px #fff,
+    0 0 0 4.5px #0007,
+    0 0 10px #ffffffaa;
+}
+.orb.will-special::after {
+  box-shadow:
+    0 0 0 1px #0009,
+    0 0 0 3.5px var(--gold-hi),
+    0 0 0 4.5px #0007,
+    0 0 14px #f1c073cc;
+}
 .orb.special::before {
   box-shadow:
     inset 0 0 0 1.5px #ffffff77,
@@ -2932,9 +2960,13 @@ body {
     0 0 18px 4px #f1c073aa;
 }
 
-/* キャラ選択のカード */
+/* キャラ選択のカード（選んでいないカードの枠は控えめにして、選んだカードを目立たせる） */
 .hero {
   border-radius: 14px;
+  border-color: #d49b5966;
+  box-shadow:
+    inset 0 0 0 2px #1a2552,
+    inset 0 0 0 3px #f1c07322;
 }
 .hero.active {
   border-color: var(--gold-hi);
@@ -2999,9 +3031,13 @@ body {
 /* 背の低い端末（iPhone SE など）：枠の余白を詰めて、1画面に収める */
 @media (max-height: 740px) {
   .board-wrap {
-    padding: 2px;
+    padding: 1px;
   }
   .enemy {
     padding: 0 10px;
+  }
+  /* 攻撃ボタンは押しやすさの下限（44pt）まで */
+  .attack-btn {
+    min-height: 44px;
   }
 }
