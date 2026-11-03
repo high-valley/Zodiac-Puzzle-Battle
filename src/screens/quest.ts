@@ -4,7 +4,7 @@ import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
 import { CHAPTERS, STAR3_HP_RATIO, findStage, stageEnemyName } from '../data/stages';
 import { nextStageId } from '../storage/progress';
-import { ALL_HEROES, HERO_JOIN_STAGE, HEROES } from '../data/heroes';
+import { HEROES, joinersOf } from '../data/heroes';
 
 // マップ上の点の位置（％）。ステージが増えたら章ごとに持たせる
 const NODE_POS: [number, number][] = [
@@ -88,7 +88,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     const saved = ctx.progress.battle;
     const savedHere = saved?.stageId === stage.id && ctx.canResume();
     const savedElsewhere = saved && !savedHere ? saved.stageId : null;
-    const joiners = ALL_HEROES.filter((id) => HERO_JOIN_STAGE[id] === stage.id);
+    const joiners = joinersOf(stage.id);
     panel.innerHTML = `
       <div class="stage-head">
         <span class="stage-id">${stage.id}</span>

@@ -1,16 +1,17 @@
 // キャラのカード（編成・育成・図鑑で使う）
-import { HERO_JOIN_STAGE, HEROES } from '../data/heroes';
+import { HERO_JOIN, HEROES } from '../data/heroes';
 import { findStage } from '../data/stages';
 import type { HeroId } from '../game/types';
 
 export const ROLE_TEXT = { attacker: '赤・青・緑で攻撃', healer: 'ピンクで回復' } as const;
 export const ROLE_SHORT = { attacker: 'アタッカー', healer: 'ヒーラー' } as const;
 
-/** 仲間になる条件の文（まだ無い章は「準備中」） */
+/** 仲間になる条件の文（今あるステージは「1-3 クリアで加入」、まだ無い章は「第2章で加入」、未定は「ストーリーを進めると加入」） */
 export function joinText(id: HeroId): string {
-  const stageId = HERO_JOIN_STAGE[id];
-  if (stageId === null) return '最初から仲間';
-  return findStage(stageId) ? `${stageId} クリアで加入` : `第${stageId.split('-')[0]}章で加入`;
+  const j = HERO_JOIN[id];
+  if (j === 'start') return '最初から仲間';
+  if (j === 'later') return 'ストーリーを進めると加入';
+  return findStage(j.stageId) ? `${j.stageId} クリアで加入` : `第${j.stageId.split('-')[0]}章で加入`;
 }
 
 /** まだ仲間でないキャラのカードの中身（名前と条件だけ。性能は見せない） */

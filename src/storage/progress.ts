@@ -3,7 +3,7 @@
 import { BOARD_SIZE, ORB_COLORS } from '../data/balance';
 import { ENEMIES } from '../data/enemies';
 import { MAX_LEVEL, expToNext } from '../data/growth';
-import { ALL_HEROES, DEFAULT_PARTY, HERO_JOIN_STAGE, isHeroId } from '../data/heroes';
+import { ALL_HEROES, DEFAULT_PARTY, HERO_JOIN, isHeroId, joinersOf, type HeroJoin } from '../data/heroes';
 import { NEW_HERO, gainExp, type HeroGrowth } from '../game/growth';
 import { partyMaxHp, partyProblem } from '../game/party';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
@@ -47,9 +47,11 @@ export function heroGrowth(progress: Progress, id: HeroId): HeroGrowth {
 }
 
 /** 仲間になっているか：最初からいるか、加入のステージをクリアしているか（仕様書 12.6） */
-export function isHeroJoined(progress: Progress, id: HeroId): boolean {
-  const stageId = HERO_JOIN_STAGE[id];
-  return stageId === null || (progress.stages[stageId]?.stars ?? 0) > 0;
+export function isHeroJoined(progress: Progress, id: HeroId, table: Record<HeroId, HeroJoin> = HERO_JOIN): boolean {
+  const j = table[id];
+  if (j === 'start') return true;
+  if (j === 'later') return false;
+  return (progress.stages[j.stageId]?.stars ?? 0) > 0;
 }
 
 /** 仲間の一覧（星座の順） */
@@ -71,9 +73,14 @@ export function partyMembers(progress: Progress, joined = (id: HeroId) => isHero
 }
 
 /** そのステージを初めてクリアしたことで加入するキャラ（before はクリアを記録する前の進行） */
-export function heroesJoinedBy(before: Progress, stageId: string, victory: boolean): HeroId[] {
+export function heroesJoinedBy(
+  before: Progress,
+  stageId: string,
+  victory: boolean,
+  table: Record<HeroId, HeroJoin> = HERO_JOIN,
+): HeroId[] {
   if (!victory || (before.stages[stageId]?.stars ?? 0) > 0) return [];
-  return ALL_HEROES.filter((id) => HERO_JOIN_STAGE[id] === stageId);
+  return joinersOf(stageId, table);
 }
 
 const isInt = (v: unknown, min = -Infinity, max = Infinity): v is number =>
