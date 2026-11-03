@@ -2,7 +2,7 @@
 // 「すべて解放」は表示の上だけで、保存した進行（クリアの記録・仲間）は書き換えない。レベルのボタンだけは進行を書き換える
 import type { AppContext } from '../app';
 import { MAX_LEVEL } from '../data/growth';
-import { ALL_HEROES, HEROES } from '../data/heroes';
+import { ALL_HEROES, HERO_JOIN, HEROES } from '../data/heroes';
 import { ALL_STAGES } from '../data/stages';
 import { FEATURE_IDS, type Route } from '../routes';
 import { featureShortName } from './comingSoon';
@@ -24,7 +24,8 @@ function sampleOutcome(ctx: AppContext, victory: boolean): BattleOutcome {
     newBestTurns: false,
     exp: victory ? 50 : 12,
     growth: party.map((id, i) => ({ id, before: 3, after: victory && i === 0 ? 4 : 3 })),
-    joined: victory ? ['leo'] : [],
+    // 「新しい仲間」の出方も見られるよう、どこかのステージで加入するキャラを1人入れる（このステージで加入するという意味ではない）
+    joined: victory ? ALL_HEROES.filter((id) => typeof HERO_JOIN[id] === 'object').slice(0, 1) : [],
   };
 }
 
@@ -74,7 +75,7 @@ export function mountDev(container: HTMLElement, ctx: AppContext): () => void {
         <h2 class="panel-title">画面</h2>
         <div class="dev-grid">
           ${links.map((l, i) => `<button type="button" class="text-btn go" data-i="${i}">${l.label}</button>`).join('')}
-          <button type="button" class="text-btn result-win">リザルト（勝利の見本）</button>
+          <button type="button" class="text-btn result-win">リザルト（勝利・仲間の加入の見本）</button>
           <button type="button" class="text-btn result-lose">リザルト（敗北の見本）</button>
           <button type="button" class="text-btn open-howto">遊び方</button>
           <button type="button" class="text-btn open-settings">設定</button>

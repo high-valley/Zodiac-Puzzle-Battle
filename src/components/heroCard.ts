@@ -6,7 +6,7 @@ import type { HeroId } from '../game/types';
 export const ROLE_TEXT = { attacker: '赤・青・緑で攻撃', healer: 'ピンクで回復' } as const;
 export const ROLE_SHORT = { attacker: 'アタッカー', healer: 'ヒーラー' } as const;
 
-/** 仲間になる条件の文（まだ無い章は「準備中」） */
+/** 仲間になる条件の文（今あるステージは「1-3 クリアで加入」、まだ無い章は「第2章で加入」、未定は「ストーリーを進めると加入」） */
 export function joinText(id: HeroId): string {
   const j = HERO_JOIN[id];
   if (j === 'start') return '最初から仲間';

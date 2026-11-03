@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_HEROES, DEFAULT_PARTY, HERO_JOIN, HEROES, joinersOf, type HeroJoin } from '../src/data/heroes';
 import { partyProblem } from '../src/game/party';
+import { ALL_STAGES } from '../src/data/stages';
+import { joinText } from '../src/components/heroCard';
 import type { HeroId } from '../src/game/types';
 import { hashToRoute, routeToHash, tabOf } from '../src/routes';
 import {
@@ -29,6 +31,7 @@ describe('仲間の加入（仕様書 12.6）', () => {
   it('今の設定：第1章では誰も加入せず、最初の新しい仲間は第2章の最後（しし座）。ほかは未定', () => {
     for (const s of ['1-1', '1-2', '1-3', '1-4', '1-5']) expect(joinersOf(s)).toEqual([]);
     expect(HERO_JOIN.leo).toEqual({ stageId: '2-5' });
+    expect(heroesJoinedBy(emptyProgress(), '2-5', true)).toEqual(['leo']);
     expect(ALL_HEROES.filter((id) => HERO_JOIN[id] === 'later')).toHaveLength(8);
     // 第1章をすべてクリアしても仲間は3人のまま
     let p = emptyProgress();
@@ -43,9 +46,20 @@ describe('仲間の加入（仕様書 12.6）', () => {
   });
 
   it('「後で決める」のキャラは、何をクリアしても加入しない', () => {
+    const later = ALL_HEROES.filter((id) => HERO_JOIN[id] === 'later');
+    const stages = [...ALL_STAGES.map((s) => s.id), ...[...Array(9)].map((_, i) => `2-${i + 1}`)];
     let p = emptyProgress();
-    for (const s of ['1-1', '1-2', '1-3', '1-4', '1-5']) p = recordResult(p, s, 3, 5);
-    expect(isHeroJoined(p, 'pisces')).toBe(false);
+    for (const s of stages) {
+      expect(joinersOf(s).some((id) => later.includes(id))).toBe(false);
+      p = recordResult(p, s, 3, 5);
+    }
+    for (const id of later) expect(isHeroJoined(p, id)).toBe(false);
+  });
+
+  it('仲間になる条件の文', () => {
+    expect(joinText('aries')).toBe('最初から仲間');
+    expect(joinText('pisces')).toBe('ストーリーを進めると加入');
+    expect(joinText('leo')).toBe('第2章で加入');
   });
 
   it('ステージをクリアすると、そのステージの仲間が加わる（負けでは加わらない）', () => {
