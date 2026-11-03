@@ -27,8 +27,8 @@ export interface BoardView {
   selected(): Pos | null;
   select(pos: Pos | null): void;
   setLocked(locked: boolean): void;
-  /** 回す動き。straight は「動きを減らす」設定のとき（円を描かずに入れ替える） */
-  animateRotate(board: Board, at: Pos, direction: Direction, ms: number, straight?: boolean): Promise<void>;
+  /** 回す動き */
+  animateRotate(board: Board, at: Pos, direction: Direction, ms: number): Promise<void>;
   /** 回している途中なら、すぐ回し終える（次の入力を待たせないため） */
   finishRotate(): void;
   animateClear(cells: Pos[], ms: number): Promise<void>;
@@ -74,8 +74,6 @@ export function createBoardView(
   canRotate: () => boolean = () => true,
   /** 回す動きの速さ（開発者画面で変えられるので、使うたびに読む） */
   tuning: () => RotateTuning = () => DEFAULT_ROTATE_TUNING,
-  /** 回す動きを減らすか（端末の「視差効果を減らす」。開発者画面で速さを試しているときは減らさない） */
-  reduceRotation: () => boolean = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
 ): BoardView {
   const el = document.createElement('div');
   el.className = 'board';
@@ -164,7 +162,6 @@ export function createBoardView(
 
   // 交点スワイプ
   let start: { x: number; y: number; id: number } | null = null;
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   /** 指に合わせて回している途中のようす（p は 0〜1 で 90 度、v は指の速さ px/ms） */
   let drag: { at: Pos; direction: Direction; p: number; v: number; axis: 'x' | 'y'; lastX: number; lastT: number } | null = null;
   /** 指を離して回すと決まり、その続きを animateRotate に引き継ぐもの */
@@ -235,7 +232,7 @@ export function createBoardView(
     ring.classList.toggle('hint-cw', result.kind === 'rotate' && result.direction === 'clockwise');
     ring.classList.toggle('hint-ccw', result.kind === 'rotate' && result.direction === 'counterclockwise');
     // 指に合わせて回す：横か縦に動かした分だけ（1マス弱で 90 度）。右・下＝時計回り。斜めでは回さない
-    if (!current || locked || reduceRotation() || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
+    if (!current || locked || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
       // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
       if (drag) {
         clearDrag(drag.at);
@@ -322,7 +319,7 @@ export function createBoardView(
     finishRotate() {
       for (const a of running) a.finish();
     },
-    async animateRotate(board, at, direction, ms, straight = false) {
+    async animateRotate(board, at, direction, ms) {
       const { row: r, col: c } = at;
       // 各マスの移動先。時計回り：左上→右上→右下→左下→左上
       const cw: [Pos, Pos][] = [
@@ -332,8 +329,8 @@ export function createBoardView(
         [{ row: r + 1, col: c }, { row: r, col: c }],
       ];
       const moves = direction === 'clockwise' ? cw : cw.map(([from, to]) => [to, from] as [Pos, Pos]);
-      if (typeof el.animate !== 'function' || straight) {
-        // 動きを減らす設定のとき（と古い環境）は、円を描かずにまっすぐ入れ替える
+      if (typeof el.animate !== 'function') {
+        // 古い環境では、円を描かずにまっすぐ入れ替える
         for (const [from, to] of moves) {
           const o = orbAt(from);
           o.classList.add('moving');
@@ -382,8 +379,8 @@ export function createBoardView(
     },
     async animateDrop(board, cleared, ms) {
       render(board);
-      if (typeof el.animate !== 'function' || reduceMotion.matches) {
-        // 動きを減らす設定：消えたマスより上のオーブだけ、短く上から入れる
+      if (typeof el.animate !== 'function') {
+        // 古い環境：消えたマスより上のオーブだけ、短く上から入れる
         const lowest = new Map<number, number>();
         for (const p of cleared) lowest.set(p.col, Math.max(lowest.get(p.col) ?? -1, p.row));
         for (const [col, bottom] of lowest) {

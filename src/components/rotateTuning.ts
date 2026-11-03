@@ -31,11 +31,6 @@ export function rotateTuningHtml(t: RotateTuning): string {
         </label>`;
       }).join('')}
       <p class="tune-summary">伝える値：<b>${rotateTuningSummary(t)}</b></p>
-      ${
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-          ? '<p class="tune-warn">この端末は「視差効果を減らす」がオンです。ふだんはオーブがその場で入れ替わるだけですが、ここで速さを変えているあいだは、回る動きを見せます。</p>'
-          : ''
-      }
       <p class="tune-note">演出の速さを「×2」にしているときは、時間の3つが半分になります（角度は同じ）。</p>
       <button type="button" class="text-btn wide tune-reset">初期値に戻す</button>
     </div>`;
