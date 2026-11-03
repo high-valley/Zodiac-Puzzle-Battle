@@ -141,8 +141,6 @@ export function mountApp(root: HTMLElement): void {
     container.className = 'screen';
     root.append(container);
     let route = hashToRoute(location.hash);
-    // 画面の種類（起動時の「新しい版」の帯を、バトルとリザルトでは出さないため）
-    document.documentElement.dataset.route = route.name;
 
     // 開いていないステージや、結果のないリザルトには入れない
     if (route.name === 'battle') {
@@ -157,6 +155,8 @@ export function mountApp(root: HTMLElement): void {
     if (routeToHash(route) !== location.hash && location.hash !== '' && location.hash !== '#/') {
       history.replaceState(null, '', routeToHash(route));
     }
+    // 画面の種類（背景の絵の切り替えと、起動時の「新しい版」の帯をバトルとリザルトで出さないため）。行き先を直したあとに入れる
+    document.documentElement.dataset.route = route.name;
 
     switch (route.name) {
       case 'home':
