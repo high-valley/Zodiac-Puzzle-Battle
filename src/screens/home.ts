@@ -43,7 +43,7 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <div class="home-stage">
     <nav class="side-col left" aria-label="お知らせなど">${LEFT.map(sideBtn).join('')}</nav>
     <nav class="side-col right" aria-label="ガチャ・ショップなど">${RIGHT.map(sideBtn).join('')}</nav>
-    <h1 class="logo">星座パズルバトル</h1>
+    <h1 class="logo"><span class="logo-ja">アストラクロニクル</span><span class="logo-en" aria-hidden="true">ASTRA CHRONICLE</span></h1>
     <p class="logo-sub">回して、そろえて、星座の力で戦う</p>
 
     <ul class="home-heroes" aria-label="パーティー">

@@ -1,4 +1,4 @@
-# 星座パズルバトル
+# アストラクロニクル（ASTRA CHRONICLE）
 
 2×2回転パズルと12星座キャラを組み合わせた、スマホ縦画面向けの戦略型パズルRPG。GitHub Pages の Web アプリとして作り、のちに Capacitor で iOS アプリにする。仕様は [`docs/game-spec.md`](docs/game-spec.md)、仕様を決めた・変えた理由は [`docs/decisions.md`](docs/decisions.md)、画面の参考画像は [`docs/ui-reference/`](docs/ui-reference/)、雰囲気の画像を作るためのプロンプトは [`docs/art-prompts.md`](docs/art-prompts.md)。
 

@@ -691,6 +691,18 @@ button:focus-visible {
   background-clip: text;
   filter: drop-shadow(0 2px 10px #e9c46a40);
 }
+.logo-ja,
+.logo-en {
+  display: block;
+}
+.logo-en {
+  margin-top: 2px;
+  font-size: max(0.32em, 10px);
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  /* 字間の分だけ右にずれるので戻す */
+  margin-right: -0.32em;
+}
 .logo-sub {
   margin: 8px 0 0;
   text-align: center;
@@ -2353,7 +2365,9 @@ html[data-speed='2'] .popup {
 }
 .home .logo {
   padding: 0 46px;
-  font-size: clamp(26px, 7.6vw, 44px);
+  /* 9文字が左右のアイコン列の間に収まる大きさ（列の幅 − 余白 − アイコン列 ≒ 列の幅 − 140px） */
+  font-size: clamp(18px, calc((min(100vw, var(--col)) - 140px) / 9.8), 40px);
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 /* 左右のアイコン列とキャラが重ならないように、キャラの列を内側に寄せる */
@@ -2363,7 +2377,7 @@ html[data-speed='2'] .popup {
 }
 @media (min-width: 700px) and (min-height: 900px) {
   .home .logo {
-    font-size: 44px;
+    font-size: 40px;
   }
   .home .home-heroes {
     padding: 0 64px;
