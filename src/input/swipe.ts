@@ -19,8 +19,8 @@ export function nearestIntersection(x: number, y: number, cellSize: number): Pos
 export function swipeAlong(dx: number, dy: number, rule = SWIPE): { along: number; axis: 'x' | 'y' } | null {
   const ax = Math.abs(dx);
   const ay = Math.abs(dy);
-  if (ax > 4 && ax > rule.horizontalRatio * ay) return { along: dx, axis: 'x' };
-  if (ay > 4 && ay > rule.horizontalRatio * ax) return { along: dy, axis: 'y' };
+  if (ax > rule.dragDeadZone && ax > rule.axisRatio * ay) return { along: dx, axis: 'x' };
+  if (ay > rule.dragDeadZone && ay > rule.axisRatio * ax) return { along: dy, axis: 'y' };
   return null;
 }
 
@@ -33,10 +33,10 @@ export type SwipeResult =
 export function classifySwipe(dx: number, dy: number, rule = SWIPE): SwipeResult {
   const ax = Math.abs(dx);
   const ay = Math.abs(dy);
-  if (ax >= rule.minDistance && ax > rule.horizontalRatio * ay) {
+  if (ax >= rule.minDistance && ax > rule.axisRatio * ay) {
     return { kind: 'rotate', direction: dx > 0 ? 'clockwise' : 'counterclockwise' };
   }
-  if (ay >= rule.minDistance && ay > rule.horizontalRatio * ax) {
+  if (ay >= rule.minDistance && ay > rule.axisRatio * ax) {
     return { kind: 'rotate', direction: dy > 0 ? 'clockwise' : 'counterclockwise' };
   }
   if (ax < rule.minDistance && ay < rule.minDistance) return { kind: 'select' };

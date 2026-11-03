@@ -1,5 +1,5 @@
 // 5×5 盤面の表示と交点スワイプの入力
-import { BOARD_SIZE, ROTATE_ANIM } from '../data/balance';
+import { BOARD_SIZE, releaseDuration, ROTATE_ANIM, SWIPE } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
 import { classifySwipe, nearestIntersection, swipeAlong } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
@@ -179,7 +179,7 @@ export function createBoardView(
       const o = orbAt(from);
       const anim = o.animate(
         [{ transform: arcTransform(from, state.at, state.direction, state.p) }, { transform: arcTransform(from, state.at, state.direction, 0) }],
-        { duration: 140, easing: 'ease-out' },
+        { duration: ROTATE_ANIM.springBackMs, easing: 'ease-out' },
       );
       o.style.transform = '';
       o.classList.remove('dragging');
@@ -223,18 +223,21 @@ export function createBoardView(
       return;
     }
     const s = swipeAlong(dx, dy);
-    const direction: Direction = s && s.along > 0 ? 'clockwise' : 'counterclockwise';
-    if (drag && (!s || drag.direction !== direction || drag.at !== current || drag.axis !== s.axis)) {
+    // 斜めを通るあいだは、回しかけの位置のまま止めておく（横から縦へ動きを変えても、飛ばないように）
+    if (!s) return;
+    const direction: Direction = s.along > 0 ? 'clockwise' : 'counterclockwise';
+    if (drag && (drag.direction !== direction || drag.at !== current)) {
       clearDrag(drag.at);
       drag = null;
     }
-    if (!s) return;
     const cell = el.getBoundingClientRect().width / BOARD_SIZE;
-    const p = Math.min(1, (Math.abs(s.along) - 4) / (cell * 0.9));
+    const p = Math.min(SWIPE.dragMaxP, (Math.abs(s.along) - SWIPE.dragDeadZone) / (cell * SWIPE.dragCellsPer90));
     const now = e.timeStamp;
     const pos = s.axis === 'x' ? e.clientX : e.clientY;
-    const v = drag && now > drag.lastT ? Math.abs(pos - drag.lastX) / (now - drag.lastT) : 0;
-    drag = { at: current, direction, axis: s.axis, p, v: drag ? drag.v * 0.5 + v * 0.5 : v, lastX: pos, lastT: now };
+    // 同じ向きのまま横と縦を持ちかえたときは、速さを引き継がない（別の軸の位置どうしを比べない）
+    const sameAxis = drag !== null && drag.axis === s.axis;
+    const v = drag && sameAxis && now > drag.lastT ? Math.abs(pos - drag.lastX) / (now - drag.lastT) : 0;
+    drag = { at: current, direction, axis: s.axis, p, v: drag && sameAxis ? drag.v * 0.5 + v * 0.5 : v, lastX: pos, lastT: now };
     setDrag(current, direction, p);
   });
 
@@ -246,7 +249,7 @@ export function createBoardView(
     const dragged = drag;
     drag = null;
     // 離す直前に指を止めていたら、そのぶん遅く回しきる
-    if (dragged && e.timeStamp - dragged.lastT > 80) dragged.v *= 80 / (e.timeStamp - dragged.lastT);
+    if (dragged && e.timeStamp - dragged.lastT > ROTATE_ANIM.stillMs) dragged.v *= ROTATE_ANIM.stillMs / (e.timeStamp - dragged.lastT);
     if (locked) {
       if (dragged) clearDrag(dragged.at);
       return;
@@ -328,12 +331,8 @@ export function createBoardView(
       let easing = 'cubic-bezier(0.45, 0.05, 0.3, 1)';
       if (fromDrag) {
         const cell = el.getBoundingClientRect().width / BOARD_SIZE;
-        // 残りの弧の長さ（px）を、離したときの指の速さで進む時間。速すぎ・遅すぎは抑える
-        const remaining = (1 - p0) * cell * 1.11;
-        const k = ms / ROTATE_ANIM.buttonMs; // 演出 ×2 では半分に
-        duration = Math.round(
-          Math.min(ROTATE_ANIM.releaseMaxMs * k, Math.max(ROTATE_ANIM.releaseMinMs * k, remaining / Math.max(fromDrag.v, 0.3))),
-        );
+        // 残りの弧を、離したときの指の速さで回しきる。速すぎ・遅すぎは抑える（data/balance の releaseDuration）
+        duration = releaseDuration(p0, fromDrag.v, cell, ms);
         easing = 'cubic-bezier(0.2, 0.6, 0.35, 1)';
       }
       const STEPS = 12;

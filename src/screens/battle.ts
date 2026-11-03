@@ -374,6 +374,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   /** 「攻撃」：回し終えた盤面で、必殺と消去と敵の行動を進める */
   async function attack() {
+    // 回している途中なら、その動きをすぐ終わらせてから攻撃する（回す動きを遅くしたので、待たせない）
+    if (rotating) {
+      board.finishRotate();
+      await rotationDone;
+    }
     if (busy || rotating || disposed || state.status !== 'playing' || pending.length === 0) return;
     const rotations = pending;
     pending = [];

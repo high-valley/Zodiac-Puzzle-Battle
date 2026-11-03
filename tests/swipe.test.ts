@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SWIPE } from '../src/data/balance';
+import { releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
 import { classifySwipe, nearestIntersection, swipeAlong } from '../src/input/swipe';
 
 describe('nearestIntersection', () => {
@@ -62,5 +62,48 @@ describe('swipeAlong（指に合わせて回すときの向き）', () => {
     expect(swipeAlong(-3, -40)).toEqual({ along: -40, axis: 'y' });
     expect(swipeAlong(20, 20)).toBeNull();
     expect(swipeAlong(3, 0)).toBeNull();
+  });
+
+  it('境界：遊びちょうどと、比率ちょうどは null', () => {
+    expect(swipeAlong(SWIPE.dragDeadZone, 0)).toBeNull();
+    expect(swipeAlong(0, SWIPE.dragDeadZone)).toBeNull();
+    expect(swipeAlong(30, 36)).toBeNull();
+    expect(swipeAlong(36, 30)).toBeNull();
+  });
+
+  it('classifySwipe が回すと決めたとき、swipeAlong の向き（正＝時計回り）と必ず一致する', () => {
+    for (let dx = -120; dx <= 120; dx += 1.5) {
+      for (let dy = -120; dy <= 120; dy += 1.5) {
+        const r = classifySwipe(dx, dy);
+        if (r.kind !== 'rotate') continue;
+        const s = swipeAlong(dx, dy);
+        expect(s !== null).toBe(true);
+        expect(s!.along > 0 ? 'clockwise' : 'counterclockwise').toBe(r.direction);
+      }
+    }
+  });
+});
+
+describe('releaseDuration（指を離したあと回しきる時間）', () => {
+  const cell = 71.6; // 390px 幅の端末
+  const p22 = (22 - SWIPE.dragDeadZone) / (cell * SWIPE.dragCellsPer90); // 閾値ちょうどで離したときの位置
+
+  it('ゆっくり離すと長く、速く払うと短い（どちらも下限・上限の中）', () => {
+    const slow = releaseDuration(p22, 0.05, cell);
+    const fast = releaseDuration(p22, 5, cell);
+    expect(slow > fast).toBe(true);
+    const scale = (1 - p22) / ROTATE_ANIM.releaseRefRemaining;
+    expect(Math.abs(slow - ROTATE_ANIM.releaseMaxMs * scale) <= 1).toBe(true);
+    expect(Math.abs(fast - ROTATE_ANIM.releaseMinMs * scale) <= 1).toBe(true);
+    expect(fast >= 300).toBe(true);
+  });
+
+  it('90 度まで回しきって離したら、待たない', () => {
+    expect(releaseDuration(1, 1, cell)).toBe(0);
+  });
+
+  it('演出 ×2 では半分', () => {
+    const half = releaseDuration(p22, 0.05, cell, ROTATE_ANIM.buttonMs / 2);
+    expect(Math.abs(half - releaseDuration(p22, 0.05, cell) / 2) <= 1).toBe(true);
   });
 });
