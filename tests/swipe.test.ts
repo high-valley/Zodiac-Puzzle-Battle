@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
+import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
 import { classifySwipe, nearestIntersection, swipeAlong } from '../src/input/swipe';
+import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
   const cell = 60;
@@ -93,8 +94,8 @@ describe('releaseDuration（指を離したあと回しきる時間）', () => {
     const fast = releaseDuration(p22, 5, cell);
     expect(slow > fast).toBe(true);
     const scale = (1 - p22) / ROTATE_ANIM.releaseRefRemaining;
-    expect(Math.abs(slow - ROTATE_ANIM.releaseMaxMs * scale) <= 1).toBe(true);
-    expect(Math.abs(fast - ROTATE_ANIM.releaseMinMs * scale) <= 1).toBe(true);
+    expect(Math.abs(slow - DEFAULT_ROTATE_TUNING.releaseMaxMs * scale) <= 1).toBe(true);
+    expect(Math.abs(fast - DEFAULT_ROTATE_TUNING.releaseMinMs * scale) <= 1).toBe(true);
     expect(fast >= 300).toBe(true);
   });
 
@@ -103,7 +104,25 @@ describe('releaseDuration（指を離したあと回しきる時間）', () => {
   });
 
   it('演出 ×2 では半分', () => {
-    const half = releaseDuration(p22, 0.05, cell, ROTATE_ANIM.buttonMs / 2);
+    const half = releaseDuration(p22, 0.05, cell, DEFAULT_ROTATE_TUNING.buttonMs / 2);
     expect(Math.abs(half - releaseDuration(p22, 0.05, cell) / 2) <= 1).toBe(true);
+  });
+});
+
+describe('回す動きの速さの調整（開発者画面）', () => {
+  it('保存した値を読む。範囲の外や足りない項目は設定データの値', () => {
+    expect(parseRotateTuning(null)).toBeNull();
+    expect(parseRotateTuning({ buttonMs: 900 })).toEqual({ ...DEFAULT_ROTATE_TUNING, buttonMs: 900 });
+    expect(parseRotateTuning({ buttonMs: 99999, dragMaxP: -1, releaseMinMs: 'x' })).toEqual(DEFAULT_ROTATE_TUNING);
+    expect(rotateTuningOf({ ...DEFAULT_SETTINGS, devRotate: null })).toEqual(DEFAULT_ROTATE_TUNING);
+    expect(rotateTuningOf({ ...DEFAULT_SETTINGS, devRotate: { ...DEFAULT_ROTATE_TUNING, buttonMs: 1200 } }).buttonMs).toBe(1200);
+  });
+
+  it('時間を長くすると、指を離したあとも長くなる', () => {
+    const slowT = { ...DEFAULT_ROTATE_TUNING, releaseMinMs: 800, releaseMaxMs: 1200 };
+    expect(releaseDuration(0.3, 5, 71.6, DEFAULT_ROTATE_TUNING.buttonMs, slowT)).toBe(800);
+    // 下限が上限より大きいときは下限に合わせる
+    const odd = { ...DEFAULT_ROTATE_TUNING, releaseMinMs: 900, releaseMaxMs: 300 };
+    expect(releaseDuration(0.3, 0.01, 71.6, DEFAULT_ROTATE_TUNING.buttonMs, odd)).toBe(900);
   });
 });

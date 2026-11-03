@@ -5,7 +5,10 @@ import { createBoardView } from '../components/board';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialPreviewSvg } from '../components/specialPreview';
-import { MAX_ROTATIONS_PER_TURN, ROTATE_ANIM } from '../data/balance';
+import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
+import { rotateTuningOf } from '../storage/settings';
+import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
+import { DEV_TOOLS } from '../data/devTools';
 import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { rotate2x2 } from '../game/board';
@@ -137,6 +140,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     (at, direction) => void rotateOnce(at, direction),
     // 指に合わせて動かしてよいとき（攻撃の演出中・回せる回数を使い切ったときは動かさない）
     () => !busy && !disposed && state.status === 'playing' && pending.length < MAX_ROTATIONS_PER_TURN,
+    () => rotateTuningOf(ctx.settings),
   );
   $('.board-wrap').prepend(board.el);
 
@@ -360,7 +364,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     renderTurnBar();
     try {
       // 回す動きは目で追える速さに（演出 ×2 なら半分）
-      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(ROTATE_ANIM.buttonMs), reduceMotion.matches);
+      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(rotateTuningOf(ctx.settings).buttonMs), reduceMotion.matches);
     } finally {
       rotating = false;
       done();
@@ -424,7 +428,25 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     const modal = openModal(ctx.root, battleEl, { className: 'sheet', labelledBy: 'menu-title' });
     if (!modal) return;
     let confirmRetire = false;
+    let tuning = false;
     const render = () => {
+      if (tuning) {
+        // 開発者用：回す動きの速さを試す（つまみを動かすと保存され、「つづける」ですぐ試せる）
+        modal.overlay.innerHTML = `
+        <div class="sheet-card">
+          <h2 id="menu-title">回す速さ（調整用）</h2>
+          ${rotateTuningHtml(rotateTuningOf(ctx.settings))}
+          <button type="button" class="primary-btn resume">つづけて試す</button>
+          <button type="button" class="text-btn wide back">メニューに戻る</button>
+        </div>`;
+        bindRotateTuning(modal.overlay, ctx);
+        modal.overlay.querySelector('.resume')?.addEventListener('click', () => modal.close());
+        modal.overlay.querySelector('.back')?.addEventListener('click', () => {
+          tuning = false;
+          render();
+        });
+        return;
+      }
       modal.overlay.innerHTML = `
         <div class="sheet-card">
           <h2 id="menu-title">一時停止</h2>
@@ -432,6 +454,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
           <button type="button" class="primary-btn resume">つづける</button>
           <button type="button" class="text-btn wide how">遊び方</button>
           <button type="button" class="text-btn wide settings">設定</button>
+          ${DEV_TOOLS ? '<button type="button" class="text-btn wide tune-open">回す速さ（調整用）</button>' : ''}
           <button type="button" class="text-btn wide danger retire">${confirmRetire ? 'もう一度押すとリタイア（このバトルは記録されません）' : 'リタイア'}</button>
         </div>`;
       modal.overlay.querySelector('.resume')?.addEventListener('click', () => modal.close());
@@ -442,6 +465,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       modal.overlay.querySelector('.settings')?.addEventListener('click', () => {
         modal.close();
         ctx.openSettings(battleEl);
+      });
+      modal.overlay.querySelector('.tune-open')?.addEventListener('click', () => {
+        tuning = true;
+        render();
+        (modal.overlay.querySelector('.tune input') as HTMLElement | null)?.focus();
       });
       modal.overlay.querySelector('.retire')?.addEventListener('click', () => {
         if (!confirmRetire) {

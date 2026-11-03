@@ -1,5 +1,5 @@
 // 5×5 盤面の表示と交点スワイプの入力
-import { BOARD_SIZE, releaseDuration, ROTATE_ANIM, SWIPE } from '../data/balance';
+import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
 import { classifySwipe, nearestIntersection, swipeAlong } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
@@ -72,6 +72,8 @@ function arcTransform(from: Pos, at: Pos, direction: Direction, p: number): stri
 export function createBoardView(
   onRotate: (at: Pos, direction: Direction) => void,
   canRotate: () => boolean = () => true,
+  /** 回す動きの速さ（開発者画面で変えられるので、使うたびに読む） */
+  tuning: () => RotateTuning = () => DEFAULT_ROTATE_TUNING,
 ): BoardView {
   const el = document.createElement('div');
   el.className = 'board';
@@ -231,7 +233,7 @@ export function createBoardView(
       drag = null;
     }
     const cell = el.getBoundingClientRect().width / BOARD_SIZE;
-    const p = Math.min(SWIPE.dragMaxP, (Math.abs(s.along) - SWIPE.dragDeadZone) / (cell * SWIPE.dragCellsPer90));
+    const p = Math.min(tuning().dragMaxP, (Math.abs(s.along) - SWIPE.dragDeadZone) / (cell * SWIPE.dragCellsPer90));
     const now = e.timeStamp;
     const pos = s.axis === 'x' ? e.clientX : e.clientY;
     // 同じ向きのまま横と縦を持ちかえたときは、速さを引き継がない（別の軸の位置どうしを比べない）
@@ -332,7 +334,7 @@ export function createBoardView(
       if (fromDrag) {
         const cell = el.getBoundingClientRect().width / BOARD_SIZE;
         // 残りの弧を、離したときの指の速さで回しきる。速すぎ・遅すぎは抑える（data/balance の releaseDuration）
-        duration = releaseDuration(p0, fromDrag.v, cell, ms);
+        duration = releaseDuration(p0, fromDrag.v, cell, ms, tuning());
         easing = 'cubic-bezier(0.2, 0.6, 0.35, 1)';
       }
       const STEPS = 12;

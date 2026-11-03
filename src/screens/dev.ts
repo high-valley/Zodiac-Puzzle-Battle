@@ -6,6 +6,8 @@ import { ALL_HEROES, HERO_JOIN, HEROES } from '../data/heroes';
 import { ALL_STAGES } from '../data/stages';
 import { FEATURE_IDS, type Route } from '../routes';
 import { featureShortName } from './comingSoon';
+import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
+import { rotateTuningOf } from '../storage/settings';
 import type { BattleOutcome } from './battle';
 
 /** リザルトの見本（バトルをしなくてもリザルト画面を見られるように） */
@@ -72,6 +74,12 @@ export function mountDev(container: HTMLElement, ctx: AppContext): () => void {
       </section>
 
       <section class="panel">
+        <h2 class="panel-title">オーブを回す速さ</h2>
+        <p class="dev-note">つまみを動かすと、すぐこの端末に保存されます。バトルの一時停止メニューの「回す速さ（調整用）」からも変えられます。よい速さが見つかったら「伝える値」を教えてください。</p>
+        ${rotateTuningHtml(rotateTuningOf(ctx.settings))}
+      </section>
+
+      <section class="panel">
         <h2 class="panel-title">画面</h2>
         <div class="dev-grid">
           ${links.map((l, i) => `<button type="button" class="text-btn go" data-i="${i}">${l.label}</button>`).join('')}
@@ -88,6 +96,7 @@ export function mountDev(container: HTMLElement, ctx: AppContext): () => void {
     </main>`;
 
     const main = container.querySelector('main') as HTMLElement;
+    bindRotateTuning(main, ctx);
     container.querySelector('.back')?.addEventListener('click', () => ctx.navigate({ name: 'home' }));
     container.querySelector<HTMLInputElement>('.unlock-all')?.addEventListener('change', (e) => {
       ctx.setSettings({ ...ctx.settings, devUnlockAll: (e.target as HTMLInputElement).checked });

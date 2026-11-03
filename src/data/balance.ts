@@ -27,19 +27,36 @@ export const SWIPE = {
   dragDeadZone: 4,
   /** 何マス分動かすと 90 度回るか */
   dragCellsPer90: 0.9,
-  /** 指に合わせて回すのは、ここ（90 度に対する割合）まで。残りは指を離してから、目で追える速さで回す */
-  dragMaxP: 0.5,
 };
 
-/** 回す動きの時間（ミリ秒。演出 ×2 ではこの半分）。2026-11-03 目で追えるように遅くした */
-export const ROTATE_ANIM = {
+/**
+ * 回す動きの速さのうち、開発者画面で調整できるもの（2026-11-03。ユーザーが画面で試して決める）。
+ * 時間はミリ秒で、演出 ×2 ではこの半分
+ */
+export interface RotateTuning {
   /** 回転ボタンで回すとき */
-  buttonMs: 600,
+  buttonMs: number;
   /** 指を離したあと残りを回しきる時間の下限と上限（指の速さに合わせつつ、速すぎないように）。
    *  回し始め（閾値ちょうど、残り約7割）のときの値で、残りが少ないほど短くする */
-  releaseMinMs: 400,
-  releaseMaxMs: 560,
-  /** 上の下限・上限を決めたときの残りの割合 */
+  releaseMinMs: number;
+  releaseMaxMs: number;
+  /** 指に合わせて回すのは、ここ（90 度に対する割合）まで。残りは指を離してから回す。0 なら指には合わせない */
+  dragMaxP: number;
+}
+
+export const DEFAULT_ROTATE_TUNING: RotateTuning = { buttonMs: 600, releaseMinMs: 400, releaseMaxMs: 560, dragMaxP: 0.5 };
+
+/** 開発者画面のつまみの範囲 */
+export const ROTATE_TUNING_RANGE: Record<keyof RotateTuning, { min: number; max: number; step: number }> = {
+  buttonMs: { min: 200, max: 2000, step: 50 },
+  releaseMinMs: { min: 100, max: 2000, step: 20 },
+  releaseMaxMs: { min: 100, max: 2500, step: 20 },
+  dragMaxP: { min: 0, max: 1, step: 0.05 },
+};
+
+/** 回す動きの、調整しないもの */
+export const ROTATE_ANIM = {
+  /** releaseMinMs・releaseMaxMs を決めたときの残りの割合 */
   releaseRefRemaining: 0.7,
   /** 速さの計算に使う、指の速さの下限（px/ms）。これより遅いと上限の時間になる */
   releaseMinSpeed: 0.08,
@@ -53,14 +70,20 @@ export const ROTATE_ANIM = {
  * 指を離したあと、残りを回しきる時間（ms）。残りの弧の長さを指の速さで割り、残りの割合に応じた下限・上限で挟む。
  * ms は回転ボタンの時間（演出 ×2 なら半分）で、同じ割合で縮める
  */
-export function releaseDuration(p0: number, speed: number, cellPx: number, ms: number = ROTATE_ANIM.buttonMs): number {
-  const k = ms / ROTATE_ANIM.buttonMs;
+export function releaseDuration(
+  p0: number,
+  speed: number,
+  cellPx: number,
+  ms: number = DEFAULT_ROTATE_TUNING.buttonMs,
+  t: RotateTuning = DEFAULT_ROTATE_TUNING,
+): number {
+  const k = ms / t.buttonMs;
   const remainingFrac = Math.max(0, Math.min(1, 1 - p0));
   // 円弧の長さ：2×2 の中心から各オーブの中心まで √2/2 マス、90 度で π/4 × √2 ≒ 1.11 マス
   const arc = remainingFrac * cellPx * ((Math.PI / 4) * Math.SQRT2);
   const scale = (remainingFrac / ROTATE_ANIM.releaseRefRemaining) * k;
-  const lo = ROTATE_ANIM.releaseMinMs * scale;
-  const hi = ROTATE_ANIM.releaseMaxMs * scale;
+  const lo = t.releaseMinMs * scale;
+  const hi = Math.max(t.releaseMinMs, t.releaseMaxMs) * scale;
   const bySpeed = (arc / Math.max(speed, ROTATE_ANIM.releaseMinSpeed)) * k;
   return Math.round(Math.min(hi, Math.max(lo, bySpeed)));
 }
