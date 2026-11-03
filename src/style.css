@@ -3589,3 +3589,11 @@ html[data-route='result'] body::after {
   max-height: 60dvh;
   overflow-y: auto;
 }
+.tune-warn {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #8a3fb833;
+  border: 1px solid #c58bff66;
+  font-size: 12px;
+}
