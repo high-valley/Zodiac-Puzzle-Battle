@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
-import { classifySwipe, pickIntersection, swipeAlong } from '../input/swipe';
+import { classifySwipe, gripOf, pickIntersection, swipeAlong, turnDirection, type Grip } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -78,7 +78,7 @@ export function createBoardView(
   const el = document.createElement('div');
   el.className = 'board';
   el.setAttribute('role', 'grid');
-  el.setAttribute('aria-label', '盤面。交点を押して上下左右にスワイプすると、その周りの4個が回ります');
+  el.setAttribute('aria-label', '盤面。2×2 の4個のどれかを押して指をすべらせると、押したオーブがその向きに動くように4個が回ります');
 
   const orbLayer = document.createElement('div');
   orbLayer.className = 'orbs';
@@ -161,7 +161,7 @@ export function createBoardView(
   }
 
   // 交点スワイプ
-  let start: { x: number; y: number; id: number } | null = null;
+  let start: { x: number; y: number; id: number; grip: Grip } | null = null;
   /** 指に合わせて回している途中のようす（p は 0〜1 で 90 度、v は指の速さ px/ms） */
   let drag: { at: Pos; direction: Direction; p: number; v: number; axis: 'x' | 'y'; lastX: number; lastT: number } | null = null;
   /** 指を離して回すと決まり、その続きを animateRotate に引き継ぐもの */
@@ -219,7 +219,9 @@ export function createBoardView(
     // 押している間は枠を少し強く光らせる。選び直したときは、移ったことが分かるように軽く光らせる
     ring.classList.add('pressing');
     if (before && current && (before.row !== current.row || before.col !== current.col)) flashRing();
-    start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    // 押した位置（選んだ 2×2 のどのあたりか）。回す向きを、押したオーブがすべらせた向きに動くように決める
+    const grip: Grip = current ? gripOf(p.x, p.y, p.cell, current) : { x: 0, y: 0, cell: p.cell };
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId, grip };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -228,10 +230,10 @@ export function createBoardView(
     if (!start || e.pointerId !== start.id) return;
     const dx = e.clientX - start.x;
     const dy = e.clientY - start.y;
-    const result = classifySwipe(dx, dy);
+    const result = classifySwipe(dx, dy, SWIPE, start.grip);
     ring.classList.toggle('hint-cw', result.kind === 'rotate' && result.direction === 'clockwise');
     ring.classList.toggle('hint-ccw', result.kind === 'rotate' && result.direction === 'counterclockwise');
-    // 指に合わせて回す：横か縦に動かした分だけ（1マス弱で 90 度）。右・下＝時計回り。斜めでは回さない
+    // 指に合わせて回す：横か縦に動かした分だけ（1マス弱で 90 度）。押したオーブが指の向きに動く向き。斜めでは回さない
     if (!current || locked || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
       // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
       if (drag) {
@@ -243,7 +245,7 @@ export function createBoardView(
     const s = swipeAlong(dx, dy);
     // 斜めを通るあいだは、回しかけの位置のまま止めておく（横から縦へ動きを変えても、飛ばないように）
     if (!s) return;
-    const direction: Direction = s.along > 0 ? 'clockwise' : 'counterclockwise';
+    const direction: Direction = turnDirection(s.axis, s.along, start.grip);
     if (drag && (drag.direction !== direction || drag.at !== current)) {
       clearDrag(drag.at);
       drag = null;
@@ -262,7 +264,7 @@ export function createBoardView(
   el.addEventListener('pointerup', (e) => {
     if (!start || e.pointerId !== start.id) return;
     ring.classList.remove('pressing');
-    const result = classifySwipe(e.clientX - start.x, e.clientY - start.y);
+    const result = classifySwipe(e.clientX - start.x, e.clientY - start.y, SWIPE, start.grip);
     start = null;
     ring.classList.remove('hint-cw', 'hint-ccw');
     const dragged = drag;
