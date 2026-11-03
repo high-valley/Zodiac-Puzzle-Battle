@@ -171,6 +171,12 @@ export function parseProgress(raw: string | null): Progress {
   if (b && typeof b.state === 'object' && b.state !== null && !('party' in b.state)) {
     b.state = { ...(b.state as object), party: DEFAULT_PARTY.map((m) => ({ ...m })) };
   }
+  // 行動するキャラを選んでいたころ（2026-11-03 まで）の selectedHero は使わないので落とす
+  if (b && typeof b.state === 'object' && b.state !== null && 'selectedHero' in b.state) {
+    const rest: Record<string, unknown> = { ...(b.state as Record<string, unknown>) };
+    delete rest.selectedHero;
+    b.state = rest;
+  }
   if (b && typeof b.stageId === 'string' && isUnlocked(progress, b.stageId) && isBattleState(b.state)) {
     const stage = findStage(b.stageId)!;
     if (stage.enemyId === (b.state as BattleState).enemyId) {

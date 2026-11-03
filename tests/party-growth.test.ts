@@ -239,6 +239,8 @@ describe('途中のバトルの編成', () => {
     const b = saved(state, { party: ['aries', 'sagittarius', 'virgo'], heroes: { leo: { level: 1, exp: 0 } } });
     expect(b?.state.party).toEqual([m('leo', 7), m('scorpio'), m('pisces', 3)]);
     expect(b?.state.partyMaxHp).toBe(partyMaxHp([m('leo', 7), m('scorpio'), m('pisces', 3)]));
+    // 前の版の selectedHero は読み込むときに落とす
+    expect('selectedHero' in (b?.state ?? {})).toBe(false);
   });
 
   it('同じキャラが2人いる・壊れた編成は捨てる（前の版の selectedHero は見ない）', () => {

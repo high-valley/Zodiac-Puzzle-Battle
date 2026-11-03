@@ -51,14 +51,14 @@ function emptyCounts(): Record<OrbColor, number> {
 
 /**
  * 1段の消去での、1人の通常効果（ダメージ・回復）。自分の色の個数だけを使う（仕様書 12.7）。
- * step はそのターンの何段目の消去か（1〜）、chain はその段の連鎖段数。特性（12.8）もここでかける
+ * chain はその段の連鎖段数（1〜）。特性（12.8）もここでかける。
+ * 先陣は連鎖1段目（そのターン最初の通常消去）に付く。必殺だけの消去は連鎖に数えない（9.3）ので、その次の段が1段目
  */
 export function normalEffect(
   heroId: HeroId,
   counts: Record<OrbColor, number>,
   chain: number,
   level = 1,
-  step = chain,
 ): { damage: number; heal: number } {
   const hero = HEROES[heroId];
   let amount = 0;
@@ -67,7 +67,7 @@ export function normalEffect(
     if (n <= 0) continue;
     let mult = chainMultiplier(chain);
     if (hero.trait === 'chain') mult = 1 + TRAITS.chainStep * (chain - 1);
-    if (hero.trait === 'vanguard' && step === 1) mult *= TRAITS.vanguardMultiplier;
+    if (hero.trait === 'vanguard' && chain === 1) mult *= TRAITS.vanguardMultiplier;
     if (hero.trait === 'mass') mult *= 1 + TRAITS.massPerExtra * Math.max(0, n - 3);
     amount += action.coef * n * mult * (levelPercent(level) / 100);
   }
@@ -138,7 +138,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const actors: Actor[] = [];
     if (groups.length > 0) {
       for (const m of state.party) {
-        const e = normalEffect(m.id, counts, chain, m.level, chain);
+        const e = normalEffect(m.id, counts, chain, m.level);
         if (e.damage > 0 || e.heal > 0) actors.push({ heroId: m.id, damage: e.damage, heal: e.heal });
       }
     }

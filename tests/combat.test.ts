@@ -389,8 +389,25 @@ describe('キャラ特性（仕様書 12.8）', () => {
   const plain = (n: number, chain: number) => Math.round(12 * n * chainMultiplier(chain));
 
   it('先陣（おひつじ座）：そのターン最初の消去だけ大きくなる', () => {
-    expect(normalEffect('aries', red(3), 1, 1, 1).damage).toBe(Math.round(12 * 3 * TRAITS.vanguardMultiplier));
-    expect(normalEffect('aries', red(3), 2, 1, 2).damage).toBe(plain(3, 2));
+    expect(normalEffect('aries', red(3), 1).damage).toBe(Math.round(12 * 3 * TRAITS.vanguardMultiplier));
+    expect(normalEffect('aries', red(3), 2).damage).toBe(plain(3, 2));
+  });
+
+  it('先陣：必殺だけの消去のあとに落ちてきた赤も、連鎖1段目なので大きくなる', () => {
+    const { events } = resolveTurn({ ...stateWith(base, PINK_SQUARE), rngSeed: 7 }, quietMove());
+    const clears = events.flatMap((e) => (e.type === 'clear' ? [e] : []));
+    expect(clears[0].chain).toBe(0);
+    expect(clears[1].chain).toBe(1);
+    const aries = clears[1].actors.find((a) => a.heroId === 'aries');
+    expect(aries?.damage).toBe(Math.round(12 * clears[1].counts.red * TRAITS.vanguardMultiplier));
+  });
+
+  it('量（おうし座）：同じ段で離れて消えた赤も合わせて数える', () => {
+    expect(normalEffect('taurus', red(6), 1).damage).toBe(Math.round(12 * 6 * (1 + TRAITS.massPerExtra * 3)));
+  });
+
+  it('特性はレベルの倍率と重なる', () => {
+    expect(normalEffect('leo', red(3), 3, 11).damage).toBe(Math.round(12 * 3 * (1 + TRAITS.chainStep * 2) * 1.5));
   });
 
   it('量（おうし座）：一度に多く消すほど伸びる（3個までは同じ）', () => {

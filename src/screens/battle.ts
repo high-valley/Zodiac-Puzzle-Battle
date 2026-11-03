@@ -1,7 +1,7 @@
 // バトル画面。ゲームの判定はすべて src/game に任せ、ここは表示と入力だけ
 import type { AppContext } from '../app';
 import { cueForEvent, turnHasSpecial } from '../audio/cues';
-import { createBoardView } from '../components/board';
+import { ORB_LABEL, createBoardView } from '../components/board';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialPreviewSvg } from '../components/specialPreview';
@@ -42,7 +42,6 @@ export interface BattleOutcome {
 }
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-const COLOR_JA = { red: '赤', blue: '青', green: '緑', pink: 'ピンク' } as const;
 const wait = (n: number) => new Promise<void>((resolve) => setTimeout(resolve, n));
 
 export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: string): () => void {
@@ -120,10 +119,10 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     <div class="heroes" aria-label="仲間（全員が同時に行動する。押すと必殺の形を見る）">
       ${state.party.map(
         ({ id }) => `
-        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-pressed="false" aria-label="${HEROES[id].name}（${COLOR_JA[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）の必殺を見る">
+        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-pressed="false" aria-label="${HEROES[id].name}（${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）の必殺を見る">
           <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="hero-name">${HEROES[id].name}</span>
-          <span class="hero-role"><span class="hero-dot orb-${HEROES[id].special.color}" aria-hidden="true"></span><span class="long">${COLOR_JA[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
+          <span class="hero-role"><span class="hero-dot orb-${HEROES[id].special.color}" aria-hidden="true"></span><span class="long">${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
         </button>`,
       ).join('')}
     </div>
@@ -271,6 +270,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         banner.innerHTML = `<span class="banner-hero">${owner.symbol} ${owner.name}</span><span class="banner-name">${ev.name}</span>`;
         banner.dataset.color = ev.special.color;
         banner.hidden = false;
+        flashActors([ev.special.heroId]);
         battleEl.classList.add('special-flash');
         battleEl.dataset.flash = ev.special.color;
         await board.drawConstellation(ev.special.cells, ms(1100));
