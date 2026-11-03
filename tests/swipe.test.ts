@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { classifySwipe, nearestIntersection, swipeAlong } from '../src/input/swipe';
+import { classifySwipe, nearestIntersection, pickIntersection, swipeAlong } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -90,13 +90,20 @@ describe('releaseDuration（指を離したあと回しきる時間）', () => {
   const p22 = (22 - SWIPE.dragDeadZone) / (cell * SWIPE.dragCellsPer90); // 閾値ちょうどで離したときの位置
 
   it('ゆっくり離すと長く、速く払うと短い（どちらも下限・上限の中）', () => {
-    const slow = releaseDuration(p22, 0.05, cell);
-    const fast = releaseDuration(p22, 5, cell);
+    const t = { ...DEFAULT_ROTATE_TUNING, releaseMinMs: 400, releaseMaxMs: 560 };
+    const ms = t.buttonMs;
+    const slow = releaseDuration(p22, 0.05, cell, ms, t);
+    const fast = releaseDuration(p22, 5, cell, ms, t);
     expect(slow > fast).toBe(true);
     const scale = (1 - p22) / ROTATE_ANIM.releaseRefRemaining;
-    expect(Math.abs(slow - DEFAULT_ROTATE_TUNING.releaseMaxMs * scale) <= 1).toBe(true);
-    expect(Math.abs(fast - DEFAULT_ROTATE_TUNING.releaseMinMs * scale) <= 1).toBe(true);
-    expect(fast >= 300).toBe(true);
+    expect(Math.abs(slow - t.releaseMaxMs * scale) <= 1).toBe(true);
+    expect(Math.abs(fast - t.releaseMinMs * scale) <= 1).toBe(true);
+  });
+
+  it('既定の値（2026-11-03 ユーザーが決めた値）：閾値ちょうどで離すと約0.5秒', () => {
+    expect(DEFAULT_ROTATE_TUNING).toEqual({ buttonMs: 500, releaseMinMs: 500, releaseMaxMs: 500, dragMaxP: 1 });
+    const d = releaseDuration(p22, 1, cell);
+    expect(d >= 450 && d <= 560).toBe(true);
   });
 
   it('90 度まで回しきって離したら、待たない', () => {
@@ -124,5 +131,34 @@ describe('回す動きの速さの調整（開発者画面）', () => {
     // 下限が上限より大きいときは下限に合わせる
     const odd = { ...DEFAULT_ROTATE_TUNING, releaseMinMs: 900, releaseMaxMs: 300 };
     expect(releaseDuration(0.3, 0.01, 71.6, DEFAULT_ROTATE_TUNING.buttonMs, odd)).toBe(900);
+  });
+});
+
+describe('pickIntersection（押した位置で選ぶ交点。2026-11-03）', () => {
+  const cell = 60;
+  const cur = { row: 1, col: 1 }; // 交点の中心は (120, 120)
+
+  it('選んでいる交点の近く（縦横とも 0.8 マス以内）を押しても、隣に移らない', () => {
+    // いちばん近いのは (1,2) だが、選んでいる (1,1) のまま
+    expect(pickIntersection(120 + 0.7 * cell, 120, cell, cur)).toEqual(cur);
+    expect(pickIntersection(120 - 0.7 * cell, 120 + 0.7 * cell, cell, cur)).toEqual(cur);
+  });
+
+  it('隣の交点の近くを押せば、そちらを選ぶ', () => {
+    expect(pickIntersection(120 + cell, 120, cell, cur)).toEqual({ row: 1, col: 2 });
+    expect(pickIntersection(120 + 0.85 * cell, 120, cell, cur)).toEqual({ row: 1, col: 2 });
+    expect(pickIntersection(120, 120 - cell, cell, cur)).toEqual({ row: 0, col: 1 });
+  });
+
+  it('何も選んでいなければ、いちばん近い交点', () => {
+    expect(pickIntersection(120 + 0.7 * cell, 120, cell, null)).toEqual({ row: 1, col: 2 });
+  });
+
+  it('隣の交点の真上を押せば、必ずそちらに移れる（選び直せなくならない）', () => {
+    for (let r = 0; r <= 3; r++) {
+      for (let c = 0; c <= 3; c++) {
+        expect(pickIntersection((c + 1) * cell, (r + 1) * cell, cell, cur)).toEqual({ row: r, col: c });
+      }
+    }
   });
 });
