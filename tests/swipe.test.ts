@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { classifySwipe, nearestIntersection, pickIntersection, swipeAlong, turnDirection } from '../src/input/swipe';
+import { classifySwipe, gripOf, nearestIntersection, pickIntersection, swipeAlong, turnDirection } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -138,6 +138,17 @@ describe('pickIntersection（押した位置で選ぶ交点。2026-11-03）', ()
   const cell = 60;
   const cur = { row: 1, col: 1 }; // 交点の中心は (120, 120)
 
+  it('選んでいる 2×2 の4個の上なら、外側の縁でも隣に移らない', () => {
+    for (const [gx, gy] of [[0.5, 0.5], [-0.5, 0.5], [0.95, 0.5], [-0.5, -0.95], [0.6, 0], [0.4, -0.95]]) {
+      expect(pickIntersection(120 + gx * cell, 120 + gy * cell, cell, cur)).toEqual(cur);
+    }
+  });
+
+  it('ただし、ほかの交点の星の近く（0.3 マス以内）なら、そちらに移る', () => {
+    expect(pickIntersection(120 + 0.9 * cell, 120 + 0.9 * cell, cell, cur)).toEqual({ row: 2, col: 2 });
+    expect(pickIntersection(120 - 0.8 * cell, 120 - 0.1 * cell, cell, cur)).toEqual({ row: 1, col: 0 });
+  });
+
   it('選んでいる交点の近く（縦横とも 0.8 マス以内）を押しても、隣に移らない', () => {
     // いちばん近いのは (1,2) だが、選んでいる (1,1) のまま
     expect(pickIntersection(120 + 0.7 * cell, 120, cell, cur)).toEqual(cur);
@@ -200,5 +211,12 @@ describe('turnDirection（押したオーブがすべらせた向きに動くよ
     expect(classifySwipe(40, 0, SWIPE, g(0.5, 0.5))).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
     expect(classifySwipe(0, 40, SWIPE, g(-0.5, -0.5))).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
     expect(classifySwipe(0, 40, SWIPE, g(0.5, -0.5))).toEqual({ kind: 'rotate', direction: 'clockwise' });
+  });
+});
+
+describe('gripOf', () => {
+  it('選んだ交点からのずれ（端の交点でも同じ式）', () => {
+    expect(gripOf(150, 90, 60, { row: 0, col: 1 })).toEqual({ x: 30, y: 30, cell: 60 });
+    expect(gripOf(290, 290, 60, { row: 3, col: 3 })).toEqual({ x: 50, y: 50, cell: 60 });
   });
 });

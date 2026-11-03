@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
-import { classifySwipe, pickIntersection, swipeAlong, turnDirection, type Grip } from '../input/swipe';
+import { classifySwipe, gripOf, pickIntersection, swipeAlong, turnDirection, type Grip } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -220,9 +220,7 @@ export function createBoardView(
     ring.classList.add('pressing');
     if (before && current && (before.row !== current.row || before.col !== current.col)) flashRing();
     // 押した位置（選んだ 2×2 のどのあたりか）。回す向きを、押したオーブがすべらせた向きに動くように決める
-    const grip: Grip = current
-      ? { x: p.x - (current.col + 1) * p.cell, y: p.y - (current.row + 1) * p.cell, cell: p.cell }
-      : { x: 0, y: 0, cell: p.cell };
+    const grip: Grip = current ? gripOf(p.x, p.y, p.cell, current) : { x: 0, y: 0, cell: p.cell };
     start = { x: e.clientX, y: e.clientY, id: e.pointerId, grip };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();

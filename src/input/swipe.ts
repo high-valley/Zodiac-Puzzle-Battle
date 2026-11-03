@@ -16,16 +16,29 @@ export function nearestIntersection(x: number, y: number, cellSize: number): Pos
 }
 
 /**
- * 押した位置で選ぶ交点。今選んでいる交点の近く（縦横とも stickyCells マス以内）なら、それを選んだまま。
+ * 押した位置で選ぶ交点。今選んでいる 2×2 の上（縦横とも stickyCells マス以内）なら、それを選んだまま（ほかの交点の星の上を押したときは除く）。
  * それ以外は、いちばん近い交点（2026-11-03。選んでいる所でスワイプしようとして、隣を選んでしまわないように）
  */
 export function pickIntersection(x: number, y: number, cellSize: number, current: Pos | null, rule = SWIPE): Pos {
+  const nearest = nearestIntersection(x, y, cellSize);
   if (current) {
     const cx = (current.col + 1) * cellSize;
     const cy = (current.row + 1) * cellSize;
-    if (Math.abs(x - cx) < rule.stickyCells * cellSize && Math.abs(y - cy) < rule.stickyCells * cellSize) return current;
+    const inside = Math.abs(x - cx) < rule.stickyCells * cellSize && Math.abs(y - cy) < rule.stickyCells * cellSize;
+    const nx = (nearest.col + 1) * cellSize;
+    const ny = (nearest.row + 1) * cellSize;
+    const onOtherStar =
+      (nearest.row !== current.row || nearest.col !== current.col) &&
+      Math.abs(x - nx) < rule.neighborStarCells * cellSize &&
+      Math.abs(y - ny) < rule.neighborStarCells * cellSize;
+    if (inside && !onOtherStar) return current;
   }
-  return nearestIntersection(x, y, cellSize);
+  return nearest;
+}
+
+/** 押した位置の、選んだ交点（2×2 の中心）からのずれ */
+export function gripOf(x: number, y: number, cellSize: number, at: Pos): Grip {
+  return { x: x - (at.col + 1) * cellSize, y: y - (at.row + 1) * cellSize, cell: cellSize };
 }
 
 /** 押した位置。選んだ交点（2×2 の中心）からのずれ（px）と、1マスの大きさ */
