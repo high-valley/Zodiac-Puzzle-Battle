@@ -161,4 +161,11 @@ describe('pickIntersection（押した位置で選ぶ交点。2026-11-03）', ()
       }
     }
   });
+
+  it('端の交点を選んでいるときも、隣に移れる', () => {
+    expect(pickIntersection(cell * 1.7, cell, cell, { row: 0, col: 0 })).toEqual({ row: 0, col: 0 });
+    expect(pickIntersection(cell * 2, cell, cell, { row: 0, col: 0 })).toEqual({ row: 0, col: 1 });
+    expect(pickIntersection(cell * 4, cell * 3, cell, { row: 3, col: 3 })).toEqual({ row: 2, col: 3 });
+    expect(pickIntersection(cell * 5, cell * 5, cell, { row: 3, col: 3 })).toEqual({ row: 3, col: 3 });
+  });
 });

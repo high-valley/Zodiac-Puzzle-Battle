@@ -106,6 +106,8 @@ export function createBoardView(
   const ring = document.createElement('div');
   ring.className = 'ring';
   ring.hidden = true;
+  // 選び直したときの光は一度だけ（枠が隠れてまた出たときに、もう一度光らないように）
+  ring.addEventListener('animationend', () => ring.classList.remove('moved'));
   el.append(ring);
 
   let orbs: HTMLElement[][] = [];
