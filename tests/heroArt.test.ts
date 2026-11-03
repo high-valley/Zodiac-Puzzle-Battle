@@ -8,7 +8,7 @@ describe('立ち絵と背丈（仕様書 18.3・18.4）', () => {
     for (const id of ALL_HEROES) {
       expect(HERO_HEIGHT_CM[id] >= 150 && HERO_HEIGHT_CM[id] <= 190).toBe(true);
       const a = HERO_ART[id];
-      expect(existsSync(`public/${a.file}`)).toBe(true);
+      expect(existsSync(`public/${a.file.split('?')[0]}`)).toBe(true);
       expect(a.headTop >= 0 && a.headTop < 0.1).toBe(true);
       expect(a.headX > 0.2 && a.headX < 0.8).toBe(true);
     }
