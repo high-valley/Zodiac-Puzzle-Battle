@@ -444,6 +444,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         modal.overlay.querySelector('.back')?.addEventListener('click', () => {
           tuning = false;
           render();
+          (modal.overlay.querySelector('.tune-open') as HTMLElement | null)?.focus();
         });
         return;
       }
