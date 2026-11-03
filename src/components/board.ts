@@ -104,6 +104,8 @@ export function createBoardView(
   let orbs: HTMLElement[][] = [];
   /** 回している途中のアニメーション */
   let running: Animation[] = [];
+  /** 元に戻している途中のアニメーション */
+  let springs: Animation[] = [];
   let current: Pos | null = null;
   let locked = false;
 
@@ -112,6 +114,11 @@ export function createBoardView(
   }
 
   function render(board: Board) {
+    // 指に合わせて回しかけていたら、その動きは捨てる（描き直したオーブに残さない）
+    drag = null;
+    release = null;
+    for (const a of springs) a.cancel();
+    springs = [];
     orbLayer.replaceChildren();
     orbs = board.map((row, r) =>
       row.map((color, c) => {
@@ -176,6 +183,7 @@ export function createBoardView(
       );
       o.style.transform = '';
       o.classList.remove('dragging');
+      springs.push(anim);
       void anim.finished.catch(() => undefined);
     }
   }
@@ -187,8 +195,10 @@ export function createBoardView(
 
   el.addEventListener('pointerdown', (e) => {
     if (locked || start || !e.isPrimary || e.button !== 0) return;
-    // 前の回転の動きが残っていれば、すぐ終わらせる
+    // 前の回転や、元に戻す動きが残っていれば、すぐ終わらせる
     for (const a of running) a.finish();
+    for (const a of springs) a.cancel();
+    springs = [];
     const p = local(e);
     select(nearestIntersection(p.x, p.y, p.cell));
     start = { x: e.clientX, y: e.clientY, id: e.pointerId };
@@ -204,7 +214,14 @@ export function createBoardView(
     ring.classList.toggle('hint-cw', result.kind === 'rotate' && result.direction === 'clockwise');
     ring.classList.toggle('hint-ccw', result.kind === 'rotate' && result.direction === 'counterclockwise');
     // 指に合わせて回す：横に動かした分だけ（1マス弱で 90 度）。縦寄りの動きでは回さない
-    if (!current || locked || reduceMotion.matches || running.length > 0 || !canRotate()) return;
+    if (!current || locked || reduceMotion.matches || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
+      // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
+      if (drag) {
+        clearDrag(drag.at);
+        drag = null;
+      }
+      return;
+    }
     const horizontal = Math.abs(dx) > 4 && Math.abs(dx) > SWIPE.horizontalRatio * Math.abs(dy);
     const direction: Direction = dx > 0 ? 'clockwise' : 'counterclockwise';
     if (drag && (!horizontal || drag.direction !== direction || drag.at !== current)) {
@@ -227,7 +244,13 @@ export function createBoardView(
     ring.classList.remove('hint-cw', 'hint-ccw');
     const dragged = drag;
     drag = null;
-    if (result.kind === 'rotate' && current && !locked) {
+    // 離す直前に指を止めていたら、そのぶん遅く回しきる
+    if (dragged && e.timeStamp - dragged.lastT > 80) dragged.v *= 80 / (e.timeStamp - dragged.lastT);
+    if (locked) {
+      if (dragged) clearDrag(dragged.at);
+      return;
+    }
+    if (result.kind === 'rotate' && current) {
       if (dragged && dragged.direction === result.direction && dragged.at === current) {
         // 指を離した位置と速さから続きを回す（animateRotate が引き継ぐ）
         release = { at: dragged.at, direction: dragged.direction, p: dragged.p, v: dragged.v };
@@ -264,6 +287,10 @@ export function createBoardView(
     setLocked(value) {
       locked = value;
       el.classList.toggle('locked', value);
+      if (value && drag) {
+        clearDrag(drag.at);
+        drag = null;
+      }
     },
     finishRotate() {
       for (const a of running) a.finish();
@@ -353,7 +380,8 @@ export function createBoardView(
           if (fromRow === row) continue;
           const o = orbs[row][col];
           const distance = row - fromRow;
-          const delay = col * 22 + (row < k ? (k - row) * 18 : 0);
+          // 列ごと・上から入る順に少しずつずらす（演出の速さに合わせて縮む）
+          const delay = Math.round((ms / 380) * (col * 22 + (row < k ? (k - row) * 18 : 0)));
           const anim = o.animate(
             [
               { transform: `translate(${col * 100}%, ${fromRow * 100}%)`, opacity: row < k ? 0.2 : 1 },
