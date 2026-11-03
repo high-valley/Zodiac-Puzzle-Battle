@@ -12,4 +12,14 @@ describe('画像の部品（仕様書 18.3.1）', () => {
   it('オーブは4色とも絵がある', () => {
     for (const c of ['red', 'blue', 'green', 'pink']) expect(existsSync(`public/art/orbs/${c}.webp`)).toBe(true);
   });
+
+  it('index.html と manifest のアイコンがすべてある', () => {
+    const html = readFileSync('index.html', 'utf8');
+    const hrefs = [...html.matchAll(/href="\/((?:icons\/|apple-touch|manifest)[^"]+)"/g)].map((m) => m[1]);
+    expect(hrefs.length).toBe(4);
+    for (const h of hrefs) expect(existsSync(`public/${h}`)).toBe(true);
+    const manifest = JSON.parse(readFileSync('public/manifest.webmanifest', 'utf8')) as { icons: { src: string }[] };
+    for (const i of manifest.icons) expect(existsSync(`public/${i.src}`)).toBe(true);
+    expect(existsSync('docs/app-icon/app-icon-1024.png')).toBe(true);
+  });
 });
