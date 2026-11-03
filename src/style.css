@@ -3114,3 +3114,14 @@ html[data-route='result'] .update-note {
   border-color: #ffffff33;
   color: var(--ink-soft);
 }
+
+/* 指に合わせて回している途中のオーブ（ほかのオーブより手前に） */
+.orb.dragging {
+  z-index: 2;
+  transition: none;
+}
+/* 補充中は、盤面の上から落ちてくるオーブを盤面の枠の中だけに見せる */
+.board.refilling .orbs {
+  overflow: hidden;
+  border-radius: 16px;
+}
