@@ -48,9 +48,9 @@ export const DEFAULT_ROTATE_TUNING: RotateTuning = { buttonMs: 600, releaseMinMs
 
 /** 開発者画面のつまみの範囲 */
 export const ROTATE_TUNING_RANGE: Record<keyof RotateTuning, { min: number; max: number; step: number }> = {
-  buttonMs: { min: 200, max: 2000, step: 50 },
-  releaseMinMs: { min: 100, max: 2000, step: 20 },
-  releaseMaxMs: { min: 100, max: 2500, step: 20 },
+  buttonMs: { min: 200, max: 5000, step: 100 },
+  releaseMinMs: { min: 100, max: 5000, step: 100 },
+  releaseMaxMs: { min: 100, max: 5000, step: 100 },
   dragMaxP: { min: 0, max: 1, step: 0.05 },
 };
 

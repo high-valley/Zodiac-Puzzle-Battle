@@ -74,6 +74,8 @@ export function createBoardView(
   canRotate: () => boolean = () => true,
   /** 回す動きの速さ（開発者画面で変えられるので、使うたびに読む） */
   tuning: () => RotateTuning = () => DEFAULT_ROTATE_TUNING,
+  /** 回す動きを減らすか（端末の「視差効果を減らす」。開発者画面で速さを試しているときは減らさない） */
+  reduceRotation: () => boolean = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
 ): BoardView {
   const el = document.createElement('div');
   el.className = 'board';
@@ -216,7 +218,7 @@ export function createBoardView(
     ring.classList.toggle('hint-cw', result.kind === 'rotate' && result.direction === 'clockwise');
     ring.classList.toggle('hint-ccw', result.kind === 'rotate' && result.direction === 'counterclockwise');
     // 指に合わせて回す：横か縦に動かした分だけ（1マス弱で 90 度）。右・下＝時計回り。斜めでは回さない
-    if (!current || locked || reduceMotion.matches || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
+    if (!current || locked || reduceRotation() || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
       // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
       if (drag) {
         clearDrag(drag.at);
