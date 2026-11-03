@@ -3041,3 +3041,8 @@ body::after {
     min-height: 44px;
   }
 }
+
+/* 回している途中は、選んだ 2×2 の枠を薄くする（円を描いて動くオーブが枠をまたぐため） */
+.board.rotating .ring {
+  opacity: 0.35;
+}
