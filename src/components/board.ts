@@ -27,7 +27,10 @@ export interface BoardView {
   selected(): Pos | null;
   select(pos: Pos | null): void;
   setLocked(locked: boolean): void;
-  animateRotate(board: Board, at: Pos, direction: Direction, ms: number): Promise<void>;
+  /** 回す動き。straight は「動きを減らす」設定のとき（円を描かずに入れ替える） */
+  animateRotate(board: Board, at: Pos, direction: Direction, ms: number, straight?: boolean): Promise<void>;
+  /** 回している途中なら、すぐ回し終える（次の入力を待たせないため） */
+  finishRotate(): void;
   animateClear(cells: Pos[], ms: number): Promise<void>;
   animateDrop(board: Board, cleared: Pos[], ms: number): Promise<void>;
   /** 「攻撃」で消えるマス（clear）と、必殺の形になっているマス（special）に印をつける */
@@ -68,6 +71,8 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
   el.append(ring);
 
   let orbs: HTMLElement[][] = [];
+  /** 回している途中のアニメーション */
+  let running: Animation[] = [];
   let current: Pos | null = null;
   let locked = false;
 
@@ -148,7 +153,10 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
       locked = value;
       el.classList.toggle('locked', value);
     },
-    async animateRotate(board, at, direction, ms) {
+    finishRotate() {
+      for (const a of running) a.finish();
+    },
+    async animateRotate(board, at, direction, ms, straight = false) {
       const { row: r, col: c } = at;
       // 各マスの移動先。時計回り：左上→右上→右下→左下→左上
       const cw: [Pos, Pos][] = [
@@ -158,13 +166,48 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
         [{ row: r + 1, col: c }, { row: r, col: c }],
       ];
       const moves = direction === 'clockwise' ? cw : cw.map(([from, to]) => [to, from] as [Pos, Pos]);
-      for (const [from, to] of moves) {
-        const o = orbAt(from);
-        o.classList.add('moving');
-        o.style.setProperty('--r', String(to.row));
-        o.style.setProperty('--c', String(to.col));
+      if (typeof el.animate !== 'function' || straight) {
+        // 動きを減らす設定のとき（と古い環境）は、円を描かずにまっすぐ入れ替える
+        for (const [from, to] of moves) {
+          const o = orbAt(from);
+          o.classList.add('moving');
+          o.style.transitionDuration = `${ms}ms`;
+          o.style.setProperty('--r', String(to.row));
+          o.style.setProperty('--c', String(to.col));
+        }
+        await wait(ms);
+        render(board);
+        return;
       }
-      await wait(ms);
+      el.classList.add('rotating');
+      // 2×2 の中心のまわりを円を描いて回す（どう動いたか目で追えるように。始まりと終わりはゆっくり）
+      const cx = c + 1;
+      const cy = r + 1;
+      const radius = Math.SQRT1_2;
+      const turn = (direction === 'clockwise' ? 1 : -1) * (Math.PI / 2);
+      const STEPS = 12;
+      await Promise.all(
+        moves.map(([from]) => {
+          const o = orbAt(from);
+          o.classList.add('moving');
+          const a0 = Math.atan2(from.row + 0.5 - cy, from.col + 0.5 - cx);
+          const frames: Keyframe[] = [];
+          for (let i = 0; i <= STEPS; i++) {
+            const a = a0 + (turn * i) / STEPS;
+            // オーブの左上の位置（マス単位）。1マス＝オーブの大きさの100%
+            const x = cx + radius * Math.cos(a) - 0.5;
+            const y = cy + radius * Math.sin(a) - 0.5;
+            // 途中で少しだけ大きくして、持ち上げて回す感じを出す
+            const lift = 1 + 0.06 * Math.sin((Math.PI * i) / STEPS);
+            frames.push({ transform: `translate(${x * 100}%, ${y * 100}%) scale(${lift})` });
+          }
+          const anim = o.animate(frames, { duration: ms, easing: 'cubic-bezier(0.45, 0.05, 0.3, 1)', fill: 'forwards' });
+          running.push(anim);
+          return anim.finished.catch(() => undefined);
+        }),
+      );
+      running = [];
+      el.classList.remove('rotating');
       render(board);
     },
     async animateClear(cells, ms) {

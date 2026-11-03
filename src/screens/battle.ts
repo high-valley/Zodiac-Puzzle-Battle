@@ -325,8 +325,17 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     ctx.lastOutcome = outcome;
   }
 
+  /** 今の回す動きが終わるのを待つための約束 */
+  let rotationDone: Promise<void> = Promise.resolve();
+
   /** 1回まわす（まだ何も消えない）。回せるのは1ターンに MAX_ROTATIONS_PER_TURN 回まで */
   async function rotateOnce(at: Pos, direction: Direction) {
+    // 回している途中に次の入力が来たら、今の動きをすぐ終わらせてから回す（すばやく続けて回しても取りこぼさない）
+    if (rotating) {
+      board.finishRotate();
+      await rotationDone;
+      if (rotating) return;
+    }
     if (busy || rotating || disposed || state.status !== 'playing') return;
     if (pending.length >= MAX_ROTATIONS_PER_TURN) {
       const bar = $<HTMLElement>('.turn-bar');
@@ -336,7 +345,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       return;
     }
     rotating = true;
-    board.setLocked(true);
+    let done!: () => void;
+    rotationDone = new Promise<void>((resolve) => (done = resolve));
     const before = previewBoard();
     const rotation: Rotation = { row: at.row, col: at.col, direction };
     pending = [...pending, rotation];
@@ -344,9 +354,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     sound.play({ name: 'rotate' });
     renderTurnBar();
     try {
-      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(170));
+      // 回す動きは目で追える速さに（演出 ×2 なら半分）
+      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(360), reduceMotion.matches);
     } finally {
       rotating = false;
+      done();
       if (!disposed) {
         board.setLocked(busy);
         renderMarks();
@@ -447,7 +459,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state, pending } });
       }
       renderHero();
-      renderMarks();
+      // 回している途中は、オーブの並びが動いているので印は付けない（回し終えたときに付け直す）
+      if (!rotating) renderMarks();
       sound.play({ name: 'select' });
     }),
   );
