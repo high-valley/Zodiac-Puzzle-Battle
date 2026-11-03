@@ -344,7 +344,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     sound.play({ name: 'rotate' });
     renderTurnBar();
     try {
-      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(170));
+      // 回す動きは目で追える速さに（演出 ×2 なら半分）
+      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, ms(360));
     } finally {
       rotating = false;
       if (!disposed) {

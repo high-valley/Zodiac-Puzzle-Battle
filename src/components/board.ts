@@ -158,13 +158,43 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
         [{ row: r + 1, col: c }, { row: r, col: c }],
       ];
       const moves = direction === 'clockwise' ? cw : cw.map(([from, to]) => [to, from] as [Pos, Pos]);
-      for (const [from, to] of moves) {
-        const o = orbAt(from);
-        o.classList.add('moving');
-        o.style.setProperty('--r', String(to.row));
-        o.style.setProperty('--c', String(to.col));
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (typeof el.animate !== 'function' || reduce) {
+        // アニメーションを減らす設定のとき（と古い環境）は、まっすぐ動かす
+        for (const [from, to] of moves) {
+          const o = orbAt(from);
+          o.classList.add('moving');
+          o.style.setProperty('--r', String(to.row));
+          o.style.setProperty('--c', String(to.col));
+        }
+        await wait(ms);
+        render(board);
+        return;
       }
-      await wait(ms);
+      // 2×2 の中心のまわりを円を描いて回す（どう動いたか目で追えるように。始まりと終わりはゆっくり）
+      const cx = c + 1;
+      const cy = r + 1;
+      const radius = Math.SQRT1_2;
+      const turn = (direction === 'clockwise' ? 1 : -1) * (Math.PI / 2);
+      const STEPS = 12;
+      await Promise.all(
+        moves.map(([from]) => {
+          const o = orbAt(from);
+          o.classList.add('moving');
+          const a0 = Math.atan2(from.row + 0.5 - cy, from.col + 0.5 - cx);
+          const frames: Keyframe[] = [];
+          for (let i = 0; i <= STEPS; i++) {
+            const a = a0 + (turn * i) / STEPS;
+            // オーブの左上の位置（マス単位）。1マス＝オーブの大きさの100%
+            const x = cx + radius * Math.cos(a) - 0.5;
+            const y = cy + radius * Math.sin(a) - 0.5;
+            // 途中で少しだけ大きくして、持ち上げて回す感じを出す
+            const lift = 1 + 0.06 * Math.sin((Math.PI * i) / STEPS);
+            frames.push({ transform: `translate(${x * 100}%, ${y * 100}%) scale(${lift})` });
+          }
+          return o.animate(frames, { duration: ms, easing: 'cubic-bezier(0.45, 0.05, 0.3, 1)', fill: 'forwards' }).finished.catch(() => undefined);
+        }),
+      );
       render(board);
     },
     async animateClear(cells, ms) {
