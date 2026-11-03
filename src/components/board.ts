@@ -8,6 +8,18 @@ import { shapeLinks } from './shapeLinks';
 export const ORB_GLYPH: Record<OrbColor, string> = { red: '▲', blue: '◆', green: '■', pink: '♥' };
 export const ORB_LABEL: Record<OrbColor, string> = { red: '赤', blue: '青', green: '緑', pink: 'ピンク' };
 
+/** オーブの中の白い記号（目指す見た目 11-target-orbs：中が透ける線の三角・ひし形・四角、塗りのハート） */
+const ORB_SYMBOL: Record<OrbColor, string> = {
+  red: '<path d="M12 4.2 20.6 19H3.4Z" class="line"/>',
+  blue: '<path d="M12 3.2 20.8 12 12 20.8 3.2 12Z" class="line"/>',
+  green: '<path d="M5 5h14v14H5Z" class="line"/>',
+  pink: '<path d="M12 20.4C6 16.3 3 13 3 9.3 3 6.6 5.1 4.6 7.6 4.6c1.8 0 3.3 1 4.4 2.6 1.1-1.6 2.6-2.6 4.4-2.6 2.5 0 4.6 2 4.6 4.7 0 3.7-3 7-9 11.1Z" class="fill"/>',
+};
+
+export function orbSymbolSvg(color: OrbColor): string {
+  return `<svg class="orb-symbol" viewBox="0 0 24 24" aria-hidden="true">${ORB_SYMBOL[color]}</svg>`;
+}
+
 export interface BoardView {
   el: HTMLElement;
   render(board: Board): void;
@@ -73,7 +85,7 @@ export function createBoardView(onRotate: (at: Pos, direction: Direction) => voi
         o.style.setProperty('--c', String(c));
         o.setAttribute('role', 'gridcell');
         o.setAttribute('aria-label', ORB_LABEL[color]);
-        o.textContent = ORB_GLYPH[color];
+        o.innerHTML = orbSymbolSvg(color);
         orbLayer.append(o);
         return o;
       }),
