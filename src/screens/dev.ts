@@ -9,16 +9,19 @@ import { featureShortName } from './comingSoon';
 import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { rotateTuningOf } from '../storage/settings';
 import type { BattleOutcome } from './battle';
+import { partyMaxHp } from '../game/party';
+import { partyMembers } from '../storage/progress';
 
 /** リザルトの見本（バトルをしなくてもリザルト画面を見られるように） */
 function sampleOutcome(ctx: AppContext, victory: boolean): BattleOutcome {
   const party = ctx.party();
+  const max = partyMaxHp(partyMembers(ctx.progress, (id) => ctx.heroJoined(id)));
   return {
     stageId: '1-3',
     victory,
     turns: victory ? 8 : 11,
-    partyHp: victory ? 214 : 0,
-    partyMaxHp: 300,
+    partyHp: victory ? Math.round(max * 0.7) : 0,
+    partyMaxHp: max,
     enemyHp: victory ? 0 : 342,
     stats: { maxChain: 4, specials: 2, damageDealt: victory ? 1480 : 1138, healed: 160 },
     stars: victory ? 3 : 0,

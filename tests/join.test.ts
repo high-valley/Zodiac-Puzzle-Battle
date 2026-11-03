@@ -97,6 +97,13 @@ describe('仲間の加入（仕様書 12.6）', () => {
     expect(partyMembers(p, () => true).map((m) => m.id)).toEqual(['leo', 'scorpio', 'virgo']);
   });
 
+  it('仲間が3人のうちに4人の編成を保存していても（開発者モードで組んだなど）、最初の編成で出撃する', () => {
+    const p = { ...emptyProgress(), party: ['aries', 'sagittarius', 'libra', 'virgo'] as HeroId[] };
+    expect(activeParty(p)).toEqual(['aries', 'sagittarius', 'virgo']);
+    // 2-5 をクリアしてんびん座が加われば、4人のまま出撃する
+    expect(activeParty(p, (id) => id !== 'leo')).toEqual(['aries', 'sagittarius', 'libra', 'virgo']);
+  });
+
   it('加入した仲間で組んだ編成は、そのまま出撃する', () => {
     let p = { ...emptyProgress(), party: ['leo', 'cancer', 'virgo'] as HeroId[] };
     expect(activeParty(p, joined(p))).toEqual(['aries', 'sagittarius', 'virgo']);

@@ -3092,7 +3092,7 @@ html[data-route='result'] .update-note {
   left: 56px;
 }
 
-/* 編成中の3人：背丈の比のまま並べ、編成の1人目をまんなかの手前に（立ち絵は仮）。
+/* 編成中の仲間：背丈の比のまま並べ、編成の1人目をまんなかの手前に（立ち絵は仮）。
    高さは欄の高さに対する割合（絶対配置の % は欄の高さが基準） */
 .home-party {
   position: relative;
@@ -3413,7 +3413,7 @@ html[data-route='result'] .update-note {
   text-shadow: 0 1px 3px #000c;
 }
 
-/* 背の低い端末（iPhone SE など）：3人の欄を縮め、左右のアイコンを詰めて名前の札にかからないように */
+/* 背の低い端末（iPhone SE など）：仲間の欄を縮め、左右のアイコンを詰めて名前の札にかからないように */
 @media (max-height: 740px) {
   .home .logo {
     margin-top: 2px;

@@ -11,16 +11,16 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
   // 画面の上で選んでいる仲間（ルールに合ったときだけ保存する）
   let picked: HeroId[] = ctx.party();
   const level = (id: HeroId) => heroGrowth(ctx.progress, id).level;
+
   // 使える枠の数：4つ。ただし仲間が3人のうちは3つ（4つ目は仲間が増えると使える）
   const open = Math.min(PARTY_MAX, ALL_HEROES.filter((id) => ctx.heroJoined(id)).length);
-
   container.innerHTML = `
   <main class="party-screen">
     <header class="bar-top">
       <button type="button" class="text-btn back">‹ ホーム</button>
       <h1 class="screen-title">編成</h1>
     </header>
-    <p class="screen-lead">出撃する仲間を${PARTY_MAX}人まで選ぶ。組み方は自由で、攻撃キャラを1人以上入れる（回復役だけにはできない）。</p>
+    <p class="screen-lead">出撃する仲間を${open}人まで選ぶ。組み方は自由で、攻撃キャラを1人以上入れる（回復役だけにはできない）。</p>
     <section class="party-slots" aria-label="出撃する仲間"></section>
     <p class="party-status" aria-live="polite"></p>
     <h2 class="section-title">キャラ一覧</h2>
@@ -63,7 +63,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
           ? `パーティーHP ${partyMaxHp(members)}　回復役がいないので、HPは回復できません（攻撃特化）`
           : `パーティーHP ${partyMaxHp(members)}　この${members.length}人で出撃します`
         : picked.length === 0
-          ? '出撃する仲間を選んでください（今の編成はまだ保存されていません）'
+          ? `出撃する仲間を選んでください（選ぶまでは、前の編成（${ctx.party().map((id) => HEROES[id].name).join('・')}）で出撃します）`
           : `${PARTY_PROBLEM_TEXT[problem]}（今の編成はまだ保存されていません）`;
     roster.innerHTML = ALL_HEROES.map((id) => {
       if (!ctx.heroJoined(id)) {

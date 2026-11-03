@@ -29,7 +29,7 @@ const FORMATION: Record<number, { x: number; back: boolean }[]> = {
   1: [{ x: 50, back: false }],
   2: [{ x: 38, back: false }, { x: 64, back: true }],
   3: [{ x: 50, back: false }, { x: 25, back: true }, { x: 75, back: true }],
-  4: [{ x: 40, back: false }, { x: 63, back: false }, { x: 17, back: true }, { x: 85, back: true }],
+  4: [{ x: 40, back: false }, { x: 63, back: false }, { x: 21, back: true }, { x: 81, back: true }],
 };
 
 const sideBtn = (id: FeatureId) => `

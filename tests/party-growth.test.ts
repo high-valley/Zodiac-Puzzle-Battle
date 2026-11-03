@@ -169,7 +169,12 @@ describe('編成とレベルの保存', () => {
 
   it('ルールに合わない編成やおかしいレベルは、読むときに直す', () => {
     const read = (o: object) => parseProgress(JSON.stringify({ ...emptyProgress(), ...o }));
-    expect(read({ party: ['cancer', 'virgo'] }).party).toEqual(emptyProgress().party); // 2人しかいない
+    expect(read({ party: ['cancer', 'virgo'] }).party).toEqual(emptyProgress().party); // 回復役だけ
+    expect(read({ party: ['leo'] }).party).toEqual(['leo']); // 1人でもよい
+    expect(read({ party: ['leo', 'virgo'] }).party).toEqual(['leo', 'virgo']);
+    expect(read({ party: ['aries', 'sagittarius', 'libra', 'virgo'] }).party).toEqual(['aries', 'sagittarius', 'libra', 'virgo']);
+    expect(read({ party: [] }).party).toEqual(emptyProgress().party);
+    expect(read({ party: ['aries', 'sagittarius', 'libra', 'virgo', 'leo'] }).party).toEqual(emptyProgress().party); // 5人は多い
     expect(read({ party: ['aries', 'leo', 'taurus'] }).party).toEqual(['aries', 'leo', 'taurus']); // 攻撃3人は組める
     expect(read({ party: ['aries', 'aries', 'virgo'] }).party).toEqual(emptyProgress().party);
     expect(read({ party: ['cancer', 'virgo', 'aquarius'] }).party).toEqual(emptyProgress().party); // 回復役だけ
