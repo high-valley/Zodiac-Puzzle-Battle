@@ -33,7 +33,8 @@ export interface HeroArt {
 }
 
 const art = (id: HeroId, width: number, headTop: number, headX: number, pose = 1): HeroArt => ({
-  file: `art/heroes/${id}.webp`,
+  // 絵を差し替えたら v を上げる（端末や Pages に古い絵が残らないように）
+  file: `art/heroes/${id}.webp?v=3`,
   width,
   height: 900,
   headTop,
@@ -45,18 +46,18 @@ const art = (id: HeroId, width: number, headTop: number, headX: number, pose = 1
 export const HERO_ART_TENTATIVE = true;
 
 export const HERO_ART: Record<HeroId, HeroArt> = {
-  aries: art('aries', 472, 0.01, 0.445),
-  taurus: art('taurus', 469, 0.049, 0.571),
-  gemini: art('gemini', 578, 0.008, 0.469),
-  cancer: art('cancer', 556, 0.011, 0.497),
-  leo: art('leo', 542, 0.009, 0.569),
-  virgo: art('virgo', 368, 0.02, 0.589),
-  libra: art('libra', 264, 0.003, 0.515),
-  scorpio: art('scorpio', 500, 0.007, 0.415, 0.9),
-  sagittarius: art('sagittarius', 547, 0.033, 0.562),
-  capricorn: art('capricorn', 385, 0.034, 0.388),
-  aquarius: art('aquarius', 389, 0.002, 0.586),
-  pisces: art('pisces', 470, 0.009, 0.549),
+  aries: art('aries', 471, 0.009, 0.448),
+  taurus: art('taurus', 470, 0.049, 0.542),
+  gemini: art('gemini', 578, 0.009, 0.47),
+  cancer: art('cancer', 557, 0.011, 0.498),
+  leo: art('leo', 542, 0.01, 0.57),
+  virgo: art('virgo', 368, 0.02, 0.582),
+  libra: art('libra', 265, 0.004, 0.515),
+  scorpio: art('scorpio', 501, 0.007, 0.417, 0.9),
+  sagittarius: art('sagittarius', 548, 0.033, 0.562),
+  capricorn: art('capricorn', 385, 0.036, 0.388),
+  aquarius: art('aquarius', 389, 0.003, 0.584),
+  pisces: art('pisces', 470, 0.009, 0.551),
 };
 
 /** いちばん背の高いキャラの背丈。並べたときの高さの基準 */
