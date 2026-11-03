@@ -1,4 +1,6 @@
-# 星座パズルバトル（Zodiac Puzzle Battle）
+# アストラクロニクル（ASTRA CHRONICLE）
+
+リポジトリ名・URL・保存データの名前（`zodiac-puzzle-battle:` で始まる）は、旧仮称の「星座パズルバトル（Zodiac Puzzle Battle）」のまま。
 
 2×2回転パズルと12星座キャラの育成を組み合わせた、スマホ縦画面向けの戦略型パズルRPG。GitHub Pages の Web アプリとして作り、Capacitor で iOS アプリ（App Store）にする。仕様は `docs/game-spec.md`、仕様を変えた理由は `docs/decisions.md`、構成と開発手順は `README.md`。
 
