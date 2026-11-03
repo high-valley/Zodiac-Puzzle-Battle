@@ -3046,3 +3046,65 @@ body::after {
 .board.rotating .ring {
   opacity: 0.35;
 }
+
+/* ───────── アプリの版と更新（メニュー・起動時の知らせ） ───────── */
+.version-box {
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #f1c07355;
+  background: #0b1233aa;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.version-box p {
+  margin: 0;
+}
+.v-now {
+  color: var(--ink);
+}
+.v-latest.newer {
+  color: var(--gold);
+  font-weight: 700;
+}
+.version-box .v-update {
+  min-height: 44px;
+  margin-top: 4px;
+}
+.update-note {
+  position: fixed;
+  left: 50%;
+  top: max(8px, env(safe-area-inset-top));
+  translate: -50% 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: #0d1638f2;
+  box-shadow: 0 4px 14px #0008;
+  font-size: 12px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.update-note button {
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: none;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 12px;
+  cursor: pointer;
+}
+.update-note .u-close {
+  min-width: 36px;
+  padding: 0;
+  border-color: #ffffff33;
+  color: var(--ink-soft);
+}
