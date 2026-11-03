@@ -17,10 +17,50 @@ export function chainMultiplier(chain: number): number {
   return 1 + 0.25 * (chain - 1);
 }
 
-/** 交点スワイプの判定（CSS px） */
+/** 交点スワイプの判定（CSS px）。横：右へ＝時計回り。縦：下へ＝時計回り（2026-11-03） */
 export const SWIPE = {
-  /** 水平方向にこれ以上動いたら回転 */
+  /** 横か縦にこれ以上動いたら回転 */
   minDistance: 22,
-  /** |dx| > ratio × |dy| を満たすこと */
-  horizontalRatio: 1.2,
+  /** 横なら |dx| > ratio × |dy|、縦なら |dy| > ratio × |dx|（どちらでもない斜めは回さない） */
+  axisRatio: 1.2,
+  /** 指に合わせて回し始めるまでの遊び（px） */
+  dragDeadZone: 4,
+  /** 何マス分動かすと 90 度回るか */
+  dragCellsPer90: 0.9,
+  /** 指に合わせて回すのは、ここ（90 度に対する割合）まで。残りは指を離してから、目で追える速さで回す */
+  dragMaxP: 0.5,
 };
+
+/** 回す動きの時間（ミリ秒。演出 ×2 ではこの半分）。2026-11-03 目で追えるように遅くした */
+export const ROTATE_ANIM = {
+  /** 回転ボタンで回すとき */
+  buttonMs: 600,
+  /** 指を離したあと残りを回しきる時間の下限と上限（指の速さに合わせつつ、速すぎないように）。
+   *  回し始め（閾値ちょうど、残り約7割）のときの値で、残りが少ないほど短くする */
+  releaseMinMs: 400,
+  releaseMaxMs: 560,
+  /** 上の下限・上限を決めたときの残りの割合 */
+  releaseRefRemaining: 0.7,
+  /** 速さの計算に使う、指の速さの下限（px/ms）。これより遅いと上限の時間になる */
+  releaseMinSpeed: 0.08,
+  /** 離す直前にこれより長く指を止めていたら、そのぶん遅く回しきる（ms） */
+  stillMs: 80,
+  /** 回しかけを元に戻す時間（ms） */
+  springBackMs: 140,
+};
+
+/**
+ * 指を離したあと、残りを回しきる時間（ms）。残りの弧の長さを指の速さで割り、残りの割合に応じた下限・上限で挟む。
+ * ms は回転ボタンの時間（演出 ×2 なら半分）で、同じ割合で縮める
+ */
+export function releaseDuration(p0: number, speed: number, cellPx: number, ms: number = ROTATE_ANIM.buttonMs): number {
+  const k = ms / ROTATE_ANIM.buttonMs;
+  const remainingFrac = Math.max(0, Math.min(1, 1 - p0));
+  // 円弧の長さ：2×2 の中心から各オーブの中心まで √2/2 マス、90 度で π/4 × √2 ≒ 1.11 マス
+  const arc = remainingFrac * cellPx * ((Math.PI / 4) * Math.SQRT2);
+  const scale = (remainingFrac / ROTATE_ANIM.releaseRefRemaining) * k;
+  const lo = ROTATE_ANIM.releaseMinMs * scale;
+  const hi = ROTATE_ANIM.releaseMaxMs * scale;
+  const bySpeed = (arc / Math.max(speed, ROTATE_ANIM.releaseMinSpeed)) * k;
+  return Math.round(Math.min(hi, Math.max(lo, bySpeed)));
+}

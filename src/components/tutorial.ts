@@ -28,14 +28,14 @@ const STEPS: Step[] = [
   {
     tab: 'basic',
     title: '3回まで回して「攻撃」',
-    body: '盤面の星（交点）を押して右へスワイプすると、まわりの4個が時計回りに回ります（左へなら反時計回り。「左回転」「右回転」ボタンでも回せます）。1ターンに3回まで回せて、回している間は何も消えません。「攻撃」を押すとターンが決まります。',
+    body: '盤面の星（交点）を押して右か下へスワイプすると、まわりの4個が時計回りに回ります（左か上へなら反時計回り。「左回転」「右回転」ボタンでも回せます）。1ターンに3回まで回せて、回している間は何も消えません。「攻撃」を押すとターンが決まります。',
     figure: `
       <div class="t-rotate" aria-hidden="true">
         <div class="t-grid">
           ${orb('red', 'a')}${orb('blue', 'b')}${orb('pink', 'd')}${orb('green', 'c')}
           <span class="t-star"></span>
         </div>
-        <span class="t-finger">→</span>
+        <span class="t-finger">→ ↓</span>
       </div>`,
   },
   {
