@@ -10,10 +10,9 @@ import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
 import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
 import { DEV_TOOLS } from './data/devTools';
-import { mountDev } from './screens/dev';
 import type { HeroId } from './game/types';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './storage/settings';
-import { hashToRoute, routeToHash, tabOf, type Route } from './routes';
+import { hashToRoute, routeToHash, tabOf, type Route, type Tab } from './routes';
 import { tabBarHtml } from './components/tabBar';
 import { openModal } from './components/modal';
 import { mountBook } from './screens/book';
@@ -42,6 +41,8 @@ export interface AppContext {
   stageOpen(stageId: string): boolean;
   /** 出撃する3人（まだ仲間でないキャラがいれば最初の編成） */
   party(): HeroId[];
+  /** 途中のバトルを続けられるか（ステージが開いていて、出撃した3人がみな仲間） */
+  canResume(): boolean;
 }
 
 export function mountApp(root: HTMLElement): void {
@@ -55,7 +56,10 @@ export function mountApp(root: HTMLElement): void {
     progress: loadProgress(),
     lastOutcome: null,
     setSettings(next) {
+      const leavingDev = ctx.settings.devUnlockAll && !next.devUnlockAll;
       ctx.settings = next;
+      // 開発者モードを切ったら、そのモードで組んだ編成や始めた途中バトルのうち、ふつうでは使えないものを片づける
+      if (leavingDev) tidyAfterDev();
       ctx.sound.setEnabled(next.soundOn);
       saveSettings(next);
       document.documentElement.dataset.speed = String(next.speed);
@@ -103,14 +107,31 @@ export function mountApp(root: HTMLElement): void {
     party() {
       return activeParty(ctx.progress, (id) => ctx.heroJoined(id));
     },
+    canResume() {
+      const b = ctx.progress.battle;
+      return !!b && ctx.stageOpen(b.stageId) && b.state.party.every((m) => ctx.heroJoined(m.id));
+    },
   };
+
+  /** ふつうの状態（開発者モードでない）で使えない編成・途中バトルを片づける */
+  function tidyAfterDev() {
+    let next = ctx.progress;
+    if (!next.party.every((id) => isHeroJoined(next, id))) next = { ...next, party: activeParty(next) };
+    if (next.battle && !ctx.canResume()) next = { ...next, battle: null };
+    if (next !== ctx.progress) ctx.setProgress(next);
+  }
+  if (!ctx.settings.devUnlockAll) tidyAfterDev();
 
   // iOS は操作の中でないと音を出せないので、操作の区切りごとに音を使えるようにする（版によって許可される操作が違う）
   for (const type of ['pointerdown', 'pointerup', 'click', 'keydown']) {
     root.addEventListener(type, () => ctx.sound.unlock(), { capture: true });
   }
 
+  /** 画面を描き直すたびに増やす（読み込みを待つ画面が、別の画面に移ったあとで描かないように） */
+  let renderToken = 0;
+
   function render() {
+    renderToken++;
     closeModal();
     cleanup?.();
     cleanup = null;
@@ -159,28 +180,37 @@ export function mountApp(root: HTMLElement): void {
       case 'feature':
         cleanup = mountComingSoon(container, ctx, route.id);
         break;
-      case 'dev':
-        cleanup = mountDev(container, ctx);
+      case 'dev': {
+        // 開発者画面は必要なときだけ読む（DEV_TOOLS が false の版には入らない）
+        const token = ++renderToken;
+        void import('./screens/dev').then(({ mountDev }) => {
+          if (token !== renderToken || !container.isConnected) return;
+          cleanup = mountDev(container, ctx);
+          addTabBar(container, 'menu');
+        });
         break;
+      }
     }
 
     // 下のタブバー（バトルとリザルトでは出さない）
     const tab = tabOf(route);
-    if (tab) {
-      container.classList.add('with-tabs');
-      container.insertAdjacentHTML('beforeend', tabBarHtml(tab));
-      container.querySelectorAll<HTMLButtonElement>('.tab-bar .tab').forEach((b) =>
-        b.addEventListener('click', () => {
-          const t = b.dataset.tab;
-          if (t === 'menu') openMenuSheet(container.querySelector('main') ?? container);
-          else if (t === 'home') ctx.navigate({ name: 'home' });
-          else if (t === 'quest') ctx.navigate({ name: 'quest' });
-          else if (t === 'party') ctx.navigate({ name: 'party' });
-          else if (t === 'heroes') ctx.navigate({ name: 'heroes' });
-        }),
-      );
-    }
+    if (tab) addTabBar(container, tab);
     window.scrollTo(0, 0);
+  }
+
+  function addTabBar(container: HTMLElement, tab: Tab) {
+    container.classList.add('with-tabs');
+    container.insertAdjacentHTML('beforeend', tabBarHtml(tab));
+    container.querySelectorAll<HTMLButtonElement>('.tab-bar .tab').forEach((b) =>
+      b.addEventListener('click', () => {
+        const t = b.dataset.tab;
+        if (t === 'menu') openMenuSheet(container.querySelector('main') ?? container);
+        else if (t === 'home') ctx.navigate({ name: 'home' });
+        else if (t === 'quest') ctx.navigate({ name: 'quest' });
+        else if (t === 'party') ctx.navigate({ name: 'party' });
+        else if (t === 'heroes') ctx.navigate({ name: 'heroes' });
+      }),
+    );
   }
 
   /** メニュー：図鑑・遊び方・設定と、準備中の画面 */

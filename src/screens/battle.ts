@@ -32,6 +32,8 @@ export interface BattleOutcome {
   exp: number;
   /** 3人それぞれのレベル（前と後） */
   growth: GrowthChange[];
+  /** 開発者モードで遊んだので、記録・経験値・仲間を保存していない */
+  notSaved?: boolean;
   /** このステージを初めてクリアして仲間になったキャラ（仕様書 12.6） */
   joined: HeroId[];
 }
@@ -42,7 +44,8 @@ const wait = (n: number) => new Promise<void>((resolve) => setTimeout(resolve, n
 export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: string): () => void {
   const stage = findStage(stageId)!;
   const saved = ctx.progress.battle;
-  const resuming = saved !== null && saved.stageId === stageId;
+  // 続けられない途中バトル（まだ仲間でないキャラがいる、など）は捨てて最初から
+  const resuming = saved !== null && saved.stageId === stageId && ctx.canResume();
   let state: BattleState = resuming ? saved.state : createBattle(newSeed(), stage.enemyId, partyMembers(ctx.progress, (id) => ctx.heroJoined(id)));
   // このターンにすでに回した分（「攻撃」を押すまでは何も消えない）。途中で閉じても続きから回せるよう保存する
   let pending: Rotation[] = resuming ? [...saved.pending] : [];
@@ -311,7 +314,14 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     // 経験値：出撃した3人それぞれに入る（端末に保存。課金を入れる段階でサーバーへ移す）
     const gained = applyBattleExp(recordResult(ctx.progress, stage.id, stars, victory ? turns : null), state.party, outcome.exp);
     outcome.growth = gained.growth;
-    ctx.setProgress(gained.progress);
+    if (ctx.settings.devUnlockAll) {
+      // 開発者モードの「すべて解放」は見え方だけの切り替えなので、結果は保存しない（途中のバトルだけ消す。仕様書 11.16）
+      outcome.notSaved = true;
+      outcome.joined = [];
+      ctx.setProgress({ ...ctx.progress, battle: null });
+    } else {
+      ctx.setProgress(gained.progress);
+    }
     ctx.lastOutcome = outcome;
   }
 

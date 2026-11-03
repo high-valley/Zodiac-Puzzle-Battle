@@ -66,7 +66,7 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
         <span class="adventure-sub">第${chapter.number}章 ${chapter.name}　★ ${stars} / ${chapter.stages.length * 3}</span>
       </button>
       ${
-        saved && savedStage
+        saved && savedStage && ctx.canResume()
           ? `<button type="button" class="text-btn wide resume">つづきから　${savedStage.id} ${stageEnemyName(savedStage)}（ターン ${saved.state.turn}）</button>`
           : ''
       }

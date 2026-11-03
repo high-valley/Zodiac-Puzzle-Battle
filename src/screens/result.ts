@@ -56,6 +56,7 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
       </ul>
     </section>
 
+    ${outcome.notSaved ? '<p class="result-dev-note">開発者モードのため、記録・経験値・仲間は保存していません</p>' : ''}
     ${
       outcome.joined.length
         ? `<section class="result-join" aria-label="新しい仲間">

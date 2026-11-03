@@ -57,9 +57,19 @@ describe('仲間の加入（仕様書 12.6）', () => {
     expect(partyMembers(p, () => true).map((m) => m.id)).toEqual(['leo', 'scorpio', 'virgo']);
   });
 
-  it('回復役は最初から1人（おとめ座）、1-1 で2人目（かに座）が加わる', () => {
-    expect(HEROES.virgo.role).toBe('healer');
-    expect(HERO_JOIN_STAGE.cancer).toBe('1-1');
+  it('負けたあとに初めて勝てば知らせが出て、2回目の勝ちでは出ない', () => {
+    let p = recordResult(emptyProgress(), '1-2', 0, null);
+    expect(heroesJoinedBy(p, '1-2', true)).toEqual(['gemini']);
+    p = recordResult(p, '1-2', 1, 9);
+    expect(heroesJoinedBy(p, '1-2', true)).toEqual([]);
+  });
+
+  it('加入した仲間で組んだ編成は、そのまま出撃する', () => {
+    let p = { ...emptyProgress(), party: ['leo', 'cancer', 'virgo'] as HeroId[] };
+    expect(activeParty(p)).toEqual(['aries', 'sagittarius', 'virgo']);
+    p = recordResult(recordResult(p, '1-1', 1, 5), '1-3', 1, 9);
+    expect(activeParty(p)).toEqual(['leo', 'cancer', 'virgo']);
+    expect(HEROES.leo.role).toBe('attacker');
   });
 });
 

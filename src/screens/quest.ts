@@ -86,7 +86,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     const enemy = ENEMIES[stage.enemyId];
     const record = ctx.progress.stages[stage.id];
     const saved = ctx.progress.battle;
-    const savedHere = saved?.stageId === stage.id;
+    const savedHere = saved?.stageId === stage.id && ctx.canResume();
     const savedElsewhere = saved && !savedHere ? saved.stageId : null;
     const joiners = ALL_HEROES.filter((id) => HERO_JOIN_STAGE[id] === stage.id);
     panel.innerHTML = `

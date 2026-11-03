@@ -46,7 +46,6 @@ export function heroGrowth(progress: Progress, id: HeroId): HeroGrowth {
   return progress.heroes[id] ?? NEW_HERO;
 }
 
-/** 編成の3人を、それぞれのレベルつきで */
 /** 仲間になっているか：最初からいるか、加入のステージをクリアしているか（仕様書 12.6） */
 export function isHeroJoined(progress: Progress, id: HeroId): boolean {
   const stageId = HERO_JOIN_STAGE[id];
@@ -66,6 +65,7 @@ export function activeParty(progress: Progress, joined = (id: HeroId) => isHeroJ
   return progress.party.every(joined) ? [...progress.party] : DEFAULT_PARTY.map((m) => m.id);
 }
 
+/** 出撃する3人を、それぞれのレベルつきで */
 export function partyMembers(progress: Progress, joined = (id: HeroId) => isHeroJoined(progress, id)): PartyMember[] {
   return activeParty(progress, joined).map((id) => ({ id, level: heroGrowth(progress, id).level }));
 }
