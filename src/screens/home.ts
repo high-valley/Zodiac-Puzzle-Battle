@@ -3,6 +3,7 @@
 import type { AppContext } from '../app';
 import { assetUrl } from '../components/assets';
 import { constellationSvg } from '../components/constellations';
+import { ROLE_PLATE } from '../components/heroCard';
 import { TAB_ICON } from '../components/tabBar';
 import { artHeightRatio, HERO_ART } from '../data/heroArt';
 import { HEROES } from '../data/heroes';
@@ -20,8 +21,10 @@ const BOOK_ICON = '<path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8
 /** スタミナのアイコン（稲妻） */
 const BOLT_ICON = '<path d="M13 2L5 13h6l-1 9 8-11h-6z"/>';
 
-/** 3人の並び：まんなかがリーダー（編成の1人目）、左に2人目、右に3人目 */
+/** 3人の並び：まんなかが編成の1人目、左に2人目、右に3人目 */
 const SLOTS = ['c', 'l', 'r'] as const;
+/** 名前の札は見た目の順（左・まんなか・右）に並べる。読み上げも同じ順になる */
+const PLATE_ORDER = [1, 0, 2];
 
 const sideBtn = (id: FeatureId) => `
   <button type="button" class="side-btn${id === 'gacha' ? ' gacha' : ''}" data-feature="${id}">
@@ -70,14 +73,15 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <div class="home-party">
       ${party.map((id, i) => figureHtml(id, SLOTS[i])).join('')}
       <ul class="home-plates" aria-label="パーティー">
-        ${party
+        ${PLATE_ORDER.map((i) => party[i])
+          .filter((id): id is HeroId => id !== undefined)
           .map(
-            (id, i) => `
-          <li class="home-plate slot-${SLOTS[i]}">
-            <span class="hp-badge orb-${HEROES[id].special.color}" aria-hidden="true">${HEROES[id].symbol}</span>
-            <span class="hp-text">
-              <span class="hp-name">${HEROES[id].name}</span>
-              <span class="hp-meta">${HEROES[id].role === 'healer' ? '回復役' : '攻撃役'}　Lv.${heroGrowth(ctx.progress, id).level}</span>
+            (id) => `
+          <li class="home-plate">
+            <span class="plate-badge orb-${HEROES[id].special.color}" aria-hidden="true">${HEROES[id].symbol}</span>
+            <span class="plate-text">
+              <span class="plate-name">${HEROES[id].name}</span>
+              <span class="plate-meta"><span class="plate-role">${ROLE_PLATE[HEROES[id].role]}　</span>Lv.${heroGrowth(ctx.progress, id).level}</span>
             </span>
           </li>`,
           )

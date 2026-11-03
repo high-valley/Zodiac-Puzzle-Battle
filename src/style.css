@@ -2254,9 +2254,6 @@ html[data-speed='2'] .popup {
   text-align: right;
   color: var(--ink-soft);
 }
-.home-stage {
-  position: relative;
-}
 .side-col {
   position: absolute;
   top: 0;
@@ -2564,11 +2561,8 @@ html[data-speed='2'] .popup {
   padding: 0 4px;
 }
 
-/* 背の低い端末（iPhone SE など）：ホームのキャラの欄を縮めて、冒険のボタンまでを1画面に */
+/* 背の低い端末（iPhone SE など）：冒険のボタンまでを1画面に */
 @media (max-height: 740px) {
-  .home .logo {
-    margin-top: 2px;
-  }
   .stamina {
     padding-block: 4px;
   }
@@ -3067,6 +3061,7 @@ html[data-route='result'] .update-note {
 
 /* ═════════ ホームの作り込み（2026-11-03。目指す見た目 10-target-home、仕様書 11.5） ═════════ */
 .home-stage {
+  position: relative;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -3087,8 +3082,8 @@ html[data-route='result'] .update-note {
 .home .logo::before {
   width: 18px;
   height: 18px;
-  top: -6px;
-  right: 54px;
+  top: -12px;
+  right: 40px;
 }
 .home .logo::after {
   width: 12px;
@@ -3097,13 +3092,14 @@ html[data-route='result'] .update-note {
   left: 56px;
 }
 
-/* 編成中の3人：背丈の比のまま並べ、まんなかのリーダーを手前に（立ち絵は仮）。
+/* 編成中の3人：背丈の比のまま並べ、編成の1人目をまんなかの手前に（立ち絵は仮）。
    高さは欄の高さに対する割合（絶対配置の % は欄の高さが基準） */
 .home-party {
   position: relative;
   flex: 1 1 auto;
   min-height: 230px;
   margin: 2px -16px 0;
+  overflow: hidden;
   overflow: clip;
 }
 .home-party::before {
@@ -3182,16 +3178,7 @@ html[data-route='result'] .update-note {
   align-items: center;
   min-width: 0;
 }
-.home-plate.slot-l {
-  order: 1;
-}
-.home-plate.slot-c {
-  order: 2;
-}
-.home-plate.slot-r {
-  order: 3;
-}
-.hp-badge {
+.plate-badge {
   position: relative;
   z-index: 1;
   width: 32px;
@@ -3209,7 +3196,7 @@ html[data-route='result'] .update-note {
   font-size: 16px;
   text-shadow: 0 1px 2px #0008;
 }
-.hp-text {
+.plate-text {
   flex: 1;
   min-width: 0;
   margin-left: -10px;
@@ -3221,17 +3208,17 @@ html[data-route='result'] .update-note {
   border-radius: 0 999px 999px 0;
   background: linear-gradient(90deg, #1e2a58f2, #141d48e6);
 }
-.hp-name,
-.hp-meta {
+.plate-name,
+.plate-meta {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hp-name {
+.plate-name {
   font-size: 12px;
   font-weight: 700;
 }
-.hp-meta {
+.plate-meta {
   font-size: 9.5px;
   color: var(--ink-soft);
   font-variant-numeric: tabular-nums;
@@ -3444,11 +3431,14 @@ html[data-route='result'] .update-note {
 
 /* 背の低い端末（iPhone SE など）：3人の欄を縮め、左右のアイコンを詰めて名前の札にかからないように */
 @media (max-height: 740px) {
+  .home .logo {
+    margin-top: 2px;
+  }
   .home-party {
-    min-height: 186px;
+    min-height: 200px;
   }
   .home .side-btn {
-    min-height: 50px;
+    min-height: 46px;
   }
   .home .side-icon {
     width: 28px;
@@ -3468,5 +3458,12 @@ html[data-route='result'] .update-note {
   }
   .home .round-btn {
     min-height: 44px;
+  }
+}
+
+/* 幅の狭い端末：名前の札は Lv を残して役割を省く */
+@media (max-width: 360px) {
+  .plate-role {
+    display: none;
   }
 }
