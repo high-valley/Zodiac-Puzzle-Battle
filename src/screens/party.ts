@@ -18,7 +18,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
       <button type="button" class="text-btn back">‹ ホーム</button>
       <h1 class="screen-title">編成</h1>
     </header>
-    <p class="screen-lead">出撃する3人を選ぶ。攻撃キャラを1人以上入れる（回復役は入れなくても、2人とも入れてもよい）。</p>
+    <p class="screen-lead">出撃する3人を選ぶ。攻撃キャラを1人以上入れる（回復役は0〜2人。3人とも回復役にはできない）。</p>
     <section class="party-slots" aria-label="出撃する3人"></section>
     <p class="party-status" aria-live="polite"></p>
     <h2 class="section-title">キャラ一覧</h2>

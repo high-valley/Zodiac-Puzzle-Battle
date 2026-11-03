@@ -34,9 +34,9 @@ describe('12星座のデータ', () => {
     }
   });
 
-  it('攻撃10人・回復2人（かに座・おとめ座）で、必殺の形は全員ちがう', () => {
-    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'attacker')).toHaveLength(10);
-    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'healer')).toEqual(['cancer', 'virgo']);
+  it('攻撃9人・回復3人（かに座・おとめ座・みずがめ座）で、必殺の形は全員ちがう', () => {
+    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'attacker')).toHaveLength(9);
+    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'healer')).toEqual(['cancer', 'virgo', 'aquarius']);
     expect(new Set(ALL_HEROES.map((id) => HEROES[id].special.shape)).size).toBe(12);
   });
 
@@ -53,11 +53,10 @@ describe('12星座のデータ', () => {
 });
 
 describe('編成のルール', () => {
-  it('攻撃キャラのいない編成は noAttacker（回復役が3人いたとしたら）', () => {
-    // 今の回復役は2人なので、しし座も回復役として扱う役割の引き方を渡す
-    const roleOf = (id: HeroId) => (id === 'leo' ? 'healer' : HEROES[id].role);
-    expect(partyProblem([m('cancer'), m('virgo'), m('leo')], roleOf)).toBe('noAttacker');
-    expect(partyProblem([m('cancer'), m('virgo'), m('aries')], roleOf)).toBeNull();
+  it('攻撃キャラのいない編成（回復役3人）は noAttacker で、戦闘も始められない', () => {
+    expect(partyProblem([m('cancer'), m('virgo'), m('aquarius')])).toBe('noAttacker');
+    expect(partyProblem([m('cancer'), m('virgo'), m('aries')])).toBeNull();
+    expect(() => createBattle(1, 'stardust', [m('cancer'), m('virgo'), m('aquarius')])).toThrow();
   });
 
   it('3人・同じキャラは1人まで・攻撃キャラが1人以上（1回の編成に入れる回復役は0〜2人）', () => {
@@ -165,6 +164,7 @@ describe('編成とレベルの保存', () => {
     expect(read({ party: ['cancer', 'virgo'] }).party).toEqual(emptyProgress().party); // 2人しかいない
     expect(read({ party: ['aries', 'leo', 'taurus'] }).party).toEqual(['aries', 'leo', 'taurus']); // 攻撃3人は組める
     expect(read({ party: ['aries', 'aries', 'virgo'] }).party).toEqual(emptyProgress().party);
+    expect(read({ party: ['cancer', 'virgo', 'aquarius'] }).party).toEqual(emptyProgress().party); // 回復役だけ
     expect(read({ party: ['aries', 'nobody', 'virgo'] }).party).toEqual(emptyProgress().party);
     expect(read({ heroes: { leo: { level: 0, exp: 0 } } }).heroes).toEqual({});
     expect(read({ heroes: { leo: { level: MAX_LEVEL + 1, exp: 0 } } }).heroes).toEqual({});
@@ -204,6 +204,11 @@ describe('12星座の性能の決まり（仕様書 12.3）', () => {
         expect(h.special.color).not.toBe('pink');
       }
     }
+  });
+
+  it('必殺の色は 赤・青・緑・ピンク が3人ずつ（2026-11-03）', () => {
+    const count = (c: string) => ALL_HEROES.filter((id) => HEROES[id].special.color === c).length;
+    expect([count('red'), count('blue'), count('green'), count('pink')]).toEqual([3, 3, 3, 3]);
   });
 
   it('12体の必殺の形はすべて違う', () => {
