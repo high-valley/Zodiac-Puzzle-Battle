@@ -3589,14 +3589,6 @@ html[data-route='result'] body::after {
   max-height: 60dvh;
   overflow-y: auto;
 }
-.tune-warn {
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: #8a3fb833;
-  border: 1px solid #c58bff66;
-  font-size: 12px;
-}
 
 /* ───────── 選んだ 2×2 を分かりやすく（2026-11-03） ───────── */
 /* 枠：太めの金の線に、うすい金の地と四隅の星。押している間は強く、選び直したときは一度光る */
@@ -3677,14 +3669,8 @@ html[data-route='result'] body::after {
 
 /* パズルの動き（回す・消える・落ちる）は「視差効果を減らす」でも、ふつうと同じ速さで見せる（2026-11-03 ユーザーの決定） */
 @media (prefers-reduced-motion: reduce) {
-  .orb.moving {
-    transition-duration: 0.17s !important;
-  }
   .orb.clearing {
     transition-duration: 0.2s !important;
-  }
-  html[data-speed='2'] .orb.moving {
-    transition-duration: 0.085s !important;
   }
   html[data-speed='2'] .orb.clearing {
     transition-duration: 0.1s !important;

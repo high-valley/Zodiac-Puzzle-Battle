@@ -27,8 +27,8 @@ export interface BoardView {
   selected(): Pos | null;
   select(pos: Pos | null): void;
   setLocked(locked: boolean): void;
-  /** 回す動き。straight は円を描かずに入れ替える（古い環境用） */
-  animateRotate(board: Board, at: Pos, direction: Direction, ms: number, straight?: boolean): Promise<void>;
+  /** 回す動き */
+  animateRotate(board: Board, at: Pos, direction: Direction, ms: number): Promise<void>;
   /** 回している途中なら、すぐ回し終える（次の入力を待たせないため） */
   finishRotate(): void;
   animateClear(cells: Pos[], ms: number): Promise<void>;
@@ -319,7 +319,7 @@ export function createBoardView(
     finishRotate() {
       for (const a of running) a.finish();
     },
-    async animateRotate(board, at, direction, ms, straight = false) {
+    async animateRotate(board, at, direction, ms) {
       const { row: r, col: c } = at;
       // 各マスの移動先。時計回り：左上→右上→右下→左下→左上
       const cw: [Pos, Pos][] = [
@@ -329,7 +329,7 @@ export function createBoardView(
         [{ row: r + 1, col: c }, { row: r, col: c }],
       ];
       const moves = direction === 'clockwise' ? cw : cw.map(([from, to]) => [to, from] as [Pos, Pos]);
-      if (typeof el.animate !== 'function' || straight) {
+      if (typeof el.animate !== 'function') {
         // 古い環境では、円を描かずにまっすぐ入れ替える
         for (const [from, to] of moves) {
           const o = orbAt(from);
