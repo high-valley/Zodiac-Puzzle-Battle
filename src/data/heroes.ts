@@ -70,8 +70,9 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♉︎',
     role: 'attacker',
     maxHpContribution: 110,
-    actions: attack('green', { red: '突進', blue: '地鳴り', green: '大地の一撃' }, ['red', 'blue']),
-    special: { name: '金牛の地響き', color: 'green', shape: 'T', power: 140, difficulty: 'normal' },
+    // 2026-11-03 緑から赤に（赤・青・緑・ピンクを3人ずつにそろえる）
+    actions: attack('red', { red: '猛進', blue: '地鳴り', green: '大地の一撃' }, ['green', 'blue']),
+    special: { name: '金牛の猛進', color: 'red', shape: 'T', power: 140, difficulty: 'normal' },
     description: '大地のように揺るがない、頼れる守り手。',
   },
   gemini: {
@@ -173,11 +174,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     name: 'みずがめ座',
     latin: 'Aquarius',
     symbol: '♒︎',
-    role: 'attacker',
-    maxHpContribution: 100,
-    actions: attack('blue', { red: '雷雲', blue: '水がめの奔流', green: '旋風' }, ['green', 'red']),
-    special: { name: '宝瓶の大奔流', color: 'blue', shape: 'line4', power: 110, difficulty: 'easy' },
-    description: '水がめからあふれる奔流で敵を押し流す、型にはまらない自由な賢者。',
+    // 2026-11-03 攻撃（青）から回復役に
+    role: 'healer',
+    maxHpContribution: 110,
+    actions: { pink: { name: '命の水', coef: 9 } },
+    special: { name: '宝瓶の慈雨', color: 'pink', shape: 'line4', power: 110, difficulty: 'easy' },
+    description: '水がめからあふれる清らかな水で仲間を癒やす、型にはまらない自由な賢者。',
   },
   pisces: {
     id: 'pisces',

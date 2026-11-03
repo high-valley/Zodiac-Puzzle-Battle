@@ -34,9 +34,9 @@ describe('12星座のデータ', () => {
     }
   });
 
-  it('攻撃10人・回復2人（かに座・おとめ座）で、必殺の形は全員ちがう', () => {
-    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'attacker')).toHaveLength(10);
-    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'healer')).toEqual(['cancer', 'virgo']);
+  it('攻撃9人・回復3人（かに座・おとめ座・みずがめ座）で、必殺の形は全員ちがう', () => {
+    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'attacker')).toHaveLength(9);
+    expect(ALL_HEROES.filter((id) => HEROES[id].role === 'healer')).toEqual(['cancer', 'virgo', 'aquarius']);
     expect(new Set(ALL_HEROES.map((id) => HEROES[id].special.shape)).size).toBe(12);
   });
 
@@ -204,6 +204,11 @@ describe('12星座の性能の決まり（仕様書 12.3）', () => {
         expect(h.special.color).not.toBe('pink');
       }
     }
+  });
+
+  it('必殺の色は 赤・青・緑・ピンク が3人ずつ（2026-11-03）', () => {
+    const count = (c: string) => ALL_HEROES.filter((id) => HEROES[id].special.color === c).length;
+    expect([count('red'), count('blue'), count('green'), count('pink')]).toEqual([3, 3, 3, 3]);
   });
 
   it('12体の必殺の形はすべて違う', () => {
