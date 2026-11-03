@@ -39,7 +39,7 @@ export function openModal(
       return;
     }
     if (e.key === 'Tab') {
-      const items = [...overlay.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex="0"]')];
+      const items = [...overlay.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), [tabindex="0"]')];
       if (items.length === 0) return;
       const i = items.indexOf(document.activeElement as HTMLElement);
       const next = e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : i === items.length - 1 ? 0 : i + 1;

@@ -3541,3 +3541,51 @@ html[data-route='result'] body::after {
     var(--orb-img) center / calc(216 / 202 * 100%) no-repeat,
     radial-gradient(circle closest-side, var(--orb) 0 96%, transparent 100%);
 }
+
+/* ───────── 回す速さの調整（開発者用） ───────── */
+.tune {
+  display: grid;
+  gap: 12px;
+  text-align: left;
+}
+.tune-row {
+  display: grid;
+  gap: 4px;
+}
+.tune-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tune-v {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+.tune input[type='range'] {
+  width: 100%;
+  min-height: 32px;
+  accent-color: var(--gold);
+}
+.tune-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+.tune-summary {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #f1c07355;
+  background: #0b1233aa;
+  font-size: 12px;
+  user-select: text;
+}
+.tune-summary b {
+  color: var(--gold);
+}
+.sheet-card .tune {
+  max-height: 60dvh;
+  overflow-y: auto;
+}
