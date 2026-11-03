@@ -1,4 +1,4 @@
-// ホーム：ロゴ・編成中の3人・冒険・編成／育成／図鑑・つづきから（仕様書 11.5）。
+// ホーム：ロゴ・編成中の仲間・冒険・編成／育成／図鑑・つづきから（仕様書 11.5）。
 // 上の帯・左右のアイコン・スタミナ・イベントのバナーは、中身が決まるまで準備中の画面へつなぐだけ（数値は出さない）
 import type { AppContext } from '../app';
 import { assetUrl } from '../components/assets';
@@ -21,10 +21,16 @@ const BOOK_ICON = '<path d="M12 6c-2-1.5-5-2-8-1.5V19c3-.5 6 0 8 1.5 2-1.5 5-2 8
 /** スタミナのアイコン（稲妻） */
 const BOLT_ICON = '<path d="M13 2L5 13h6l-1 9 8-11h-6z"/>';
 
-/** 3人の並び：まんなかが編成の1人目、左に2人目、右に3人目 */
-const SLOTS = ['c', 'l', 'r'] as const;
-/** 名前の札は見た目の順（左・まんなか・右）に並べる。読み上げも同じ順になる */
-const PLATE_ORDER = [1, 0, 2];
+/**
+ * 編成の人数ごとの並び（編成の順に、横の位置％・手前か奥か）。1人目がいちばん手前のまんなか寄り。
+ * 名前の札は見た目の順（左から）に並べ、読み上げも同じ順にする
+ */
+const FORMATION: Record<number, { x: number; back: boolean }[]> = {
+  1: [{ x: 50, back: false }],
+  2: [{ x: 38, back: false }, { x: 64, back: true }],
+  3: [{ x: 50, back: false }, { x: 25, back: true }, { x: 75, back: true }],
+  4: [{ x: 40, back: false }, { x: 63, back: false }, { x: 17, back: true }, { x: 85, back: true }],
+};
 
 const sideBtn = (id: FeatureId) => `
   <button type="button" class="side-btn${id === 'gacha' ? ' gacha' : ''}" data-feature="${id}">
@@ -33,10 +39,10 @@ const sideBtn = (id: FeatureId) => `
   </button>`;
 
 /** 立ち絵（仮）と、その後ろの星座の線画。背丈の比のまま並べる（data/heroArt） */
-function figureHtml(id: HeroId, slot: (typeof SLOTS)[number]): string {
+function figureHtml(id: HeroId, place: { x: number; back: boolean }): string {
   const a = HERO_ART[id];
   return `
-      <div class="home-figure slot-${slot}" style="--h:${artHeightRatio(id).toFixed(3)};--hx:${a.headX}" aria-hidden="true">
+      <div class="home-figure${place.back ? ' back' : ' front'}" style="--h:${artHeightRatio(id).toFixed(3)};--hx:${a.headX};--x:${place.x}%" aria-hidden="true">
         ${constellationSvg(id, '')}
         <img src="${assetUrl(a.file)}" width="${a.width}" height="${a.height}" alt="" decoding="async" draggable="false" />
       </div>`;
@@ -45,6 +51,7 @@ function figureHtml(id: HeroId, slot: (typeof SLOTS)[number]): string {
 export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   const saved = ctx.progress.battle;
   const party = ctx.party();
+  const formation = FORMATION[party.length] ?? FORMATION[3];
   const savedStage = saved ? findStage(saved.stageId) : undefined;
   const chapter = CHAPTERS[0];
   const stars = chapter.stages.reduce((sum, s) => sum + (ctx.progress.stages[s.id]?.stars ?? 0), 0);
@@ -71,10 +78,12 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <h1 class="logo"><span class="logo-ja">アストラクロニクル</span><span class="logo-en" aria-hidden="true">ASTRA CHRONICLE</span></h1>
 
     <div class="home-party">
-      ${party.map((id, i) => figureHtml(id, SLOTS[i])).join('')}
-      <ul class="home-plates" aria-label="パーティー">
-        ${PLATE_ORDER.map((i) => party[i])
-          .filter((id): id is HeroId => id !== undefined)
+      ${party.map((id, i) => figureHtml(id, formation[i])).join('')}
+      <ul class="home-plates count-${party.length}" aria-label="パーティー">
+        ${party
+          .map((id, i) => ({ id, x: formation[i].x }))
+          .sort((p, q) => p.x - q.x)
+          .map(({ id }) => id)
           .map(
             (id) => `
           <li class="home-plate">

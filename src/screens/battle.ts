@@ -31,9 +31,9 @@ export interface BattleOutcome {
   stars: number;
   newBestStars: boolean;
   newBestTurns: boolean;
-  /** 出撃した3人それぞれがもらった経験値 */
+  /** 出撃した仲間それぞれがもらった経験値 */
   exp: number;
-  /** 3人それぞれのレベル（前と後） */
+  /** 出撃した仲間それぞれのレベル（前と後） */
   growth: GrowthChange[];
   /** 開発者モードで遊んだので、記録・経験値・仲間を保存していない */
   notSaved?: boolean;
@@ -121,7 +121,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         <button type="button" class="hero hero-${id}" role="radio" data-hero="${id}">
           <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="hero-name">${HEROES[id].name}</span>
-          <span class="hero-role">${HEROES[id].role === 'healer' ? 'ピンクで回復' : '赤・青・緑で攻撃'}</span>
+          <span class="hero-role"><span class="long">${HEROES[id].role === 'healer' ? 'ピンクで回復' : '赤・青・緑で攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
         </button>`,
       ).join('')}
     </div>
@@ -323,7 +323,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       growth: [],
       joined: heroesJoinedBy(ctx.progress, stage.id, victory),
     };
-    // 経験値：出撃した3人それぞれに入る（端末に保存。課金を入れる段階でサーバーへ移す）
+    // 経験値：出撃した仲間それぞれに入る（端末に保存。課金を入れる段階でサーバーへ移す）
     const gained = applyBattleExp(recordResult(ctx.progress, stage.id, stars, victory ? turns : null), state.party, outcome.exp);
     outcome.growth = gained.growth;
     if (ctx.settings.devUnlockAll) {

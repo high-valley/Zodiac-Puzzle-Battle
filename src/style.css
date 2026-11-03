@@ -3118,22 +3118,6 @@ html[data-route='result'] .update-note {
   width: 0;
   height: calc(var(--h) * var(--s) * (100% - var(--ground) - 4px));
 }
-.home-figure.slot-c {
-  z-index: 2;
-}
-.home-figure.slot-l,
-.home-figure.slot-r {
-  --s: 0.9;
-  --ground: 40px;
-  z-index: 1;
-  filter: brightness(0.9) saturate(0.95);
-}
-.home-figure.slot-l {
-  left: 25%;
-}
-.home-figure.slot-r {
-  left: 75%;
-}
 .home-figure img {
   position: absolute;
   left: 0;
@@ -3675,4 +3659,75 @@ html[data-route='result'] body::after {
   html[data-speed='2'] .orb.clearing {
     transition-duration: 0.1s !important;
   }
+}
+
+/* ───────── 編成は1〜4人（2026-11-03） ───────── */
+/* 並ぶ数が変わるので、列の数は中身の数に合わせる */
+.heroes,
+.party-slots,
+.home-plates {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+.slot.empty.locked {
+  border-style: dashed;
+  opacity: 0.55;
+}
+.slot.empty.locked span {
+  font-size: 10px;
+  text-align: center;
+  padding: 0 4px;
+}
+/* ホームの立ち絵：人数ごとの位置は home.ts の FORMATION。奥の人は少し小さく、足もとを上げる */
+.home-figure {
+  left: var(--x, 50%);
+}
+.home-figure.front {
+  z-index: 2;
+}
+.home-figure.back {
+  --s: 0.9;
+  --ground: 40px;
+  z-index: 1;
+  filter: brightness(0.9) saturate(0.95);
+}
+/* 4人のときは名前の札を小さく */
+.home-plates.count-4 {
+  gap: 4px;
+  left: 6px;
+  right: 6px;
+}
+.home-plates.count-4 .plate-badge {
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+}
+.home-plates.count-4 .plate-text {
+  margin-left: -8px;
+  padding: 2px 4px 2px 11px;
+}
+.home-plates.count-4 .plate-name {
+  font-size: 10.5px;
+}
+.home-plates.count-4 .plate-role {
+  display: none;
+}
+/* バトルのキャラのカードも、4人なら文字を小さく */
+.heroes:has(> .hero:nth-child(4)) .hero-name {
+  font-size: 12px;
+}
+.hero-role .short {
+  display: none;
+}
+.heroes:has(> .hero:nth-child(4)) .hero-role .long {
+  display: none;
+}
+.heroes:has(> .hero:nth-child(4)) .hero-role .short {
+  display: inline;
+}
+/* 1〜2人のときは名前の札を広げすぎない */
+.home-plates {
+  grid-auto-columns: minmax(0, 200px);
+  justify-content: center;
 }

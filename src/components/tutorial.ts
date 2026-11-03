@@ -14,7 +14,7 @@ interface Step {
   tab: Tab;
   title: string;
   body: string;
-  /** 図。関数なら今の編成の3人から作る */
+  /** 図。関数なら今の編成から作る */
   figure: string | ((party: readonly HeroId[]) => string);
 }
 
@@ -41,7 +41,7 @@ const STEPS: Step[] = [
   {
     tab: 'basic',
     title: '3個そろえて行動',
-    body: '「攻撃」を押したとき、同じ色が縦か横に3個以上並んでいると消えて、選んでいるキャラが行動します（斜めは消えません）。消える所は白い輪で光ります。攻撃キャラは赤・青・緑で攻撃、回復役はピンクで回復します（編成によって3人の色の得意は違います）。落ちてきたオーブでまたそろうと連鎖です。',
+    body: '「攻撃」を押したとき、同じ色が縦か横に3個以上並んでいると消えて、選んでいるキャラが行動します（斜めは消えません）。消える所は白い輪で光ります。攻撃キャラは赤・青・緑で攻撃、回復役はピンクで回復します（キャラによって色の得意は違います）。落ちてきたオーブでまたそろうと連鎖です。',
     figure: `
       <div class="t-row" aria-hidden="true">
         ${orb('blue', 'pop')}${orb('blue', 'pop')}${orb('blue', 'pop')}${orb('green')}
@@ -58,8 +58,8 @@ const STEPS: Step[] = [
   },
   {
     tab: 'battle',
-    title: 'HPは3人で1本',
-    body: '3回まで回して「攻撃」で1ターン。ターンの終わりに敵が攻撃してきます。パーティーのHPは3人で1本です。毎ターン行動するキャラを1人選び、敵のHPを0にすれば勝ちです。',
+    title: 'HPは仲間みんなで1本',
+    body: '3回まで回して「攻撃」で1ターン。ターンの終わりに敵が攻撃してきます。パーティーのHPは出撃した仲間みんなで1本です。毎ターン行動するキャラを1人選び、敵のHPを0にすれば勝ちです。',
     figure: `
       <div class="t-hp" aria-hidden="true">
         <div class="bar party-bar"><span class="fill" style="--ratio:.7"></span></div>

@@ -30,7 +30,7 @@ export interface Progress {
   stages: Record<string, StageRecord>;
   /** 途中のバトル（なければ null） */
   battle: SavedBattle | null;
-  /** 次に出撃する3人（編成画面で決める） */
+  /** 次に出撃する仲間（編成画面で決める） */
   party: HeroId[];
   /** キャラごとのレベルと経験値（無いキャラはレベル1） */
   heroes: Partial<Record<HeroId, HeroGrowth>>;
@@ -60,14 +60,14 @@ export function joinedHeroes(progress: Progress, joined = (id: HeroId) => isHero
 }
 
 /**
- * 出撃する3人。保存した編成にまだ仲間でないキャラがいれば（開発者モードで組んだ編成を、モードを切ったあとなど）、最初の編成にする。
+ * 出撃する仲間。保存した編成にまだ仲間でないキャラがいれば（開発者モードで組んだ編成を、モードを切ったあとなど）、最初の編成にする。
  * joined は開発者モードのときに差し替える
  */
 export function activeParty(progress: Progress, joined = (id: HeroId) => isHeroJoined(progress, id)): HeroId[] {
   return progress.party.every(joined) ? [...progress.party] : DEFAULT_PARTY.map((m) => m.id);
 }
 
-/** 出撃する3人を、それぞれのレベルつきで */
+/** 出撃する仲間を、それぞれのレベルつきで */
 export function partyMembers(progress: Progress, joined = (id: HeroId) => isHeroJoined(progress, id)): PartyMember[] {
   return activeParty(progress, joined).map((id) => ({ id, level: heroGrowth(progress, id).level }));
 }
@@ -96,7 +96,7 @@ export function isBattleState(v: unknown): v is BattleState {
     if (!Array.isArray(row) || row.length !== BOARD_SIZE) return false;
     if (!row.every((c) => (ORB_COLORS as readonly unknown[]).includes(c))) return false;
   }
-  // 出撃した3人が編成のルールに合い、選んでいるキャラがその中にいること
+  // 出撃した仲間が編成のルールに合い、選んでいるキャラがその中にいること
   if (!Array.isArray(s.party) || s.party.some((m) => typeof m !== 'object' || m === null)) return false;
   const party = s.party as PartyMember[];
   if (partyProblem(party) !== null) return false;
@@ -189,7 +189,7 @@ export interface GrowthChange {
 }
 
 /**
- * 出撃した3人（バトルを始めたときの編成。今の編成ではない）それぞれに経験値を足した新しい進行を返す。
+ * 出撃した仲間（バトルを始めたときの編成。今の編成ではない）それぞれに経験値を足した新しい進行を返す。
  * 端末に保存する。報酬をサーバーで確定させる段階で、この処理はサーバーへ移す（仕様書 12.4）
  */
 export function applyBattleExp(

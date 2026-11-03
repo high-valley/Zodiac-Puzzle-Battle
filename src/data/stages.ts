@@ -8,7 +8,7 @@ export interface StageDef {
   enemyId: string;
   /** ★2：このターン数以内で勝つ */
   targetTurns: number;
-  /** 勝ったときに出撃した3人それぞれがもらう経験値（負けると一部だけ。src/data/growth.ts） */
+  /** 勝ったときに出撃した仲間それぞれがもらう経験値（負けると一部だけ。src/data/growth.ts） */
   exp: number;
 }
 

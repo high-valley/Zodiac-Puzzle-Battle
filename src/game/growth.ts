@@ -9,7 +9,7 @@ export interface HeroGrowth {
 
 export const NEW_HERO: HeroGrowth = { level: 1, exp: 0 };
 
-/** 1戦でもらえる経験値（出撃した3人それぞれに入る） */
+/** 1戦でもらえる経験値（出撃した仲間それぞれに入る） */
 export function battleExp(stageExp: number, victory: boolean): number {
   return victory ? stageExp : Math.floor(stageExp * DEFEAT_EXP_RATIO);
 }

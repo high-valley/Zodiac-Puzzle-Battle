@@ -59,12 +59,19 @@ describe('編成のルール', () => {
     expect(() => createBattle(1, 'stardust', [m('cancer'), m('virgo'), m('aquarius')])).toThrow();
   });
 
-  it('3人・同じキャラは1人まで・攻撃キャラが1人以上（1回の編成に入れる回復役は0〜2人）', () => {
+  it('1〜4人・同じキャラは1人まで・攻撃キャラが1人以上（組み方は自由。2026-11-03）', () => {
     expect(partyProblem(DEFAULT_PARTY)).toBeNull();
     expect(partyProblem([m('aries'), m('leo'), m('cancer')])).toBeNull();
     expect(partyProblem([m('aries'), m('leo'), m('taurus')])).toBeNull(); // 攻撃3人（攻撃特化）
     expect(partyProblem([m('leo'), m('cancer'), m('virgo')])).toBeNull(); // 攻撃1人＋回復2人
-    expect(partyProblem([m('aries'), m('virgo')])).toBe('size');
+    expect(partyProblem([m('aries'), m('virgo')])).toBeNull(); // 2人でもよい
+    expect(partyProblem([m('leo')])).toBeNull(); // 攻撃1人だけでもよい
+    expect(partyProblem([m('aries'), m('sagittarius'), m('libra'), m('virgo')])).toBeNull(); // 赤・青・緑・回復の4人
+    expect(partyProblem([m('aries'), m('cancer'), m('virgo'), m('aquarius')])).toBeNull(); // 攻撃1人＋回復3人
+    expect(partyProblem([m('aries'), m('leo'), m('taurus'), m('scorpio')])).toBeNull(); // 回復なし
+    expect(partyProblem([])).toBe('size');
+    expect(partyProblem([m('aries'), m('leo'), m('taurus'), m('scorpio'), m('libra')])).toBe('size');
+    expect(partyProblem([m('virgo')])).toBe('noAttacker');
     expect(partyProblem([m('aries'), m('aries'), m('virgo')])).toBe('duplicate');
     expect(partyProblem([m('aries'), m('leo'), m('virgo', 0)])).toBe('level');
     expect(partyProblem([m('aries'), m('leo'), m('virgo', MAX_LEVEL + 1)])).toBe('level');
@@ -73,6 +80,7 @@ describe('編成のルール', () => {
 
   it('ルールに合わない編成では戦闘を始められない', () => {
     expect(() => createBattle(1, 'stardust', [m('cancer'), m('virgo')])).toThrow();
+    expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus'), m('virgo')]).partyMaxHp).toBe(420);
     expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus')]).partyMaxHp).toBe(310);
   });
 
