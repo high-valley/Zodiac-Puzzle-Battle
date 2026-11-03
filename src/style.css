@@ -3674,3 +3674,19 @@ html[data-route='result'] body::after {
 .board:has(.star.on) .star:not(.on) {
   opacity: 0.45;
 }
+
+/* パズルの動き（回す・消える・落ちる）は「視差効果を減らす」でも、ふつうと同じ速さで見せる（2026-11-03 ユーザーの決定） */
+@media (prefers-reduced-motion: reduce) {
+  .orb.moving {
+    transition-duration: 0.17s !important;
+  }
+  .orb.clearing {
+    transition-duration: 0.2s !important;
+  }
+  html[data-speed='2'] .orb.moving {
+    transition-duration: 0.085s !important;
+  }
+  html[data-speed='2'] .orb.clearing {
+    transition-duration: 0.1s !important;
+  }
+}

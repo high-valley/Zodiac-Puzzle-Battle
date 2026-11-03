@@ -60,8 +60,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   const sound = ctx.sound;
   // 演出の待ち時間。「はやい」なら半分、動きを減らす設定ならごく短く
   const ms = (n: number) => (reduceMotion.matches ? Math.min(n, 60) : n / ctx.settings.speed);
-  // 回す動きを減らすか。開発者画面で速さを試しているときは、端末の「視差効果を減らす」がオンでも回して見せる
-  const reduceRotation = () => reduceMotion.matches && !ctx.settings.devRotate;
+  // パズルの動き（回す・消える・落ちる）は、端末の「視差効果を減らす」に関係なく、だれでも同じ速さで見せる
+  // （2026-11-03 ユーザーの決定。どう動いたかが分かることはパズルに欠かせないため）。演出 ×2 では半分
+  const puzzleMs = (n: number) => n / ctx.settings.speed;
 
   container.innerHTML = `
   <main class="battle">
@@ -143,7 +144,6 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     // 指に合わせて動かしてよいとき（攻撃の演出中・回せる回数を使い切ったときは動かさない）
     () => !busy && !disposed && state.status === 'playing' && pending.length < MAX_ROTATIONS_PER_TURN,
     () => rotateTuningOf(ctx.settings),
-    reduceRotation,
   );
   $('.board-wrap').prepend(board.el);
 
@@ -266,9 +266,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       }
       case 'clear':
         if (ev.chain > 1) popup('.enemy-popups', `${ev.chain}連鎖`, 'chain');
-        await board.animateClear(ev.cells, ms(200));
+        await board.animateClear(ev.cells, puzzleMs(200));
         // 補充は目で追える速さで（演出 ×2 なら半分）
-        await board.animateDrop(ev.board, ev.cells, ms(380));
+        await board.animateDrop(ev.board, ev.cells, puzzleMs(380));
         break;
       case 'heal':
         hp.party = ev.partyHp;
@@ -367,7 +367,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     renderTurnBar();
     try {
       // 回す動きは目で追える速さに（演出 ×2 なら半分）
-      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, reduceRotation() ? 60 : rotateTuningOf(ctx.settings).buttonMs / ctx.settings.speed, reduceRotation());
+      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, puzzleMs(rotateTuningOf(ctx.settings).buttonMs));
     } finally {
       rotating = false;
       done();
