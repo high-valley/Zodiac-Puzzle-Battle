@@ -703,28 +703,6 @@ button:focus-visible {
   /* 字間の分だけ右にずれるので戻す */
   margin-right: -0.32em;
 }
-.logo-sub {
-  margin: 8px 0 0;
-  text-align: center;
-  font-size: 13px;
-  color: var(--ink-soft);
-  letter-spacing: 0.08em;
-}
-.home-heroes {
-  list-style: none;
-  margin: 5vh 0 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-.home-hero {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  padding-bottom: 4px;
-}
 .constellation-art {
   width: 100%;
   aspect-ratio: 1;
@@ -737,29 +715,6 @@ button:focus-visible {
 .c-stars circle {
   fill: #fff;
   filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 4px var(--gold));
-}
-.home-hero-symbol {
-  margin-top: -8px;
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid #f1c07399;
-  background: var(--sky);
-  color: var(--gold);
-  font-size: 20px;
-}
-.home-hero-name {
-  margin-top: 6px;
-  font-weight: 700;
-  font-size: 14px;
-}
-.home-hero-role {
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--ink-soft);
-  white-space: nowrap;
 }
 .home-actions {
   margin-top: auto;
@@ -1577,10 +1532,6 @@ html[data-speed='2'] .popup {
   display: none !important;
 }
 
-/* ホーム：3人を上下の真ん中あたりに置く */
-.home .home-heroes {
-  margin-block: auto;
-}
 
 /* 背の低い端末（iPhone SE など）：敵の欄と説明を縮めて、盤面の大きさを保つ（仕様書 11.9） */
 @media (max-height: 740px) {
@@ -2370,17 +2321,9 @@ html[data-speed='2'] .popup {
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
-/* 左右のアイコン列とキャラが重ならないように、キャラの列を内側に寄せる */
-.home .home-heroes {
-  padding: 0 44px;
-  min-height: 236px;
-}
 @media (min-width: 700px) and (min-height: 900px) {
   .home .logo {
     font-size: 40px;
-  }
-  .home .home-heroes {
-    padding: 0 64px;
   }
 }
 .stamina {
@@ -2623,10 +2566,6 @@ html[data-speed='2'] .popup {
 
 /* 背の低い端末（iPhone SE など）：ホームのキャラの欄を縮めて、冒険のボタンまでを1画面に */
 @media (max-height: 740px) {
-  .home .home-heroes {
-    min-height: 0;
-    margin-block: 8px;
-  }
   .home .logo {
     margin-top: 2px;
   }
@@ -3124,4 +3063,410 @@ html[data-route='result'] .update-note {
 .board.refilling .orbs {
   overflow: hidden;
   border-radius: 16px;
+}
+
+/* ═════════ ホームの作り込み（2026-11-03。目指す見た目 10-target-home、仕様書 11.5） ═════════ */
+.home-stage {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.home .logo {
+  position: relative;
+  margin-top: 6px;
+}
+/* ロゴのまわりの小さな星 */
+.home .logo::before,
+.home .logo::after {
+  content: '';
+  position: absolute;
+  background: var(--star4) center / contain no-repeat;
+  filter: drop-shadow(0 0 4px #f1c073aa);
+}
+.home .logo::before {
+  width: 18px;
+  height: 18px;
+  top: -6px;
+  right: 54px;
+}
+.home .logo::after {
+  width: 12px;
+  height: 12px;
+  bottom: 4px;
+  left: 56px;
+}
+
+/* 編成中の3人：背丈の比のまま並べ、まんなかのリーダーを手前に（立ち絵は仮）。
+   高さは欄の高さに対する割合（絶対配置の % は欄の高さが基準） */
+.home-party {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 230px;
+  margin: 2px -16px 0;
+  overflow: clip;
+}
+.home-party::before {
+  content: '';
+  position: absolute;
+  inset: 8% 10% 10%;
+  background: radial-gradient(closest-side, #43518a88, transparent);
+  pointer-events: none;
+}
+.home-figure {
+  --ground: 30px;
+  --s: 1;
+  position: absolute;
+  left: 50%;
+  bottom: var(--ground);
+  width: 0;
+  height: calc(var(--h) * var(--s) * (100% - var(--ground) - 4px));
+}
+.home-figure.slot-c {
+  z-index: 2;
+}
+.home-figure.slot-l,
+.home-figure.slot-r {
+  --s: 0.9;
+  --ground: 40px;
+  z-index: 1;
+  filter: brightness(0.9) saturate(0.95);
+}
+.home-figure.slot-l {
+  left: 25%;
+}
+.home-figure.slot-r {
+  left: 75%;
+}
+.home-figure img {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  translate: calc(var(--hx) * -100%) 0;
+  user-select: none;
+  -webkit-user-drag: none;
+  filter: drop-shadow(0 4px 10px #0009);
+}
+/* キャラの後ろに、その星座の線画 */
+.home-figure .constellation-art {
+  position: absolute;
+  left: 0;
+  bottom: 52%;
+  width: auto;
+  height: 56%;
+  aspect-ratio: 1;
+  max-height: 240px;
+  translate: -50% 0;
+  opacity: 0.75;
+}
+
+/* 名前の札：星座記号の丸いバッジ（必殺の色）＋ 名前と役割 */
+.home-plates {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  z-index: 3;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.home-plate {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.home-plate.slot-l {
+  order: 1;
+}
+.home-plate.slot-c {
+  order: 2;
+}
+.home-plate.slot-r {
+  order: 3;
+}
+.hp-badge {
+  position: relative;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  background: radial-gradient(circle at 40% 32%, var(--orb-light), var(--orb) 50%, var(--orb-deep));
+  box-shadow:
+    0 0 0 2px #0d1638,
+    0 0 8px var(--orb-glow);
+  color: #fff;
+  font-size: 16px;
+  text-shadow: 0 1px 2px #0008;
+}
+.hp-text {
+  flex: 1;
+  min-width: 0;
+  margin-left: -10px;
+  padding: 3px 8px 3px 14px;
+  display: grid;
+  line-height: 1.2;
+  border: 1px solid var(--gold-deep);
+  border-left: 0;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(90deg, #1e2a58f2, #141d48e6);
+}
+.hp-name,
+.hp-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hp-name {
+  font-size: 12px;
+  font-weight: 700;
+}
+.hp-meta {
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 左右のアイコン：金の二重線の菱形 */
+.home .side-col {
+  top: 0;
+  gap: 0;
+  z-index: 4;
+}
+.home .side-btn {
+  width: 56px;
+  min-height: 62px;
+}
+.home .side-icon {
+  width: 34px;
+  height: 34px;
+  margin-top: 9px;
+  border-radius: 3px;
+  border: 1px solid var(--gold);
+  background: linear-gradient(135deg, #2c3a74, #141d48);
+  box-shadow:
+    inset 0 0 0 2px #141d48,
+    inset 0 0 0 3px #f1c07366,
+    0 2px 8px #0009;
+}
+.home .side-label {
+  margin-top: 8px;
+  text-shadow:
+    0 1px 2px #000,
+    0 0 6px #0d1638;
+}
+.home .side-btn.gacha .side-icon {
+  border-color: var(--gold-hi);
+  background: radial-gradient(circle at 50% 40%, #8a6ad8, #3a2a7a 70%);
+  box-shadow:
+    inset 0 0 0 2px #3a2a7a,
+    inset 0 0 0 3px #fce5a799,
+    0 0 14px #f1c07399;
+}
+.home .side-btn.gacha .side-icon svg {
+  stroke: var(--gold-hi);
+}
+
+/* 上の帯：アイコンと名前の札 */
+.home .player-avatar {
+  border: 1.5px solid var(--gold);
+  box-shadow:
+    0 0 0 2px #0d1638,
+    0 0 0 3px #d49b5988;
+}
+.home .player-text {
+  padding: 2px 14px 2px 10px;
+  border: 1px solid #d49b5988;
+  border-radius: 0 999px 999px 0;
+  margin-left: -6px;
+  background: #141d48cc;
+}
+
+/* 冒険：金の大きな主ボタン。上下に星、左右に金の曲線 */
+.adventure-wrap {
+  position: relative;
+  padding: 0 18px;
+}
+.adventure-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -14px -16px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 100' preserveAspectRatio='none'%3E%3Cg fill='none' stroke-linecap='round' vector-effect='non-scaling-stroke'%3E%3Cpath d='M0 66C34 34 70 84 118 50' stroke='%23d49b59' stroke-width='1.4' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M0 78C42 56 78 92 122 62' stroke='%23f1c073' stroke-opacity='.5' stroke-width='1' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M400 66C366 34 330 84 282 50' stroke='%23d49b59' stroke-width='1.4' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M400 78C358 56 322 92 278 62' stroke='%23f1c073' stroke-opacity='.5' stroke-width='1' vector-effect='non-scaling-stroke'/%3E%3C/g%3E%3C/svg%3E")
+    center / 100% 100% no-repeat;
+}
+.home .adventure {
+  position: relative;
+  width: 100%;
+  padding: 14px 16px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--gold-hi);
+  background:
+    linear-gradient(112deg, transparent 0 28%, #ffffff55 36%, transparent 44%),
+    repeating-linear-gradient(60deg, #ffffff14 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(-60deg, #a8722f14 0 1px, transparent 1px 26px),
+    linear-gradient(180deg, #fce5a7 0%, #f1c073 45%, #c98f45 100%);
+  color: #2a1e10;
+  box-shadow:
+    inset 0 0 0 2px #e7b464,
+    inset 0 0 0 3.5px #fff3cf,
+    inset 0 -8px 14px #a8722f55,
+    0 0 0 2px #0d1638,
+    0 0 0 3px var(--gold-deep),
+    0 8px 24px #f1c07340;
+}
+.home .adventure::before,
+.home .adventure::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  translate: -50% 0;
+  background: var(--star4) center / contain no-repeat;
+  filter: drop-shadow(0 0 4px #fce5a7);
+}
+.home .adventure::before {
+  top: -13px;
+}
+.home .adventure::after {
+  bottom: -13px;
+}
+.home .adventure-label {
+  font-size: 28px;
+  text-shadow: 0 1px 0 #fff3cf;
+}
+
+/* 編成・育成・図鑑：アイコンと文字を横に並べた、金の二重線の四角いボタン */
+.home .round-btn {
+  grid-auto-flow: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 50px;
+  padding: 0 6px;
+  border-radius: 14px;
+  border: 1px solid var(--gold-deep);
+  background: var(--panel);
+  box-shadow:
+    inset 0 0 0 2px #1a2552,
+    inset 0 0 0 3px #f1c07340;
+}
+.home .rb-icon {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* スタミナ：稲妻のアイコン */
+.home .stamina {
+  grid-template-columns: auto auto 1fr auto;
+  padding: 4px 14px 4px 4px;
+  border-color: var(--gold-deep);
+}
+.stamina-icon {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--gold);
+  background: #141d48;
+}
+.stamina-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: var(--gold);
+}
+
+/* 期間限定イベントのバナー：夜の海（建物は描かない。仕様書 11.1） */
+.home .event-banner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  align-content: end;
+  min-height: 84px;
+  padding: 10px 16px;
+  border-color: var(--gold-deep);
+  background: #0d1638;
+  box-shadow:
+    inset 0 0 0 2px #0d163899,
+    inset 0 0 0 3px #f1c07355;
+}
+.eb-sea {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1px 1px at 14% 18%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 33% 34%, #fffc 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 47% 14%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 72% 24%, #fffc 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 88% 12%, #fff 50%, transparent 51%),
+    radial-gradient(1px 1px at 92% 40%, #fff9 50%, transparent 51%),
+    radial-gradient(1px 1px at 58% 42%, #fff9 50%, transparent 51%),
+    radial-gradient(34% 26% at 66% 62%, #fce5a7bb, #f1c07333 55%, transparent 75%),
+    linear-gradient(180deg, transparent 0 62%, #0a1236 62% 100%),
+    linear-gradient(180deg, #0d1638 0%, #1f2a62 40%, #45478a 62%);
+}
+/* 海に映る光の筋 */
+.eb-sea::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 62%;
+  bottom: 0;
+  background:
+    linear-gradient(90deg, transparent 56%, #fce5a755 62%, #fce5a7aa 66%, #fce5a755 70%, transparent 76%),
+    repeating-linear-gradient(180deg, transparent 0 3px, #f1c07326 3px 4px);
+  -webkit-mask-image: repeating-linear-gradient(180deg, #000 0 2px, #0006 2px 5px);
+  mask-image: repeating-linear-gradient(180deg, #000 0 2px, #0006 2px 5px);
+}
+.home .eb-tag,
+.home .eb-title {
+  text-shadow: 0 1px 3px #000c;
+}
+
+/* 背の低い端末（iPhone SE など）：3人の欄を縮め、左右のアイコンを詰めて名前の札にかからないように */
+@media (max-height: 740px) {
+  .home-party {
+    min-height: 186px;
+  }
+  .home .side-btn {
+    min-height: 50px;
+  }
+  .home .side-icon {
+    width: 28px;
+    height: 28px;
+    margin-top: 6px;
+  }
+  .home .side-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+  .home .side-label {
+    margin-top: 6px;
+    font-size: 9px;
+  }
+  .home .adventure {
+    padding-block: 10px 8px;
+  }
+  .home .round-btn {
+    min-height: 44px;
+  }
 }
