@@ -6,7 +6,7 @@ import { createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game
 import { rotate2x2 } from '../src/game/board';
 import { findMatches } from '../src/game/matching';
 import { detectHeroSpecial } from '../src/game/specials';
-import type { BattleState, Direction, HeroId, TurnAction } from '../src/game/types';
+import type { BattleState, Direction, TurnAction } from '../src/game/types';
 import { QUIET_ROWS, boardToStrings, parseBoard, stateWith } from './helpers';
 
 // 強攻撃のない敵で、ふつうの攻撃だけを確かめる
