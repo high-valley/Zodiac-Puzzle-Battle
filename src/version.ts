@@ -35,7 +35,8 @@ export function parseBuildInfo(v: unknown): BuildInfo | null {
 /** 公開されている最新の版。読めなければ null（オフラインなど） */
 export async function fetchLatestBuild(): Promise<BuildInfo | null> {
   try {
-    const res = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    const base = import.meta.env?.BASE_URL ?? '';
+    const res = await fetch(`${base}version.json?t=${Date.now()}`, { cache: 'no-store' });
     if (!res.ok) return null;
     return parseBuildInfo(await res.json());
   } catch {
@@ -43,9 +44,17 @@ export async function fetchLatestBuild(): Promise<BuildInfo | null> {
   }
 }
 
-/** 最新の版を読み直す（ページのキャッシュを避けるため、URL に版の印を付けて開き直す） */
+/**
+ * 読み直す先の URL。ページのキャッシュを避けるため、毎回違う印（版と時刻）を付ける。
+ * 同じ URL に移ると、# がある URL ではブラウザが読み直さないため。画面の位置（#/...）は残す
+ */
+export function latestUrl(href: string, latest: BuildInfo | null, now: number): string {
+  const url = new URL(href);
+  url.searchParams.set('v', `${latest?.id ?? 'x'}-${now}`);
+  return url.toString();
+}
+
+/** 最新の版を読み直す */
 export function reloadToLatest(latest: BuildInfo | null): void {
-  const url = new URL(location.href);
-  url.searchParams.set('v', latest?.id ?? String(Date.now()));
-  location.replace(url.toString());
+  location.replace(latestUrl(location.href, latest, Date.now()));
 }

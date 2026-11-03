@@ -141,6 +141,8 @@ export function mountApp(root: HTMLElement): void {
     container.className = 'screen';
     root.append(container);
     let route = hashToRoute(location.hash);
+    // 画面の種類（起動時の「新しい版」の帯を、バトルとリザルトでは出さないため）
+    document.documentElement.dataset.route = route.name;
 
     // 開いていないステージや、結果のないリザルトには入れない
     if (route.name === 'battle') {

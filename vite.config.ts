@@ -8,12 +8,16 @@ const BUILD_ID = (process.env.GITHUB_SHA ?? 'local').slice(0, 7);
 const BUILD_TIME = new Date().toISOString();
 
 // GitHub Pages のプロジェクトページ（https://high-valley.github.io/Zodiac-Puzzle-Battle/）に合わせる
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   base: '/Zodiac-Puzzle-Battle/',
-  define: {
-    __BUILD_ID__: JSON.stringify(BUILD_ID),
-    __BUILD_TIME__: JSON.stringify(BUILD_TIME),
-  },
+  // 版の印はビルドのときだけ埋め込む（開発サーバーとテストでは「開発版」と出す）
+  define:
+    command === 'build'
+      ? {
+          __BUILD_ID__: JSON.stringify(BUILD_ID),
+          __BUILD_TIME__: JSON.stringify(BUILD_TIME),
+        }
+      : {},
   plugins: [
     {
       // 公開している版を、アプリから確かめられるようにする（version.json はキャッシュせずに読む）
@@ -26,4 +30,4 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
   },
-});
+}));

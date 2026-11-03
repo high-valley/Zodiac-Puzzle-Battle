@@ -3076,9 +3076,10 @@ body::after {
 .update-note {
   position: fixed;
   left: 50%;
-  top: max(8px, env(safe-area-inset-top));
+  /* 下のタブバーのすぐ上（上の帯のボタンをふさがない）。メニューやシートより下 */
+  bottom: calc(76px + env(safe-area-inset-bottom));
   translate: -50% 0;
-  z-index: 30;
+  z-index: 15;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3101,6 +3102,11 @@ body::after {
   font-weight: 700;
   padding: 0 12px;
   cursor: pointer;
+}
+/* バトル中とリザルトでは出さない（操作の邪魔をしない。リザルトで読み直すと結果の表示が消えるため） */
+html[data-route='battle'] .update-note,
+html[data-route='result'] .update-note {
+  display: none;
 }
 .update-note .u-close {
   min-width: 36px;
