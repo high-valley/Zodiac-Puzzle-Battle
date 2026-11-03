@@ -40,9 +40,9 @@ export interface AppContext {
   heroJoined(id: HeroId): boolean;
   /** 遊べるステージか（開発者モードでは全部） */
   stageOpen(stageId: string): boolean;
-  /** 出撃する3人（まだ仲間でないキャラがいれば最初の編成） */
+  /** 出撃する仲間（まだ仲間でないキャラがいれば最初の編成） */
   party(): HeroId[];
-  /** 途中のバトルを続けられるか（ステージが開いていて、出撃した3人がみな仲間） */
+  /** 途中のバトルを続けられるか（ステージが開いていて、出撃した仲間がみな仲間） */
   canResume(): boolean;
 }
 

@@ -47,7 +47,7 @@ export interface BattleStats {
 
 export interface BattleState {
   board: Board;
-  /** 出撃した3人（バトルの間は変わらない） */
+  /** 出撃した仲間（バトルの間は変わらない） */
   party: PartyMember[];
   selectedHero: HeroId;
   turn: number;

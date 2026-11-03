@@ -1,6 +1,6 @@
 // 編成のルールとレベルによる強さ（純粋な関数）
 import { MAX_LEVEL, levelPercent } from '../data/growth';
-import { HEROES, PARTY_SIZE, isHeroId } from '../data/heroes';
+import { HEROES, PARTY_MAX, PARTY_MIN, isHeroId } from '../data/heroes';
 import type { HeroId, PartyMember } from './types';
 
 export type PartyProblem = 'size' | 'duplicate' | 'unknown' | 'level' | 'noAttacker';
@@ -9,14 +9,14 @@ export type PartyProblem = 'size' | 'duplicate' | 'unknown' | 'level' | 'noAttac
 export type RoleOf = (id: HeroId) => 'attacker' | 'healer';
 
 /**
- * 編成のルール：3人、同じキャラは1人まで、攻撃キャラが1人以上（1回の編成に入れる回復役は0〜2人。仕様書 12.5）。
+ * 編成のルール：1〜4人、同じキャラは1人まで、攻撃キャラが1人以上（組み方は自由。仕様書 12.5）。
  * 問題がなければ null。roleOf はテストで役割を差し替えるためのもの
  */
 export function partyProblem(
   party: readonly PartyMember[],
   roleOf: RoleOf = (id) => HEROES[id].role,
 ): PartyProblem | null {
-  if (party.length !== PARTY_SIZE) return 'size';
+  if (party.length < PARTY_MIN || party.length > PARTY_MAX) return 'size';
   if (party.some((m) => typeof m !== 'object' || m === null)) return 'unknown';
   if (party.some((m) => !isHeroId(m.id))) return 'unknown';
   if (new Set(party.map((m) => m.id)).size !== party.length) return 'duplicate';
@@ -26,7 +26,7 @@ export function partyProblem(
 }
 
 export const PARTY_PROBLEM_TEXT: Record<PartyProblem, string> = {
-  size: `${PARTY_SIZE}人選んでください`,
+  size: `${PARTY_MIN}〜${PARTY_MAX}人で組んでください`,
   duplicate: '同じキャラは1人までです',
   unknown: '知らないキャラがいます',
   level: 'レベルがおかしいキャラがいます',
@@ -43,7 +43,7 @@ export function heroMaxHp(id: HeroId, level: number): number {
   return scaled(HEROES[id].maxHpContribution, level);
 }
 
-/** パーティー最大HP = 3人の寄与値（レベル込み）の合計 */
+/** パーティー最大HP = 出撃する仲間の寄与値（レベル込み）の合計 */
 export function partyMaxHp(party: readonly PartyMember[]): number {
   return party.reduce((sum, m) => sum + heroMaxHp(m.id, m.level), 0);
 }
