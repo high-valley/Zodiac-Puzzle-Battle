@@ -3467,3 +3467,66 @@ html[data-route='result'] .update-note {
     display: none;
   }
 }
+
+/* ═════════ 背景とオーブの絵（2026-11-03。仕様書 18.3。ユーザーが画像生成で作ったもの） ═════════ */
+/* 背景：画面ごとの絵。縦横比の違う端末では、まんなかを残して端を切る（cover）。読み込めないあいだは紺のグラデーション。
+   body の地の色を透明にする（html にも同じ色があり、body に色があると、z-index: -1 の背景の層が body の地の下に隠れていた） */
+body {
+  background: transparent;
+}
+body::after {
+  background:
+    url('/art/bg/home.webp') center / cover no-repeat,
+    linear-gradient(180deg, #0d1638 0%, #131c3f 35%, #1e2a54 100%);
+}
+html[data-route='battle'] body::after {
+  background:
+    url('/art/bg/battle.webp') center / cover no-repeat,
+    linear-gradient(180deg, #0d1638 0%, #131c3f 35%, #1e2a54 100%);
+}
+html[data-route='quest'] body::after {
+  background:
+    url('/art/bg/quest.webp') center / cover no-repeat,
+    linear-gradient(180deg, #0d1638 0%, #131c3f 35%, #1e2a54 100%);
+}
+html[data-route='result'] body::after {
+  background:
+    url('/art/bg/result.webp') center / cover no-repeat,
+    linear-gradient(180deg, #0d1638 0%, #131c3f 35%, #1e2a54 100%);
+}
+
+/* オーブ：絵の宝珠（記号も絵に入っている）。まわりのやわらかい光はアプリで付ける */
+.orb::before {
+  inset: 4%;
+  background: var(--orb-img) center / contain no-repeat;
+  box-shadow: 0 0 9px 1px var(--orb-glow);
+}
+.orb-red {
+  --orb-img: url('/art/orbs/red.webp');
+}
+.orb-blue {
+  --orb-img: url('/art/orbs/blue.webp');
+}
+.orb-green {
+  --orb-img: url('/art/orbs/green.webp');
+}
+.orb-pink {
+  --orb-img: url('/art/orbs/pink.webp');
+}
+.orb .orb-symbol {
+  display: none;
+}
+.orb.special::before {
+  box-shadow:
+    0 0 0 3px var(--gold),
+    0 0 18px 4px #f1c073aa;
+}
+/* 遊び方の図のオーブも同じ絵に（記号の文字は絵に入っているので見せない） */
+.t-orb {
+  color: transparent;
+  text-shadow: none;
+}
+.t-orb::before {
+  inset: 1px;
+  background: var(--orb-img) center / contain no-repeat;
+}
