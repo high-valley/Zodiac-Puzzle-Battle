@@ -53,11 +53,10 @@ describe('12星座のデータ', () => {
 });
 
 describe('編成のルール', () => {
-  it('攻撃キャラのいない編成は noAttacker（回復役が3人いたとしたら）', () => {
-    // 今の回復役は2人なので、しし座も回復役として扱う役割の引き方を渡す
-    const roleOf = (id: HeroId) => (id === 'leo' ? 'healer' : HEROES[id].role);
-    expect(partyProblem([m('cancer'), m('virgo'), m('leo')], roleOf)).toBe('noAttacker');
-    expect(partyProblem([m('cancer'), m('virgo'), m('aries')], roleOf)).toBeNull();
+  it('攻撃キャラのいない編成（回復役3人）は noAttacker で、戦闘も始められない', () => {
+    expect(partyProblem([m('cancer'), m('virgo'), m('aquarius')])).toBe('noAttacker');
+    expect(partyProblem([m('cancer'), m('virgo'), m('aries')])).toBeNull();
+    expect(() => createBattle(1, 'stardust', [m('cancer'), m('virgo'), m('aquarius')])).toThrow();
   });
 
   it('3人・同じキャラは1人まで・攻撃キャラが1人以上（1回の編成に入れる回復役は0〜2人）', () => {
@@ -165,6 +164,7 @@ describe('編成とレベルの保存', () => {
     expect(read({ party: ['cancer', 'virgo'] }).party).toEqual(emptyProgress().party); // 2人しかいない
     expect(read({ party: ['aries', 'leo', 'taurus'] }).party).toEqual(['aries', 'leo', 'taurus']); // 攻撃3人は組める
     expect(read({ party: ['aries', 'aries', 'virgo'] }).party).toEqual(emptyProgress().party);
+    expect(read({ party: ['cancer', 'virgo', 'aquarius'] }).party).toEqual(emptyProgress().party); // 回復役だけ
     expect(read({ party: ['aries', 'nobody', 'virgo'] }).party).toEqual(emptyProgress().party);
     expect(read({ heroes: { leo: { level: 0, exp: 0 } } }).heroes).toEqual({});
     expect(read({ heroes: { leo: { level: MAX_LEVEL + 1, exp: 0 } } }).heroes).toEqual({});
