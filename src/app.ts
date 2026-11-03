@@ -10,6 +10,7 @@ import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
 import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
 import { DEV_TOOLS } from './data/devTools';
+import { CURRENT_BUILD, buildLabel, fetchLatestBuild, reloadToLatest } from './version';
 import type { HeroId } from './game/types';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from './storage/settings';
 import { hashToRoute, routeToHash, tabOf, type Route, type Tab } from './routes';
@@ -140,6 +141,8 @@ export function mountApp(root: HTMLElement): void {
     container.className = 'screen';
     root.append(container);
     let route = hashToRoute(location.hash);
+    // 画面の種類（起動時の「新しい版」の帯を、バトルとリザルトでは出さないため）
+    document.documentElement.dataset.route = route.name;
 
     // 開いていないステージや、結果のないリザルトには入れない
     if (route.name === 'battle') {
@@ -228,8 +231,26 @@ export function mountApp(root: HTMLElement): void {
         <div class="sheet-grid">
           ${FEATURE_IDS.map((id) => `<button type="button" class="text-btn m-feature" data-id="${id}">${featureShortName(id)}</button>`).join('')}
         </div>
+        <section class="version-box" aria-label="アプリの版">
+          <p class="v-now">今の版：${buildLabel(CURRENT_BUILD)}</p>
+          <p class="v-latest" aria-live="polite">公開されている最新の版を確かめています…</p>
+          <button type="button" class="text-btn wide v-update">最新の版に更新する</button>
+        </section>
         <button type="button" class="primary-btn m-close">とじる</button>
       </div>`;
+    // 公開されている最新の版と比べる（読み直すと最新の版が読み込まれる）
+    const latestText = modal.overlay.querySelector('.v-latest') as HTMLElement;
+    let latestBuild: Awaited<ReturnType<typeof fetchLatestBuild>> = null;
+    void fetchLatestBuild().then((latest) => {
+      latestBuild = latest;
+      if (!latest) latestText.textContent = '最新の版を確かめられませんでした（通信できないときなど）';
+      else if (latest.id === CURRENT_BUILD.id) latestText.textContent = 'これが最新の版です';
+      else {
+        latestText.textContent = `新しい版があります：${buildLabel(latest)}`;
+        latestText.classList.add('newer');
+      }
+    });
+    modal.overlay.querySelector('.v-update')?.addEventListener('click', () => reloadToLatest(latestBuild));
     modal.overlay.querySelector('.m-book')?.addEventListener('click', () => {
       modal.close();
       ctx.navigate({ name: 'book' });
@@ -260,4 +281,16 @@ export function mountApp(root: HTMLElement): void {
   document.documentElement.toggleAttribute('data-dev', settings.devUnlockAll);
   window.addEventListener('popstate', render);
   render();
+
+  // 起動したときに、公開されている版が新しければ、画面の上に知らせる（バトル中でも邪魔にならない小さな帯）
+  void fetchLatestBuild().then((latest) => {
+    if (!latest || latest.id === CURRENT_BUILD.id || CURRENT_BUILD.id === 'dev') return;
+    const note = document.createElement('div');
+    note.className = 'update-note';
+    note.setAttribute('role', 'status');
+    note.innerHTML = `<span>新しい版があります</span><button type="button" class="u-go">更新する</button><button type="button" class="u-close" aria-label="とじる">×</button>`;
+    note.querySelector('.u-go')?.addEventListener('click', () => reloadToLatest(latest));
+    note.querySelector('.u-close')?.addEventListener('click', () => note.remove());
+    document.body.append(note);
+  });
 }
