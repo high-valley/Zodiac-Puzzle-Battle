@@ -42,6 +42,7 @@ export interface BattleOutcome {
 }
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+const COLOR_JA = { red: '赤', blue: '青', green: '緑', pink: 'ピンク' } as const;
 const wait = (n: number) => new Promise<void>((resolve) => setTimeout(resolve, n));
 
 export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: string): () => void {
@@ -54,7 +55,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   let pending: Rotation[] = resuming ? [...saved.pending] : [];
   let rotating = false;
   const enemy = enemyOf(state);
-  let hero: HeroId = state.selectedHero;
+  // 下に必殺の形を出している仲間（押して切り替える。行動するキャラを選ぶものではない。全員が同時に行動する：仕様書 12.7）
+  let focus: HeroId = state.party[0].id;
   let busy = false;
   let disposed = false;
   const sound = ctx.sound;
@@ -115,13 +117,13 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       </button>
     </div>
 
-    <div class="heroes" role="radiogroup" aria-label="このターンに行動するキャラ">
+    <div class="heroes" aria-label="仲間（全員が同時に行動する。押すと必殺の形を見る）">
       ${state.party.map(
         ({ id }) => `
-        <button type="button" class="hero hero-${id}" role="radio" data-hero="${id}">
+        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-pressed="false" aria-label="${HEROES[id].name}（${COLOR_JA[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）の必殺を見る">
           <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="hero-name">${HEROES[id].name}</span>
-          <span class="hero-role"><span class="long">${HEROES[id].role === 'healer' ? 'ピンクで回復' : '赤・青・緑で攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
+          <span class="hero-role"><span class="hero-dot orb-${HEROES[id].special.color}" aria-hidden="true"></span><span class="long">${COLOR_JA[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
         </button>`,
       ).join('')}
     </div>
@@ -174,11 +176,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     return pending.reduce((b, r) => rotate2x2(b, r.row, r.col, r.direction), state.board);
   }
 
-  /** 「攻撃」で消える3個並びと、選んでいるキャラの必殺の形に印をつける */
+  /** 「攻撃」で消える3個並びと、仲間全員の必殺の形に印をつける */
   function renderMarks() {
     const b = previewBoard();
     const clear = maskToCells(matchedMask(findMatches(b)));
-    const special = detectHeroSpecial(b, hero)?.cells ?? [];
+    const special = state.party.flatMap((m) => detectHeroSpecial(b, m.id)?.cells ?? []);
     board.mark(clear, special);
   }
 
@@ -211,13 +213,24 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   function renderHero() {
     container.querySelectorAll<HTMLElement>('.hero').forEach((el) => {
-      const on = el.dataset.hero === hero;
-      el.setAttribute('aria-checked', String(on));
+      const on = el.dataset.hero === focus;
+      el.setAttribute('aria-pressed', String(on));
       el.classList.toggle('active', on);
     });
-    $('.special-shape').innerHTML = specialPreviewSvg(hero);
-    $('.special-name').textContent = HEROES[hero].special.name;
-    battleEl.setAttribute('data-hero', hero);
+    $('.special-shape').innerHTML = specialPreviewSvg(focus);
+    $('.special-name').textContent = HEROES[focus].special.name;
+    battleEl.setAttribute('data-hero', focus);
+  }
+
+  /** この段で動いた仲間のカードを光らせる */
+  function flashActors(ids: HeroId[]) {
+    container.querySelectorAll<HTMLElement>('.hero').forEach((el) => {
+      el.classList.remove('acting');
+      if (ids.includes(el.dataset.hero as HeroId)) {
+        void el.offsetWidth;
+        el.classList.add('acting');
+      }
+    });
   }
 
   function renderSettings() {
@@ -241,7 +254,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     busy = value;
     board.setLocked(value);
     // ターンの演出中はメニューも止める（途中でリタイアや遊び方を開くと、背後で勝敗が決まってしまう）
-    container.querySelectorAll<HTMLButtonElement>('.rotate-btn, .hero, .menu').forEach((b) => (b.disabled = value));
+    // 仲間のカードは必殺の形を見るだけなので止めない（行動の演出で光らせる）
+    container.querySelectorAll<HTMLButtonElement>('.rotate-btn, .menu').forEach((b) => (b.disabled = value));
     renderTurnBar();
   }
 
@@ -266,6 +280,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       }
       case 'clear':
         if (ev.chain > 1) popup('.enemy-popups', `${ev.chain}連鎖`, 'chain');
+        // 自分の色が消えた仲間が動く（全員が同時に行動する）
+        flashActors(ev.actors.map((a) => a.heroId));
         await board.animateClear(ev.cells, puzzleMs(200));
         // 補充は目で追える速さで（演出 ×2 なら半分）
         await board.animateDrop(ev.board, ev.cells, puzzleMs(380));
@@ -391,7 +407,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     pending = [];
     setBusy(true);
     try {
-      const turn = resolveTurn(state, { hero, rotations });
+      const turn = resolveTurn(state, { rotations });
       const hp = { enemy: state.enemyHp, party: state.partyHp };
       const special = turnHasSpecial(turn.events);
       // 状態は先に進めて保存しておく（勝敗が決まったら、ここで記録まで済ませる）。
@@ -493,16 +509,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   container.querySelectorAll<HTMLButtonElement>('.hero').forEach((b) =>
     b.addEventListener('click', () => {
-      if (busy) return;
-      hero = b.dataset.hero as HeroId;
-      // 選んだキャラも保存する（再読み込みしても、選んだキャラと金の輪がそのまま戻るように）
-      if (state.status === 'playing') {
-        state = { ...state, selectedHero: hero };
-        ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state, pending } });
-      }
+      // 下に出す必殺の形を切り替えるだけ（行動するキャラは選ばない）
+      focus = b.dataset.hero as HeroId;
       renderHero();
-      // 回している途中は、オーブの並びが動いているので印は付けない（回し終えたときに付け直す）
-      if (!rotating) renderMarks();
       sound.play({ name: 'select' });
     }),
   );

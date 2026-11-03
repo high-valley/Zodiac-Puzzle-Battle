@@ -48,7 +48,7 @@ describe('cueForEvent', () => {
   it('必殺が出たターンだけ、攻撃・回復の音が強くなる', () => {
     const quiet = ['RBGPR', 'GPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
     const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
-    const move = { hero: 'aries' as const, rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
+    const move = { rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
     const withSpecial = resolveTurn(stateWith(createBattle(1), redL), move).events;
     const withoutSpecial = resolveTurn(stateWith(createBattle(1), quiet), move).events;
     expect(turnHasSpecial(withSpecial)).toBeTruthy();

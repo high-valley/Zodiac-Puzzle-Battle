@@ -3731,3 +3731,30 @@ html[data-route='result'] body::after {
   grid-auto-columns: minmax(0, 200px);
   justify-content: center;
 }
+
+/* ───────── 仲間全員が同時に行動する（2026-11-03。仕様書 12.7） ───────── */
+/* カードは「だれの必殺の形を見ているか」と、動いた仲間を光らせる表示 */
+.hero-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--orb);
+  box-shadow: 0 0 4px var(--orb-glow);
+  vertical-align: 0.05em;
+}
+.hero.acting {
+  animation: hero-acting 0.6s ease-out;
+}
+@keyframes hero-acting {
+  0% {
+    box-shadow:
+      0 0 0 2px var(--gold-hi),
+      0 0 22px var(--gold);
+    translate: 0 -4px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}

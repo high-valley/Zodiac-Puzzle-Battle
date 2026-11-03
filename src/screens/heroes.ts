@@ -6,7 +6,7 @@ import { ORB_LABEL } from '../components/board';
 import { ROLE_TEXT, heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { specialPreviewSvg } from '../components/specialPreview';
 import { MAX_LEVEL, expToNext, levelMultiplier } from '../data/growth';
-import { ALL_HEROES, HEROES } from '../data/heroes';
+import { ALL_HEROES, HEROES, TRAIT_LABEL } from '../data/heroes';
 import { heroMaxHp, scaled } from '../game/party';
 import { SHAPE_LABEL } from '../game/specials';
 import type { HeroId, OrbColor } from '../game/types';
@@ -68,7 +68,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
         <span class="hero-badge" aria-hidden="true">${h.symbol}</span>
         <h2>${h.name}</h2>
         <p class="hero-latin">${h.latin}</p>
-        <p class="hero-role-text">${ROLE_TEXT[h.role]}</p>
+        <p class="hero-role-text">${h.role === 'healer' ? ROLE_TEXT.healer : `${ORB_LABEL[h.special.color]}で攻撃`}</p>
       </div>
     </section>
     <p class="hero-desc">${h.description}</p>
@@ -100,6 +100,16 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
           .join('')}
       </dl>
     </section>
+
+    ${
+      h.trait
+        ? `<section class="panel" aria-labelledby="trait-title">
+      <h3 id="trait-title" class="panel-title">特性</h3>
+      <p class="sp-name">${TRAIT_LABEL[h.trait].name}</p>
+      <p class="sp-text">${TRAIT_LABEL[h.trait].text}</p>
+    </section>`
+        : ''
+    }
 
     <section class="panel special-panel" aria-labelledby="sp-title">
       <h3 id="sp-title" class="panel-title">必殺技</h3>

@@ -96,11 +96,10 @@ export function isBattleState(v: unknown): v is BattleState {
     if (!Array.isArray(row) || row.length !== BOARD_SIZE) return false;
     if (!row.every((c) => (ORB_COLORS as readonly unknown[]).includes(c))) return false;
   }
-  // 出撃した仲間が編成のルールに合い、選んでいるキャラがその中にいること
+  // 出撃した仲間が編成のルールに合うこと（前の版の selectedHero は使わない。仕様書 12.7）
   if (!Array.isArray(s.party) || s.party.some((m) => typeof m !== 'object' || m === null)) return false;
   const party = s.party as PartyMember[];
   if (partyProblem(party) !== null) return false;
-  if (!party.some((m) => m.id === s.selectedHero)) return false;
   if (typeof s.enemyId !== 'string' || !ENEMIES[s.enemyId]) return false;
   const enemy = ENEMIES[s.enemyId];
   if (!isInt(s.turn, 1)) return false;

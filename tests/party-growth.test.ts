@@ -19,13 +19,12 @@ describe('12星座のデータ', () => {
     for (const id of ALL_HEROES) expect(HEROES[id].id).toBe(id);
   });
 
-  it('攻撃キャラは赤・青・緑で攻撃し、係数の合計は31（得意な色が12）。回復キャラはピンクだけで回復', () => {
+  it('攻撃キャラは自分の色（必殺の色）だけで攻撃し、係数は12。回復キャラはピンクだけで回復（仕様書 12.7）', () => {
     for (const id of ALL_HEROES) {
       const h = HEROES[id];
       if (h.role === 'attacker') {
-        expect(Object.keys(h.actions).sort()).toEqual(['blue', 'green', 'red']);
-        const coefs = Object.values(h.actions).map((a) => a!.coef);
-        expect(coefs.reduce((s, c) => s + c, 0)).toBe(31);
+        expect(Object.keys(h.actions)).toEqual([h.special.color]);
+        expect(h.actions[h.special.color]!.coef).toBe(12);
         expect(h.special.color === 'pink').toBeFalsy();
       } else {
         expect(Object.keys(h.actions)).toEqual(['pink']);
@@ -84,10 +83,10 @@ describe('編成のルール', () => {
     expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus')]).partyMaxHp).toBe(310);
   });
 
-  it('編成にいないキャラでは行動できない', () => {
+  it('行動するキャラは選ばない（出撃した仲間全員が同時に行動する。仕様書 12.7）', () => {
     const state = createBattle(1, 'stardust', [m('leo'), m('scorpio'), m('cancer')]);
-    expect(() => resolveTurn(state, { hero: 'aries', rotations: [{ row: 0, col: 0, direction: 'clockwise' }] })).toThrow();
-    expect(() => resolveTurn(state, { hero: 'leo', rotations: [{ row: 0, col: 0, direction: 'clockwise' }] })).not.toThrow();
+    expect(() => resolveTurn(state, { rotations: [{ row: 0, col: 0, direction: 'clockwise' }] })).not.toThrow();
+    expect('selectedHero' in state).toBe(false);
   });
 });
 
@@ -114,11 +113,12 @@ describe('レベルによる強さ', () => {
   });
 
   it('通常効果と必殺の威力はレベルで伸びる', () => {
-    const counts = { red: 3, blue: 0, green: 0, pink: 0 };
-    expect(normalEffect('aries', counts, 1, 11).damage).toBe(Math.round(12 * 3 * 1.5));
+    // 特性のないさそり座で確かめる
+    const counts = { red: 0, blue: 3, green: 0, pink: 0 };
+    expect(normalEffect('scorpio', counts, 1, 11).damage).toBe(Math.round(12 * 3 * 1.5));
     // 赤L字の盤面で、レベル1とレベル11の必殺のダメージをくらべる
     const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
-    const action = { hero: 'aries' as const, rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
+    const action = { rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
     const special = (level: number) => {
       const s = stateWith(createBattle(1, 'shadow', [m('aries', level), m('sagittarius'), m('virgo')]), redL);
       const ev = resolveTurn(s, action).events.find((e) => e.type === 'special');
@@ -241,12 +241,12 @@ describe('途中のバトルの編成', () => {
     expect(b?.state.partyMaxHp).toBe(partyMaxHp([m('leo', 7), m('scorpio'), m('pisces', 3)]));
   });
 
-  it('同じキャラが2人いる・選んでいるキャラが編成にいない・壊れた編成は捨てる', () => {
+  it('同じキャラが2人いる・壊れた編成は捨てる（前の版の selectedHero は見ない）', () => {
     const s = base();
     expect(saved({ ...s, party: [m('cancer'), m('virgo'), m('virgo')], selectedHero: 'cancer', partyMaxHp: 330, partyHp: 330 })).toBeNull();
     // 攻撃3人の途中バトルは読み込める
     expect(saved({ ...s, party: [m('leo'), m('scorpio'), m('taurus')], selectedHero: 'leo', partyMaxHp: 300, partyHp: 300 })?.state.party).toHaveLength(3);
-    expect(saved({ ...s, selectedHero: 'aries' })).toBeNull();
+    expect(saved({ ...s, selectedHero: 'aries' })?.state.party).toHaveLength(3);
     expect(saved({ ...s, party: [null, m('scorpio'), m('pisces')] })).toBeNull();
     expect(saved({ ...s, party: 'leo' })).toBeNull();
   });
@@ -255,8 +255,8 @@ describe('途中のバトルの編成', () => {
     const { party: _drop, ...old } = createBattle(9, 'stardust');
     const b = saved(old);
     expect(b?.state.party).toEqual(DEFAULT_PARTY.map((x) => ({ ...x })));
-    // 最初の編成にいないキャラを選んでいたものは捨てる
-    expect(saved({ ...old, selectedHero: 'leo' })).toBeNull();
+    // 前の版で選んでいたキャラ（selectedHero）は見ない
+    expect(saved({ ...old, selectedHero: 'leo' })?.state.party).toEqual(DEFAULT_PARTY.map((x) => ({ ...x })));
   });
 });
 

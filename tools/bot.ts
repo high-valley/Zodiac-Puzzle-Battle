@@ -4,11 +4,11 @@ import { MAX_ROTATIONS_PER_TURN } from '../src/data/balance';
 import { HEROES } from '../src/data/heroes';
 import { MAX_INTERSECTION, rotate2x2 } from '../src/game/board';
 import { enemyOf, normalEffect } from '../src/game/combat';
-import { memberLevel, scaled } from '../src/game/party';
+import { scaled } from '../src/game/party';
 import { findMatches, matchedMask, maskToCells } from '../src/game/matching';
 import { nextInt } from '../src/game/rng';
 import { SHAPES, detectHeroSpecial } from '../src/game/specials';
-import type { BattleState, Board, Direction, HeroId, OrbColor, Rotation, TurnAction } from '../src/game/types';
+import type { BattleState, Board, Direction, HeroId, OrbColor, PartyMember, Rotation, TurnAction } from '../src/game/types';
 
 /**
  * random：1〜3回でたらめに回す（初めて遊ぶ人の下限の目安）
@@ -37,19 +37,22 @@ export function nextEnemyAttack(state: BattleState): number {
   return enemy.heavy && state.enemyChargeIn === 1 ? enemy.heavy.attack : enemy.attack;
 }
 
-/** 回し終えた盤面で「攻撃」したときの効果の見積もり（連鎖は数えない） */
-export function estimate(board: Board, hero: HeroId, level = 1): { damage: number; heal: number; special: boolean } {
-  const def = HEROES[hero];
-  const special = detectHeroSpecial(board, hero) !== null;
+/** 回し終えた盤面で「攻撃」したときの、仲間全員の効果の見積もり（連鎖は数えない。全員が同時に行動する。仕様書 12.7） */
+export function estimate(board: Board, party: readonly PartyMember[]): { damage: number; heal: number; special: boolean } {
   const counts: Record<OrbColor, number> = { red: 0, blue: 0, green: 0, pink: 0 };
   for (const p of maskToCells(matchedMask(findMatches(board)))) counts[board[p.row][p.col]]++;
-  const effect = normalEffect(hero, counts, 1, level);
-  const sp = special ? scaled(def.special.power, level) : 0;
-  return {
-    damage: effect.damage + (def.role === 'attacker' ? sp : 0),
-    heal: effect.heal + (def.role === 'healer' ? sp : 0),
-    special,
-  };
+  let damage = 0;
+  let heal = 0;
+  let special = false;
+  for (const m of party) {
+    const def = HEROES[m.id];
+    const e = normalEffect(m.id, counts, 1, m.level);
+    const sp = detectHeroSpecial(board, m.id) !== null ? scaled(def.special.power, m.level) : 0;
+    if (sp > 0) special = true;
+    damage += e.damage + (def.role === 'attacker' ? sp : 0);
+    heal += e.heal + (def.role === 'healer' ? sp : 0);
+  }
+  return { damage, heal, special };
 }
 
 /** 必殺の形に、そのキャラの色が最大で何個そろっているか */
@@ -81,10 +84,9 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
 
   const party = state.party.map((m) => m.id);
   if (level === 'random') {
-    const hero = party[rand(party.length)];
     const count = 1 + rand(MAX_ROTATIONS_PER_TURN);
     const rotations = [...Array(count)].map(() => ROTATIONS[rand(ROTATIONS.length)]);
-    return { action: { hero, rotations }, seed: s };
+    return { action: { rotations }, seed: s };
   }
 
   const missing = state.partyMaxHp - state.partyHp;
@@ -92,66 +94,63 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
   // 次の敵の攻撃を受けたあとに残るHPの割合が低いほど、回復の価値を上げる
   const afterHit = (state.partyHp - attack) / state.partyMaxHp;
   const healWeight = afterHit < 0.25 ? 3 : afterHit < 0.5 ? 1.5 : 0.6;
-  const value = (board: Board, hero: HeroId) => {
-    const e = estimate(board, hero, memberLevel(state.party, hero));
+  const value = (board: Board) => {
+    const e = estimate(board, state.party);
     const finishing = e.damage >= state.enemyHp ? 10_000 : 0;
     return finishing + e.damage + Math.min(e.heal, missing) * healWeight;
   };
-  // 形があと1〜2個でそろうなら、その盤面を少し高く見る（次の回転・次のターンで必殺を狙う）
-  const withProgress = (board: Board, hero: HeroId) => {
-    const p = shapeProgress(board, hero);
-    const bonus = p.count >= p.size ? 0 : p.count === p.size - 1 ? 40 : p.count === p.size - 2 ? 12 : 0;
-    return value(board, hero) + bonus;
+  // だれかの形があと1〜2個でそろうなら、その盤面を少し高く見る（次の回転・次のターンで必殺を狙う）
+  const withProgress = (board: Board) => {
+    let bonus = 0;
+    for (const hero of party) {
+      const p = shapeProgress(board, hero);
+      bonus += p.count >= p.size ? 0 : p.count === p.size - 1 ? 40 : p.count === p.size - 2 ? 12 : 0;
+    }
+    return value(board) + bonus;
   };
 
-  let best: { action: TurnAction; score: number } | null = null;
-  for (const hero of party) {
-    let plan: { rotations: Rotation[]; board: Board };
-    if (level === 'skilled') {
-      plan = { rotations: [], board: state.board };
-      let current = -Infinity;
-      for (let step = 0; step < MAX_ROTATIONS_PER_TURN; step++) {
-        let stepBest: { r: Rotation; board: Board; score: number } | null = null;
-        for (const r of ROTATIONS) {
-          const board = rotate2x2(plan.board, r.row, r.col, r.direction);
-          const score = withProgress(board, hero) + rand(1000) / 100_000;
-          if (!stepBest || score > stepBest.score) stepBest = { r, board, score };
-        }
-        // 1回目は必ず回す。2回目からは良くなるときだけ回す
-        if (step > 0 && stepBest!.score <= current) break;
-        plan = { rotations: [...plan.rotations, stepBest!.r], board: stepBest!.board };
-        current = stepBest!.score;
+  let plan: { rotations: Rotation[]; board: Board };
+  if (level === 'skilled') {
+    plan = { rotations: [], board: state.board };
+    let current = -Infinity;
+    for (let step = 0; step < MAX_ROTATIONS_PER_TURN; step++) {
+      let stepBest: { r: Rotation; board: Board; score: number } | null = null;
+      for (const r of ROTATIONS) {
+        const board = rotate2x2(plan.board, r.row, r.col, r.direction);
+        const score = withProgress(board) + rand(1000) / 100_000;
+        if (!stepBest || score > stepBest.score) stepBest = { r, board, score };
       }
-    } else {
-      // expert：3回までの回し方を幅優先で調べる（同じ盤面は1度だけ）
-      const key = (b: Board) => b.map((row) => row.map((c) => c[0]).join('')).join('');
-      let layer = [{ rotations: [] as Rotation[], board: state.board }];
-      const seen = new Set([key(state.board)]);
-      plan = layer[0];
-      let bestScore = -Infinity;
-      for (let depth = 0; depth < MAX_ROTATIONS_PER_TURN; depth++) {
-        const next: typeof layer = [];
-        for (const node of layer) {
-          for (const r of ROTATIONS) {
-            const board = rotate2x2(node.board, r.row, r.col, r.direction);
-            const k = key(board);
-            if (seen.has(k)) continue;
-            seen.add(k);
-            const item = { rotations: [...node.rotations, r], board };
-            next.push(item);
-            const score = withProgress(board, hero);
-            if (score > bestScore) {
-              bestScore = score;
-              plan = item;
-            }
+      // 1回目は必ず回す。2回目からは良くなるときだけ回す
+      if (step > 0 && stepBest!.score <= current) break;
+      plan = { rotations: [...plan.rotations, stepBest!.r], board: stepBest!.board };
+      current = stepBest!.score;
+    }
+  } else {
+    // expert：3回までの回し方を幅優先で調べる（同じ盤面は1度だけ）
+    const key = (b: Board) => b.map((row) => row.map((c) => c[0]).join('')).join('');
+    let layer = [{ rotations: [] as Rotation[], board: state.board }];
+    const seen = new Set([key(state.board)]);
+    plan = layer[0];
+    let bestScore = -Infinity;
+    for (let depth = 0; depth < MAX_ROTATIONS_PER_TURN; depth++) {
+      const next: typeof layer = [];
+      for (const node of layer) {
+        for (const r of ROTATIONS) {
+          const board = rotate2x2(node.board, r.row, r.col, r.direction);
+          const k = key(board);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          const item = { rotations: [...node.rotations, r], board };
+          next.push(item);
+          const score = withProgress(board);
+          if (score > bestScore) {
+            bestScore = score;
+            plan = item;
           }
         }
-        layer = next;
       }
+      layer = next;
     }
-    // キャラどうしは、形の途中経過を入れない「この攻撃の効果」で比べる
-    const score = value(plan.board, hero) + withProgress(plan.board, hero) / 1000 + rand(1000) / 1e7;
-    if (!best || score > best.score) best = { action: { hero, rotations: plan.rotations }, score };
   }
-  return { action: best!.action, seed: s };
+  return { action: { rotations: plan.rotations }, seed: s };
 }

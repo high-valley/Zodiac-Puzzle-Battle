@@ -95,3 +95,13 @@ export function releaseDuration(
   const bySpeed = (arc / Math.max(speed, ROTATE_ANIM.releaseMinSpeed)) * k;
   return Math.round(Math.min(hi, Math.max(lo, bySpeed)));
 }
+
+/** キャラ特性の強さ（仕様書 12.8。数値は仮） */
+export const TRAITS = {
+  /** 先陣：そのターン最初の消去（連鎖1段目）に自分の色があれば、その段のダメージをこの倍に */
+  vanguardMultiplier: 1.8,
+  /** 量：一度に消した自分の色が3個を超えた1個ごとに、その段のダメージを増やす割合（3個で1倍、5個で1.5倍） */
+  massPerExtra: 0.25,
+  /** 連鎖：連鎖倍率の伸びをこれに替える（ふつうは 0.25。2連鎖で1.5倍、4連鎖で2.5倍） */
+  chainStep: 0.5,
+};

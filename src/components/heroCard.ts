@@ -3,7 +3,7 @@ import { HERO_JOIN, HEROES } from '../data/heroes';
 import { findStage } from '../data/stages';
 import type { HeroId } from '../game/types';
 
-export const ROLE_TEXT = { attacker: '赤・青・緑で攻撃', healer: 'ピンクで回復' } as const;
+export const ROLE_TEXT = { attacker: '自分の色で攻撃', healer: 'ピンクで回復' } as const;
 export const ROLE_SHORT = { attacker: 'アタッカー', healer: 'ヒーラー' } as const;
 /** 狭い所（ホームの名前の札）での呼び方 */
 export const ROLE_PLATE = { attacker: '攻撃役', healer: '回復役' } as const;

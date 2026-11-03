@@ -49,7 +49,6 @@ export interface BattleState {
   board: Board;
   /** 出撃した仲間（バトルの間は変わらない） */
   party: PartyMember[];
-  selectedHero: HeroId;
   turn: number;
   partyHp: number;
   partyMaxHp: number;
@@ -73,12 +72,19 @@ export interface Rotation {
 }
 
 /**
- * 1ターンの操作：行動するキャラと、1〜3回の回転（MAX_ROTATIONS_PER_TURN）。
- * 回している間は何も消えず、「攻撃」で確定したときに必殺と消去が起きる
+ * 1ターンの操作：1〜3回の回転（MAX_ROTATIONS_PER_TURN）。
+ * 回している間は何も消えず、「攻撃」で確定したときに必殺と消去が起きる。
+ * 出撃した仲間は全員が同時に行動し、各キャラは自分の色のオーブが消えたときだけ動く（仕様書 12.7）
  */
 export interface TurnAction {
-  hero: HeroId;
   rotations: Rotation[];
+}
+
+/** 1段の消去で動いたキャラと、その量 */
+export interface Actor {
+  heroId: HeroId;
+  damage: number;
+  heal: number;
 }
 
 export interface MatchGroup {
@@ -122,6 +128,8 @@ export type BattleEvent =
       cells: Pos[];
       /** 通常マッチで消した色ごとの個数（通常効果の計算に使う。必殺だけで消えた分は含めない） */
       counts: Record<OrbColor, number>;
+      /** この段で動いたキャラ（自分の色が消えたキャラ） */
+      actors: Actor[];
       damage: number;
       heal: number;
       /** 落下・補充した後の盤面 */
