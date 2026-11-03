@@ -214,23 +214,36 @@ export function isHeroId(id: unknown): id is HeroId {
 }
 
 /**
- * 仲間になる条件：そのステージを初めてクリアすると加入する（null は最初からいる）。仕様書 12.6。
- * まだ無い章のステージ（2-1 など）は、その章を作るまで加入できない
+ * 仲間になる条件（仕様書 12.6）。
+ * - 'start'：最初からいる
+ * - { stageId }：そのステージを初めてクリアすると加入する。まだ無い章のステージは、その章を作るまで加入できない
+ * - 'later'：ストーリーの区切りに合わせて、章の構成を決めるときに決める（それまでは加入しない）
  */
-export const HERO_JOIN_STAGE: Record<HeroId, string | null> = {
-  aries: null,
-  sagittarius: null,
-  virgo: null,
-  cancer: '1-1',
-  gemini: '1-2',
-  leo: '1-3',
-  libra: '1-4',
-  scorpio: '1-5',
-  taurus: '2-1',
-  capricorn: '2-2',
-  aquarius: '2-3',
-  pisces: '2-4',
+export type HeroJoin = 'start' | 'later' | { stageId: string };
+
+export const HERO_JOIN: Record<HeroId, HeroJoin> = {
+  aries: 'start',
+  sagittarius: 'start',
+  virgo: 'start',
+  // 最初の新しい仲間は第2章の最後（第2章のステージ数は未定。5つなら 2-5）
+  leo: { stageId: '2-5' },
+  taurus: 'later',
+  gemini: 'later',
+  cancer: 'later',
+  libra: 'later',
+  scorpio: 'later',
+  capricorn: 'later',
+  aquarius: 'later',
+  pisces: 'later',
 };
+
+/** そのステージで加入するキャラ */
+export function joinersOf(stageId: string, table: Record<HeroId, HeroJoin> = HERO_JOIN): HeroId[] {
+  return ALL_HEROES.filter((id) => {
+    const j = table[id];
+    return typeof j === 'object' && j.stageId === stageId;
+  });
+}
 
 /** 最初の編成 */
 export const DEFAULT_PARTY: readonly PartyMember[] = [
