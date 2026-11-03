@@ -697,7 +697,7 @@ button:focus-visible {
 }
 .logo-en {
   margin-top: 2px;
-  font-size: 0.32em;
+  font-size: max(0.32em, 10px);
   font-weight: 700;
   letter-spacing: 0.32em;
   /* 字間の分だけ右にずれるので戻す */
@@ -2365,8 +2365,8 @@ html[data-speed='2'] .popup {
 }
 .home .logo {
   padding: 0 46px;
-  /* 9文字が左右のアイコン列の間に収まる大きさ（列の幅 − 余白 − アイコン列 ≒ 100vw − 140px） */
-  font-size: clamp(20px, calc((100vw - 140px) / 9.8), 40px);
+  /* 9文字が左右のアイコン列の間に収まる大きさ（列の幅 − 余白 − アイコン列 ≒ 列の幅 − 140px） */
+  font-size: clamp(18px, calc((min(100vw, var(--col)) - 140px) / 9.8), 40px);
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
