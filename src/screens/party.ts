@@ -59,10 +59,14 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
       b.setAttribute('aria-label', `${h.name}を外す`);
       b.innerHTML = `${heroCardInner(id, level(id))}<span class="slot-special">${specialOrbsHtml(id)}</span>`;
       b.addEventListener('click', () => {
+        const at = picked.indexOf(id);
         picked = picked.filter((x) => x !== id);
         ctx.sound.play({ name: 'select' });
         save();
         render();
+        // 押した枠が消えるので、同じ位置の枠（なければ一覧のそのキャラ）にフォーカスを移す
+        const next = slots.children[at] as HTMLElement | undefined;
+        (next?.tagName === 'BUTTON' ? next : (roster.querySelector(`.hero-card[data-id="${id}"]`) as HTMLElement | null))?.focus();
       });
       slotEls.set(id, b);
     }
@@ -93,8 +97,11 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
       if (picked.includes(id)) picked = picked.filter((x) => x !== id);
       else if (picked.length < open) picked = [...picked, id];
       else {
-        status.textContent = `${open}人そろっています。先に外すキャラを、上の枠かこの一覧で押してください`;
+        // 続けて押しても読み上げられるよう、一度空にしてから入れる
+        status.textContent = '';
+        status.classList.remove('warn');
         status.classList.add('bad');
+        requestAnimationFrame(() => (status.textContent = `${open}人そろっています。先に外すキャラを、上の枠かこの一覧で押してください`));
         return;
       }
       ctx.sound.play({ name: 'select' });
