@@ -3837,3 +3837,129 @@ html[data-route='result'] body::after {
   max-width: 50%;
   top: 72%;
 }
+
+/* ───────── 仲間の必殺の形（回転ボタンのかわり。本物のオーブで並べる。2026-11-04） ───────── */
+.specials {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
+.special-item {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 4px 6px;
+  border-radius: 12px;
+  background: #0b0f2ea6;
+  border: 1px solid #f1c07340;
+}
+.mini-shape {
+  --cell: 15px;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-template-rows: repeat(var(--rows), var(--cell));
+  gap: 1px;
+}
+.specials[data-n='1'] .mini-shape,
+.specials[data-n='2'] .mini-shape {
+  --cell: 21px;
+}
+.specials[data-n='3'] .mini-shape {
+  --cell: 17px;
+}
+.mini-orb {
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 50%;
+  background:
+    var(--orb-img) center / calc(216 / 202 * 100%) no-repeat,
+    radial-gradient(circle closest-side, var(--orb, #888) 0 92%, transparent 100%);
+  filter: drop-shadow(0 0 3px var(--orb-glow, #fff6));
+}
+.mini-dot {
+  width: var(--cell);
+  height: var(--cell);
+  background: radial-gradient(circle, #ffffff3d 0 11%, transparent 15%);
+}
+.special-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+.special-owner {
+  margin-right: 3px;
+  color: var(--gold);
+}
+.special-item.pulse {
+  animation: special-pulse 0.7s ease-out;
+}
+@keyframes special-pulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--gold-hi), 0 0 18px var(--gold);
+    background: #26305fe6;
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* ───────── バトル突入の画面（絵を読み込むあいだ。2026-11-04） ───────── */
+.battle-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 45%, #1b2560 0%, #0b0f2e 70%);
+  transition: opacity 0.28s ease-out;
+}
+.battle-intro.out {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-band {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 22px 16px;
+  border-block: 1px solid #f1c07399;
+  background: linear-gradient(90deg, transparent, #f1c0731f 30%, #f1c0732e 50%, #f1c0731f 70%, transparent);
+  animation: intro-band 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.intro-stage {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+.intro-title {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-shadow: 0 2px 10px #000c, 0 0 24px #f1c07366;
+}
+.intro-enemy {
+  font-size: 15px;
+  color: #fff;
+}
+@keyframes intro-band {
+  from {
+    transform: scaleX(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}

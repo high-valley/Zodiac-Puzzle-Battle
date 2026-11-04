@@ -198,3 +198,6 @@ export const FX_TIMING = {
   special: 820,
   constellation: 700,
 };
+
+/** バトル突入の画面（ms）。絵の読み込みを待つ最長・最短の表示・消える時間 */
+export const BATTLE_INTRO = { maxMs: 1500, minMs: 650, fadeMs: 280 };

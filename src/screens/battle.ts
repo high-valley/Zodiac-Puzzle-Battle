@@ -2,17 +2,17 @@
 import type { AppContext } from '../app';
 import { cueForEvent, turnHasSpecial } from '../audio/cues';
 import { ORB_LABEL, createBoardView } from '../components/board';
-import { assetUrl } from '../components/assets';
+import { assetUrl, BATTLE_IMAGES, preloadImages } from '../components/assets';
 import { createFx } from '../components/effects';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
-import { specialPreviewSvg } from '../components/specialPreview';
+import { specialOrbsHtml } from '../components/specialPreview';
 import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
 import { rotateTuningOf } from '../storage/settings';
 import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { DEV_TOOLS } from '../data/devTools';
 import { HERO_ART } from '../data/heroArt';
-import { CUTIN_ART, FX_TIMING } from '../data/heroFx';
+import { BATTLE_INTRO, CUTIN_ART, FX_TIMING } from '../data/heroFx';
 import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { rotate2x2 } from '../game/board';
@@ -59,7 +59,6 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   let rotating = false;
   const enemy = enemyOf(state);
   // 下に必殺の形を出している仲間（押して切り替える。行動するキャラを選ぶものではない。全員が同時に行動する：仕様書 12.7）
-  let focus: HeroId = state.party[0].id;
   let busy = false;
   let disposed = false;
   const sound = ctx.sound;
@@ -106,25 +105,22 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       <button type="button" class="attack-btn">攻撃</button>
     </div>
 
-    <div class="controls">
-      <button type="button" class="rotate-btn ccw" aria-label="左回転（反時計回り）">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7H4V3M4.6 7A8 8 0 1 1 4 12.5"/></svg>
-        <span>左回転</span>
-      </button>
-      <div class="special">
-        <div class="special-shape"></div>
-        <span class="special-name"></span>
-      </div>
-      <button type="button" class="rotate-btn cw" aria-label="右回転（時計回り）">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 7h4V3M19.4 7A8 8 0 1 0 20 12.5"/></svg>
-        <span>右回転</span>
-      </button>
+    <div class="specials" data-n="${state.party.length}" aria-label="仲間の必殺の形（盤面にこの形があると、「攻撃」で必殺技が出る）">
+      ${state.party
+        .map(
+          ({ id }) => `
+        <div class="special-item" data-hero="${id}">
+          ${specialOrbsHtml(id)}
+          <span class="special-label"><span class="special-owner" aria-hidden="true">${HEROES[id].symbol}</span>${HEROES[id].special.name}</span>
+        </div>`,
+        )
+        .join('')}
     </div>
 
-    <div class="heroes" aria-label="仲間（全員が同時に行動する。押すと必殺の形を見る）">
+    <div class="heroes" aria-label="仲間（全員が同時に行動する。押すと上の必殺の形が光る）">
       ${state.party.map(
         ({ id }) => `
-        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-pressed="false" aria-label="${HEROES[id].name}（${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）の必殺を見る">
+        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-label="${HEROES[id].name}（${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）">
           <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="hero-name">${HEROES[id].name}</span>
           <span class="hero-role"><span class="hero-dot orb-${HEROES[id].special.color}" aria-hidden="true"></span><span class="long">${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
@@ -158,10 +154,28 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   const battleEl = $<HTMLElement>('.battle');
   const fx = createFx($<HTMLElement>('.fx-layer'), () => ctx.settings.speed);
   // 必殺のカットインの立ち絵を先に読み込んでおく（初めての必殺で絵が間に合わないことがないように）
-  for (const { id } of state.party) {
-    new Image().src = assetUrl(HERO_ART[id].file);
-    for (const f of CUTIN_ART[id]?.frames ?? []) new Image().src = assetUrl(f);
-  }
+  // バトル突入の画面：オーブ・背景・カットインの絵を読み込むあいだ、ステージと敵の名前を見せる（2026-11-04）。
+  // 読み込み済みなら短く、まだなら最大1.5秒まで待つ。そのあと消えて操作できるようになる
+  const images = [...BATTLE_IMAGES, ...state.party.flatMap(({ id }) => [HERO_ART[id].file, ...(CUTIN_ART[id]?.frames ?? [])])].map(assetUrl);
+  const intro = document.createElement('div');
+  intro.className = 'battle-intro';
+  intro.setAttribute('role', 'status');
+  intro.innerHTML = `
+    <div class="intro-band">
+      <span class="intro-stage">${stage.id}</span>
+      <span class="intro-title">バトル開始</span>
+      <span class="intro-enemy">${enemy.name}</span>
+    </div>`;
+  battleEl.append(intro);
+  const introStart = performance.now();
+  void preloadImages(images, BATTLE_INTRO.maxMs).then(async () => {
+    const left = BATTLE_INTRO.minMs - (performance.now() - introStart);
+    if (left > 0) await wait(left);
+    if (disposed) return;
+    intro.classList.add('out');
+    await wait(BATTLE_INTRO.fadeMs);
+    intro.remove();
+  });
 
   function setBar(sel: string, value: number, max: number) {
     const bar = $<HTMLElement>(sel);
@@ -221,15 +235,13 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     $('.party-hp').textContent = `${partyHp.toLocaleString('ja-JP')} / ${state.partyMaxHp.toLocaleString('ja-JP')}`;
   }
 
-  function renderHero() {
-    container.querySelectorAll<HTMLElement>('.hero').forEach((el) => {
-      const on = el.dataset.hero === focus;
-      el.setAttribute('aria-pressed', String(on));
-      el.classList.toggle('active', on);
-    });
-    $('.special-shape').innerHTML = specialPreviewSvg(focus);
-    $('.special-name').textContent = HEROES[focus].special.name;
-    battleEl.setAttribute('data-hero', focus);
+  /** 仲間のカードを押したら、その仲間の必殺の形を軽く光らせる */
+  function pulseSpecial(id: HeroId) {
+    const item = container.querySelector<HTMLElement>(`.special-item[data-hero="${id}"]`);
+    if (!item) return;
+    item.classList.remove('pulse');
+    void item.offsetWidth;
+    item.classList.add('pulse');
   }
 
   /** この段で動いた仲間のカードを光らせる */
@@ -248,7 +260,6 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     speed.textContent = ctx.settings.speed === 2 ? '×2' : '×1';
     speed.setAttribute('aria-label', ctx.settings.speed === 2 ? '演出の速さ：はやい' : '演出の速さ：ふつう');
     speed.setAttribute('aria-pressed', String(ctx.settings.speed === 2));
-    battleEl.classList.toggle('no-rotate-buttons', !ctx.settings.rotateButtons);
   }
 
   /** dx は横にずらす量（px。仲間ごとの数値が重ならないように） */
@@ -269,7 +280,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     board.setLocked(value);
     // ターンの演出中はメニューも止める（途中でリタイアや遊び方を開くと、背後で勝敗が決まってしまう）
     // 仲間のカードは必殺の形を見るだけなので止めない（行動の演出で光らせる）
-    container.querySelectorAll<HTMLButtonElement>('.rotate-btn, .menu').forEach((b) => (b.disabled = value));
+    container.querySelectorAll<HTMLButtonElement>('.menu').forEach((b) => (b.disabled = value));
     renderTurnBar();
   }
 
@@ -593,21 +604,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   container.querySelectorAll<HTMLButtonElement>('.hero').forEach((b) =>
     b.addEventListener('click', () => {
-      // 下に出す必殺の形を切り替えるだけ（行動するキャラは選ばない）
-      focus = b.dataset.hero as HeroId;
-      renderHero();
+      // 上に並べた必殺の形のうち、その仲間の分を光らせるだけ（行動するキャラは選ばない）
+      pulseSpecial(b.dataset.hero as HeroId);
       sound.play({ name: 'select' });
-    }),
-  );
-  container.querySelectorAll<HTMLButtonElement>('.rotate-btn').forEach((b) =>
-    b.addEventListener('click', () => {
-      const at = board.selected();
-      if (!at) {
-        board.el.classList.add('nudge');
-        setTimeout(() => board.el.classList.remove('nudge'), 400);
-        return;
-      }
-      void rotateOnce(at, b.classList.contains('cw') ? 'clockwise' : 'counterclockwise');
     }),
   );
   $('.menu').addEventListener('click', openMenu);
@@ -617,12 +616,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     renderSettings();
   });
 
-  // 設定（回転ボタン・速さ）がメニューから変わったら反映する
+  // 設定（速さ）がメニューから変わったら反映する
   const onSettingsChanged = () => renderSettings();
   window.addEventListener('zodiac:settings', onSettingsChanged);
 
   board.render(previewBoard());
-  renderHero();
   renderStatus();
   renderCharge(state.enemyChargeIn);
   renderSettings();

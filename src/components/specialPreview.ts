@@ -34,3 +34,23 @@ export function specialPreviewSvg(heroId: HeroId): string {
   const label = `必殺「${name}」：${ORB_LABEL[color]}の${SHAPE_LABEL[shape]}`;
   return `<svg viewBox="0 0 60 60" role="img" aria-label="${label}"><g class="links">${lines.join('')}</g>${dots.join('')}</svg>`;
 }
+
+/**
+ * 必殺の形を、本物のオーブの絵で並べる（バトル画面。2026-11-04 ユーザーの要望）。
+ * 形の大きさのぶんだけのマス目に、形のマスはオーブ、ほかは小さな点
+ */
+export function specialOrbsHtml(heroId: HeroId): string {
+  const { color, shape, name } = HEROES[heroId].special;
+  const cells = SHAPES[shape][0];
+  const rows = Math.max(...cells.map(([r]) => r)) + 1;
+  const cols = Math.max(...cells.map(([, c]) => c)) + 1;
+  const lit = new Set(cells.map(([r, c]) => `${r},${c}`));
+  const out: string[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      out.push(lit.has(`${r},${c}`) ? `<span class="mini-orb orb-${color}"></span>` : '<span class="mini-dot"></span>');
+    }
+  }
+  const label = `必殺「${name}」：${ORB_LABEL[color]}の${SHAPE_LABEL[shape]}`;
+  return `<span class="mini-shape" role="img" aria-label="${label}" style="--rows:${rows};--cols:${cols}">${out.join('')}</span>`;
+}
