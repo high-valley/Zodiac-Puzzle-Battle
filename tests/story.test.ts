@@ -80,3 +80,13 @@ describe('会話を出すときの判定（仕様書 11.17）', () => {
     }
   });
 });
+
+describe('会話用の上半身の絵', () => {
+  it('登録した絵のファイルがすべてある', async () => {
+    const { existsSync } = await import('node:fs');
+    const { PORTRAIT_ART } = await import('../src/data/story');
+    for (const faces of Object.values(PORTRAIT_ART)) {
+      for (const f of Object.values(faces ?? {})) expect(existsSync(`public/${f!.split('?')[0]}`)).toBe(true);
+    }
+  });
+});
