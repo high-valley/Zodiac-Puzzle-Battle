@@ -17,23 +17,27 @@ export function chainMultiplier(chain: number): number {
   return 1 + 0.25 * (chain - 1);
 }
 
-/** 交点スワイプの判定（CSS px）。横：右へ＝時計回り。縦：下へ＝時計回り（2026-11-03） */
+/**
+ * 盤面の指の操作（CSS px）。選んだ 2×2 の中心のまわりを、つまみを回すように指で回す（2026-11-04 ユーザーの決定）。
+ * 指の角度にぴったり付いて回り、何周でも続けて回せる（90度ごとに1回と数え、残りの回数で止まる）
+ */
 export const SWIPE = {
-  /** 横か縦にこれ以上動いたら回転 */
-  minDistance: 22,
-  /** 横なら |dx| > ratio × |dy|、縦なら |dy| > ratio × |dx|（どちらでもない斜めは回さない） */
-  axisRatio: 1.2,
-  /** 指に合わせて回し始めるまでの遊び（px） */
+  /** これより短い動き（px）は「押しただけ」：選ぶだけで回さない */
   dragDeadZone: 4,
-  /** 何マス分動かすと 90 度回るか */
-  dragCellsPer90: 0.9,
+  /** 速く払って回しきるのは、これ以上動かしたときだけ（px） */
+  minDistance: 22,
   /** 選んでいる 2×2 を押し直したとみなす範囲（その交点からのマス数。縦横どちらもこれより近ければ選び直さない）。
-   *  1 なら 2×2 の4個の上ぜんぶ。4個のどれかを押してスワイプしても、隣の 2×2 に移らない */
+   *  1 なら 2×2 の4個の上ぜんぶ。4個のどれかを押して回しても、隣の 2×2 に移らない */
   stickyCells: 1,
   /** ただし、ほかの交点の星のこの範囲（マス数）を押したときは、その交点に移る（隣を選び直せるように） */
   neighborStarCells: 0.3,
-  /** 押した位置が交点からこれより近い（マス数）と、上下左右のどちら側か決めない。そのときは右・下へ＝時計回り */
-  gripDeadCells: 0.15,
+  /** 2×2 の中心からこれより近い所（マス数）では、指の角度を読まない（わずかな動きで角度が大きくぶれるため） */
+  centerDeadCells: 0.35,
+  /** 指を離したとき、90度のこの割合より多く回していれば回しきる（ちょうどなら戻す）。届いていなければ元に戻す */
+  snapAt: 0.5,
+  /** 速く払ったとき（90度を1とした角度 / ms）は、flickMinFrac 回していれば回しきる */
+  flickSpeed: 0.004,
+  flickMinFrac: 0.15,
 };
 
 /**
@@ -47,19 +51,16 @@ export interface RotateTuning {
    *  回し始め（閾値ちょうど、残り約7割）のときの値で、残りが少ないほど短くする */
   releaseMinMs: number;
   releaseMaxMs: number;
-  /** 指に合わせて回すのは、ここ（90 度に対する割合）まで。残りは指を離してから回す。0 なら指には合わせない */
-  dragMaxP: number;
 }
 
-// 2026-11-03 ユーザーが画面で試して決めた値（ボタン 0.5秒／離したあと 0.5秒／指に付く 90度）
-export const DEFAULT_ROTATE_TUNING: RotateTuning = { buttonMs: 500, releaseMinMs: 500, releaseMaxMs: 500, dragMaxP: 1 };
+// 2026-11-03 ユーザーが画面で試して決めた値（ボタン 0.5秒／離したあと 0.5秒）
+export const DEFAULT_ROTATE_TUNING: RotateTuning = { buttonMs: 500, releaseMinMs: 500, releaseMaxMs: 500 };
 
 /** 開発者画面のつまみの範囲 */
 export const ROTATE_TUNING_RANGE: Record<keyof RotateTuning, { min: number; max: number; step: number }> = {
   buttonMs: { min: 200, max: 5000, step: 100 },
   releaseMinMs: { min: 100, max: 5000, step: 20 },
   releaseMaxMs: { min: 100, max: 5000, step: 20 },
-  dragMaxP: { min: 0, max: 1, step: 0.05 },
 };
 
 /** 回す動きの、調整しないもの */

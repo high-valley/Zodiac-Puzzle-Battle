@@ -6,16 +6,15 @@ import { rotateTuningOf } from '../storage/settings';
 
 const ITEMS: { key: keyof RotateTuning; label: string; note: string }[] = [
   { key: 'buttonMs', label: '回転ボタンで回す時間', note: '「左回転」「右回転」ボタン' },
-  { key: 'releaseMinMs', label: '指を離したあと（速く払ったとき）', note: 'スワイプで、指を離してから回しきるまで' },
+  { key: 'releaseMinMs', label: '指を離したあと（速く払ったとき）', note: '指で回して離してから、回しきるまで' },
   { key: 'releaseMaxMs', label: '指を離したあと（ゆっくり離したとき）', note: '速く払ったときより短くはならない' },
-  { key: 'dragMaxP', label: '指に付いて回る角度', note: 'ここまでは指の動きに合わせて回る。0度なら指を離してから回る' },
 ];
 
-const show = (key: keyof RotateTuning, v: number) => (key === 'dragMaxP' ? `${Math.round(v * 90)}度` : `${(v / 1000).toFixed(2)}秒`);
+const show = (_key: keyof RotateTuning, v: number) => `${(v / 1000).toFixed(2)}秒`;
 
 /** 伝えてもらうときの1行 */
 export function rotateTuningSummary(t: RotateTuning): string {
-  return `ボタン ${show('buttonMs', t.buttonMs)}／離したあと ${show('releaseMinMs', t.releaseMinMs)}〜${show('releaseMaxMs', Math.max(t.releaseMinMs, t.releaseMaxMs))}／指に付く ${show('dragMaxP', t.dragMaxP)}`;
+  return `ボタン ${show('buttonMs', t.buttonMs)}／離したあと ${show('releaseMinMs', t.releaseMinMs)}〜${show('releaseMaxMs', Math.max(t.releaseMinMs, t.releaseMaxMs))}`;
 }
 
 export function rotateTuningHtml(t: RotateTuning): string {
@@ -31,7 +30,7 @@ export function rotateTuningHtml(t: RotateTuning): string {
         </label>`;
       }).join('')}
       <p class="tune-summary">伝える値：<b>${rotateTuningSummary(t)}</b></p>
-      <p class="tune-note">演出の速さを「×2」にしているときは、時間の3つが半分になります（角度は同じ）。</p>
+      <p class="tune-note">演出の速さを「×2」にしているときは、時間が半分になります。</p>
       <button type="button" class="text-btn wide tune-reset">初期値に戻す</button>
     </div>`;
 }

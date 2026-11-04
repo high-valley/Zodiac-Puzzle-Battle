@@ -321,22 +321,6 @@ button:focus-visible {
     left 0.08s,
     top 0.08s;
 }
-.ring::after {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  translate: -50% -50%;
-  font-size: 28px;
-  line-height: 1;
-  color: var(--gold);
-  text-shadow: 0 0 8px #000a;
-}
-.ring.hint-cw::after {
-  content: '↻';
-}
-.ring.hint-ccw::after {
-  content: '↺';
-}
 
 
 /* 必殺：形を結ぶ星座の線 */
@@ -3565,21 +3549,6 @@ html[data-route='result'] body::after {
     scale: 1;
     opacity: 1;
   }
-}
-/* 回す向きの矢印：枠のまんなかに、紺の丸の上で大きく */
-.ring::after {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  font-size: 30px;
-  color: var(--gold-hi);
-}
-.ring.hint-cw::after,
-.ring.hint-ccw::after {
-  background: #0d1638cc;
-  box-shadow: 0 0 0 1.5px var(--gold);
 }
 /* 選んでいる交点の星を大きく */
 .star.on {

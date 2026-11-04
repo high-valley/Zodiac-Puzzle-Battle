@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { classifySwipe, gripOf, nearestIntersection, pickIntersection, swipeAlong, turnDirection } from '../src/input/swipe';
+import { advanceDial, angleAround, clampTurns, nearestIntersection, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -26,68 +26,54 @@ describe('nearestIntersection', () => {
   });
 });
 
-describe('classifySwipe', () => {
-  it('右へ閾値以上 → 時計回り、左へ → 反時計回り', () => {
-    expect(classifySwipe(SWIPE.minDistance, 0)).toEqual({ kind: 'rotate', direction: 'clockwise' });
-    expect(classifySwipe(-SWIPE.minDistance, 0)).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
-    expect(classifySwipe(80, 20)).toEqual({ kind: 'rotate', direction: 'clockwise' });
+describe('指で回す（つまみを回すように。2026-11-04）', () => {
+  const cell = 60;
+  const at = { row: 1, col: 1 }; // 中心は (120, 120)
+
+  it('角度は右が 0 で、時計回りに増える（画面は下が正）', () => {
+    expect(angleAround(180, 120, cell, at).angle).toBe(0);
+    expect(Math.abs(angleAround(120, 180, cell, at).angle - Math.PI / 2) < 1e-9).toBe(true);
+    expect(angleAround(150, 160, cell, at).r).toBe(50);
   });
 
-  it('閾値未満の移動は回転せず選択だけ', () => {
-    expect(classifySwipe(SWIPE.minDistance - 1, 0)).toEqual({ kind: 'select' });
-    expect(classifySwipe(0, 0)).toEqual({ kind: 'select' });
-    expect(classifySwipe(-10, 10)).toEqual({ kind: 'select' });
-    // 斜めの合計距離が閾値を超えても、縦横どちらも閾値未満なら選択だけ
-    expect(classifySwipe(21, 8)).toEqual({ kind: 'select' });
-    expect(classifySwipe(-18, 18)).toEqual({ kind: 'select' });
+  it('角度の差は -π〜π にして足す（真後ろを回りこんでも飛ばない）', () => {
+    expect(Math.abs(wrapAngle(3 * Math.PI / 2) - -Math.PI / 2) < 1e-9).toBe(true);
+    expect(Math.abs(wrapAngle(-3 * Math.PI / 2) - Math.PI / 2) < 1e-9).toBe(true);
+    expect(wrapAngle(0.2)).toBe(0.2);
+    expect(toTurns(Math.PI)).toBe(2);
   });
 
-  it('下へ閾値以上 → 時計回り、上へ → 反時計回り（2026-11-03）', () => {
-    expect(classifySwipe(0, SWIPE.minDistance)).toEqual({ kind: 'rotate', direction: 'clockwise' });
-    expect(classifySwipe(0, -SWIPE.minDistance)).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
-    expect(classifySwipe(20, 80)).toEqual({ kind: 'rotate', direction: 'clockwise' });
-    expect(classifySwipe(0, SWIPE.minDistance - 1)).toEqual({ kind: 'select' });
+  it('回せる量は残りの回数まで', () => {
+    expect(clampTurns(2.7, 3)).toBe(2.7);
+    expect(clampTurns(3.4, 3)).toBe(3);
+    expect(clampTurns(-1.5, 1)).toBe(-1);
+    expect(clampTurns(0.5, 0)).toBe(0);
   });
 
-  it('斜め（横と縦が同じくらい）の大きな動きはキャンセル', () => {
-    // |dx| = 1.2 × |dy| ちょうどは横と見なさない（縦も同じ）
-    expect(classifySwipe(36, 30)).toEqual({ kind: 'cancel' });
-    expect(classifySwipe(30, 36)).toEqual({ kind: 'cancel' });
-    expect(classifySwipe(-30, -30)).toEqual({ kind: 'cancel' });
-  });
-});
-
-describe('swipeAlong（指に合わせて回すときの向き）', () => {
-  it('横か縦の大きいほうに沿った動き。斜めは null', () => {
-    expect(swipeAlong(30, 5)).toEqual({ along: 30, axis: 'x' });
-    expect(swipeAlong(-3, -40)).toEqual({ along: -40, axis: 'y' });
-    expect(swipeAlong(20, 20)).toBeNull();
-    expect(swipeAlong(3, 0)).toBeNull();
+  it('離したとき：半分（45度）を超えていれば回しきり、届かなければ元に戻す', () => {
+    expect(releaseSteps(0.49, 0, 40)).toBe(0);
+    // ちょうど45度は戻す（仕様書 6.1「45度より多く」）
+    expect(releaseSteps(0.5, 0, 40)).toBe(0);
+    expect(releaseSteps(0.51, 0, 40)).toBe(1);
+    expect(releaseSteps(-0.6, 0, 40)).toBe(-1);
+    // 続けて回したとき：90度ごとに1回
+    expect(releaseSteps(1.3, 0, 120)).toBe(1);
+    expect(releaseSteps(1.6, 0, 120)).toBe(2);
+    expect(releaseSteps(-2.55, 0, 200)).toBe(-3);
   });
 
-  it('境界：遊びちょうどと、比率ちょうどは null', () => {
-    expect(swipeAlong(SWIPE.dragDeadZone, 0)).toBeNull();
-    expect(swipeAlong(0, SWIPE.dragDeadZone)).toBeNull();
-    expect(swipeAlong(30, 36)).toBeNull();
-    expect(swipeAlong(36, 30)).toBeNull();
-  });
-
-  it('classifySwipe が回すと決めたとき、swipeAlong の向き（正＝時計回り）と必ず一致する', () => {
-    for (let dx = -120; dx <= 120; dx += 1.5) {
-      for (let dy = -120; dy <= 120; dy += 1.5) {
-        const r = classifySwipe(dx, dy);
-        if (r.kind !== 'rotate') continue;
-        const s = swipeAlong(dx, dy);
-        expect(s !== null).toBe(true);
-        expect(s!.along > 0 ? 'clockwise' : 'counterclockwise').toBe(r.direction);
-      }
-    }
+  it('速く払ったときは、少し回していれば回しきる（ただし短すぎる動きや、逆向きの速さでは回さない）', () => {
+    expect(releaseSteps(0.2, SWIPE.flickSpeed, SWIPE.minDistance)).toBe(1);
+    expect(releaseSteps(0.2, SWIPE.flickSpeed, SWIPE.minDistance - 1)).toBe(0);
+    expect(releaseSteps(0.2, -SWIPE.flickSpeed, 40)).toBe(0);
+    expect(releaseSteps(-0.2, -SWIPE.flickSpeed, 40)).toBe(-1);
+    expect(releaseSteps(0.1, SWIPE.flickSpeed * 3, 40)).toBe(0);
   });
 });
 
 describe('releaseDuration（指を離したあと回しきる時間）', () => {
   const cell = 71.6; // 390px 幅の端末
-  const p22 = (22 - SWIPE.dragDeadZone) / (cell * SWIPE.dragCellsPer90); // 閾値ちょうどで離したときの位置
+  const p22 = 0.3; // 回し始めで離したときの位置
 
   it('ゆっくり離すと長く、速く払うと短い（どちらも下限・上限の中）', () => {
     const t = { ...DEFAULT_ROTATE_TUNING, releaseMinMs: 400, releaseMaxMs: 560 };
@@ -101,7 +87,7 @@ describe('releaseDuration（指を離したあと回しきる時間）', () => {
   });
 
   it('既定の値（2026-11-03 ユーザーが決めた値）：閾値ちょうどで離すと約0.5秒', () => {
-    expect(DEFAULT_ROTATE_TUNING).toEqual({ buttonMs: 500, releaseMinMs: 500, releaseMaxMs: 500, dragMaxP: 1 });
+    expect(DEFAULT_ROTATE_TUNING).toEqual({ buttonMs: 500, releaseMinMs: 500, releaseMaxMs: 500 });
     const d = releaseDuration(p22, 1, cell);
     expect(d >= 450 && d <= 560).toBe(true);
   });
@@ -120,7 +106,7 @@ describe('回す動きの速さの調整（開発者画面）', () => {
   it('保存した値を読む。範囲の外や足りない項目は設定データの値', () => {
     expect(parseRotateTuning(null)).toBeNull();
     expect(parseRotateTuning({ buttonMs: 900 })).toEqual({ ...DEFAULT_ROTATE_TUNING, buttonMs: 900 });
-    expect(parseRotateTuning({ buttonMs: 99999, dragMaxP: -1, releaseMinMs: 'x' })).toEqual(DEFAULT_ROTATE_TUNING);
+    expect(parseRotateTuning({ buttonMs: 99999, releaseMinMs: 'x' })).toEqual(DEFAULT_ROTATE_TUNING);
     expect(rotateTuningOf({ ...DEFAULT_SETTINGS, devRotate: null })).toEqual(DEFAULT_ROTATE_TUNING);
     expect(rotateTuningOf({ ...DEFAULT_SETTINGS, devRotate: { ...DEFAULT_ROTATE_TUNING, buttonMs: 1200 } }).buttonMs).toBe(1200);
   });
@@ -181,42 +167,42 @@ describe('pickIntersection（押した位置で選ぶ交点。2026-11-03）', ()
   });
 });
 
-describe('turnDirection（押したオーブがすべらせた向きに動くように回す。2026-11-03）', () => {
-  const cell = 60;
-  const g = (x: number, y: number) => ({ x: x * cell, y: y * cell, cell });
 
-  it('上の2個を押して右へ → 時計回り、左へ → 反時計回り', () => {
-    expect(turnDirection('x', 30, g(-0.5, -0.5))).toBe('clockwise');
-    expect(turnDirection('x', -30, g(0.5, -0.5))).toBe('counterclockwise');
+
+describe('advanceDial（指の角度から回した量を足す。2026-11-04）', () => {
+  const deg = (d: number) => (d * Math.PI) / 180;
+  // 小数の誤差をならして比べる
+  const near = (x: number) => Math.round(x * 1e6) / 1e6;
+  // 角度の並びを順に入れて、最後の回した量を返す
+  const run = (angles: (number | null)[], remaining = 3, moved = 40) =>
+    angles.reduce((s, a) => advanceDial(s, a === null ? null : deg(a), moved, remaining), { q: 0, lastAngle: null as number | null }).q;
+
+  it('時計回りに90度描くと1回分、逆なら -1', () => {
+    expect(near(run([0, 30, 60, 90]))).toBe(near(1));
+    expect(near(run([0, -45, -90]))).toBe(near(-1));
   });
 
-  it('下の2個を押して右へ → 反時計回り、左へ → 時計回り', () => {
-    expect(turnDirection('x', 30, g(0.5, 0.5))).toBe('counterclockwise');
-    expect(turnDirection('x', -30, g(-0.5, 0.5))).toBe('clockwise');
+  it('±180度をまたいでも、ひと続きに足す', () => {
+    expect(near(run([150, 170, -170, -150]))).toBe(near(60 / 90));
+    expect(near(run([-150, -170, 170, 150]))).toBe(near(-60 / 90));
   });
 
-  it('右の2個を押して下へ → 時計回り、左の2個を押して下へ → 反時計回り', () => {
-    expect(turnDirection('y', 30, g(0.5, -0.5))).toBe('clockwise');
-    expect(turnDirection('y', 30, g(-0.5, 0.5))).toBe('counterclockwise');
-    expect(turnDirection('y', -30, g(-0.5, -0.5))).toBe('clockwise');
+  it('中心を通るあいだ（角度が読めない）は回さず、通りすぎたら基準を取り直す', () => {
+    expect(near(run([0, 45, null, 200, 245]))).toBe(near(1));
   });
 
-  it('交点のすぐ近くを押したときは、右・下へ＝時計回り', () => {
-    expect(turnDirection('x', 30, g(0, 0.1))).toBe('clockwise');
-    expect(turnDirection('y', 30, g(-0.1, 0))).toBe('clockwise');
-    expect(turnDirection('x', -30, undefined)).toBe('counterclockwise');
+  it('残りの回数で止まり、そこから逆へ回せばすぐ戻る', () => {
+    expect(near(run([0, 90, 180, 270], 2))).toBe(near(2));
+    expect(near(run([0, 90, 180, 270, 225], 2))).toBe(near(1.5));
   });
 
-  it('classifySwipe も押した位置で向きを決める', () => {
-    expect(classifySwipe(40, 0, SWIPE, g(0.5, 0.5))).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
-    expect(classifySwipe(0, 40, SWIPE, g(-0.5, -0.5))).toEqual({ kind: 'rotate', direction: 'counterclockwise' });
-    expect(classifySwipe(0, 40, SWIPE, g(0.5, -0.5))).toEqual({ kind: 'rotate', direction: 'clockwise' });
+  it('動きが小さいあいだ（dragDeadZone 未満）は回さない', () => {
+    expect(run([0, 30, 60], 3, SWIPE.dragDeadZone - 1)).toBe(0);
   });
 });
 
-describe('gripOf', () => {
-  it('選んだ交点からのずれ（端の交点でも同じ式）', () => {
-    expect(gripOf(150, 90, 60, { row: 0, col: 1 })).toEqual({ x: 30, y: 30, cell: 60 });
-    expect(gripOf(290, 290, 60, { row: 3, col: 3 })).toEqual({ x: 50, y: 50, cell: 60 });
+describe('古い保存設定の互換', () => {
+  it('前の版の「指に付いて回る角度」（dragMaxP）が残っていても読める', () => {
+    expect(parseRotateTuning({ ...DEFAULT_ROTATE_TUNING, dragMaxP: 1 })).toEqual(DEFAULT_ROTATE_TUNING);
   });
 });

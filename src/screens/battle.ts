@@ -147,9 +147,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   const $ = <T extends Element>(sel: string) => container.querySelector(sel) as T;
   const board = createBoardView(
-    (at, direction) => void rotateOnce(at, direction),
-    // 指に合わせて動かしてよいとき（攻撃の演出中・回せる回数を使い切ったときは動かさない）
-    () => !busy && !disposed && state.status === 'playing' && pending.length < MAX_ROTATIONS_PER_TURN,
+    (at, direction, steps) => void rotateOnce(at, direction, steps),
+    // 指で回せる回数（攻撃の演出中・回せる回数を使い切ったときは 0 で、指に合わせて動かさない）
+    () => (!busy && !disposed && state.status === 'playing' ? MAX_ROTATIONS_PER_TURN - pending.length : 0),
     () => rotateTuningOf(ctx.settings),
   );
   $('.board-wrap').prepend(board.el);
@@ -201,7 +201,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       .join('');
     $('.rot-text').textContent =
       pending.length === 0
-        ? `オーブを押して動かしたい向きにスワイプ（${MAX_ROTATIONS_PER_TURN}回まで）`
+        ? `選んだ4個を指で回す（${MAX_ROTATIONS_PER_TURN}回まで）`
         : left > 0
           ? `あと${left}回まわせる`
           : '「攻撃」で確定';
@@ -430,8 +430,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   /** 今の回す動きが終わるのを待つための約束 */
   let rotationDone: Promise<void> = Promise.resolve();
 
-  /** 1回まわす（まだ何も消えない）。回せるのは1ターンに MAX_ROTATIONS_PER_TURN 回まで */
-  async function rotateOnce(at: Pos, direction: Direction) {
+  /** 回す（まだ何も消えない）。steps は続けて回す回数（指で 180 度回したら 2）。回せるのは1ターンに MAX_ROTATIONS_PER_TURN 回まで */
+  async function rotateOnce(at: Pos, direction: Direction, steps = 1) {
     // 回している途中に次の入力が来たら、今の動きをすぐ終わらせてから回す（すばやく続けて回しても取りこぼさない）
     if (rotating) {
       board.finishRotate();
@@ -449,15 +449,18 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     rotating = true;
     let done!: () => void;
     rotationDone = new Promise<void>((resolve) => (done = resolve));
-    const before = previewBoard();
+    const count = Math.max(1, Math.min(steps, MAX_ROTATIONS_PER_TURN - pending.length));
+    // 最後の1回の手前の盤面（指で何回分も回したとき、ここから最後の1回を見せる）
+    let before = previewBoard();
+    for (let i = 1; i < count; i++) before = rotate2x2(before, at.row, at.col, direction);
     const rotation: Rotation = { row: at.row, col: at.col, direction };
-    pending = [...pending, rotation];
+    pending = [...pending, ...Array.from({ length: count }, () => ({ ...rotation }))];
     ctx.setProgress({ ...ctx.progress, battle: { stageId: stage.id, state, pending } });
     sound.play({ name: 'rotate' });
     renderTurnBar();
     try {
       // 回す動きは目で追える速さに（演出 ×2 なら半分）
-      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, puzzleMs(rotateTuningOf(ctx.settings).buttonMs));
+      await board.animateRotate(rotate2x2(before, at.row, at.col, direction), at, direction, puzzleMs(rotateTuningOf(ctx.settings).buttonMs), count > 1 ? before : undefined);
     } finally {
       rotating = false;
       done();
