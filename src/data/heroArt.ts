@@ -1,5 +1,5 @@
 // キャラの立ち絵と背丈（仕様書 18.3・18.4、docs/character-design.md「背丈と仕上げの絵柄」）。
-// 今の立ち絵は仮：docs/character-art の確認用の絵から背景を抜いたもの（public/art/heroes）。仕上げの絵ができたら差し替える
+// 立ち絵は仕上げの絵（2026-11-04、public/art/heroes）。docs/character-art の見本の絵をもとに描き直したもの
 import type { HeroId } from '../game/types';
 
 /** 背丈（cm。頭のてっぺんから足の裏まで）。2026-11-03 決定 */
@@ -34,30 +34,30 @@ export interface HeroArt {
 
 const art = (id: HeroId, width: number, headTop: number, headX: number, pose = 1): HeroArt => ({
   // 絵を差し替えたら v を上げる（端末や Pages に古い絵が残らないように）
-  file: `art/heroes/${id}.webp?v=3`,
+  file: `art/heroes/${id}.webp?v=4`,
   width,
-  height: 900,
+  height: 1500,
   headTop,
   headX,
   pose,
 });
 
-/** 仮の立ち絵（確認用の絵を切り抜いたもの） */
-export const HERO_ART_TENTATIVE = true;
+/** 仕上げの立ち絵（2026-11-04。ユーザーが画像生成で作った透過の絵を、足先から頭まで切りそろえて高さ1500pxにしたもの） */
+export const HERO_ART_TENTATIVE = false;
 
 export const HERO_ART: Record<HeroId, HeroArt> = {
-  aries: art('aries', 471, 0.009, 0.448),
-  taurus: art('taurus', 470, 0.049, 0.542),
-  gemini: art('gemini', 578, 0.009, 0.47),
-  cancer: art('cancer', 557, 0.011, 0.498),
-  leo: art('leo', 542, 0.01, 0.57),
-  virgo: art('virgo', 368, 0.02, 0.582),
-  libra: art('libra', 265, 0.004, 0.515),
-  scorpio: art('scorpio', 501, 0.007, 0.417, 0.9),
-  sagittarius: art('sagittarius', 548, 0.033, 0.562),
-  capricorn: art('capricorn', 385, 0.036, 0.388),
-  aquarius: art('aquarius', 389, 0.003, 0.584),
-  pisces: art('pisces', 470, 0.009, 0.551),
+  aries: art('aries', 794, 0.01, 0.42),
+  taurus: art('taurus', 713, 0.06, 0.46),
+  gemini: art('gemini', 947, 0.005, 0.5),
+  cancer: art('cancer', 852, 0.01, 0.58),
+  leo: art('leo', 869, 0.01, 0.35),
+  virgo: art('virgo', 644, 0.02, 0.5),
+  libra: art('libra', 474, 0.005, 0.5),
+  scorpio: art('scorpio', 849, 0.005, 0.5, 0.9),
+  sagittarius: art('sagittarius', 893, 0.035, 0.3),
+  capricorn: art('capricorn', 666, 0.03, 0.46),
+  aquarius: art('aquarius', 765, 0.005, 0.46),
+  pisces: art('pisces', 794, 0.01, 0.47),
 };
 
 /** いちばん背の高いキャラの背丈。並べたときの高さの基準 */
