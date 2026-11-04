@@ -34,7 +34,7 @@ export interface HeroArt {
 
 const art = (id: HeroId, width: number, headTop: number, headX: number, pose = 1): HeroArt => ({
   // 絵を差し替えたら v を上げる（端末や Pages に古い絵が残らないように）
-  file: `art/heroes/${id}.webp?v=4`,
+  file: `art/heroes/${id}.webp?v=5`,
   width,
   height: 1500,
   headTop,
@@ -47,17 +47,17 @@ export const HERO_ART_TENTATIVE = false;
 
 export const HERO_ART: Record<HeroId, HeroArt> = {
   aries: art('aries', 794, 0.01, 0.42),
-  taurus: art('taurus', 713, 0.06, 0.46),
+  taurus: art('taurus', 781, 0.045, 0.53),
   gemini: art('gemini', 947, 0.005, 0.5),
-  cancer: art('cancer', 852, 0.01, 0.46),
+  cancer: art('cancer', 854, 0.004, 0.43),
   leo: art('leo', 869, 0.01, 0.35),
-  virgo: art('virgo', 644, 0.02, 0.5),
-  libra: art('libra', 474, 0.005, 0.5),
+  virgo: art('virgo', 639, 0.01, 0.47),
+  libra: art('libra', 469, 0.003, 0.5),
   scorpio: art('scorpio', 849, 0.005, 0.42, 0.9),
-  sagittarius: art('sagittarius', 893, 0.035, 0.48),
+  sagittarius: art('sagittarius', 896, 0.025, 0.5),
   capricorn: art('capricorn', 666, 0.03, 0.46),
   aquarius: art('aquarius', 765, 0.005, 0.54),
-  pisces: art('pisces', 794, 0.01, 0.47),
+  pisces: art('pisces', 790, 0.015, 0.5),
 };
 
 /** いちばん背の高いキャラの背丈。並べたときの高さの基準 */
