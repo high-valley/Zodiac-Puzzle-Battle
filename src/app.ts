@@ -9,7 +9,7 @@ import { mountHome } from './screens/home';
 import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
 import { mountStory } from './screens/story';
-import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
+import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress, canViewScene } from './storage/progress';
 import { DEV_TOOLS } from './data/devTools';
 import { CURRENT_BUILD, buildLabel, fetchLatestBuild, reloadToLatest } from './version';
 import type { HeroId } from './game/types';
@@ -155,6 +155,8 @@ export function mountApp(root: HTMLElement): void {
     if (route.name === 'dev' && !DEV_TOOLS) route = { name: 'home' };
     // 会話のあとに入るバトルも、開いていないステージなら入れない
     if (route.name === 'story' && route.next.name === 'battle' && !ctx.stageOpen(route.next.stageId)) route = { name: 'quest' };
+    // まだ開いていない会話（前の会話はステージが開いていれば、後の会話はクリアしていれば）は開かない
+    if (route.name === 'story' && !canViewScene(ctx.progress, route.sceneId, (id) => ctx.stageOpen(id), ctx.settings.devUnlockAll)) route = { name: 'quest' };
     if (routeToHash(route) !== location.hash && location.hash !== '' && location.hash !== '#/') {
       history.replaceState(null, '', routeToHash(route));
     }

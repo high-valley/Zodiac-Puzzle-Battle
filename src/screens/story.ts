@@ -2,7 +2,7 @@
 // 見終えたら（またはスキップしたら）見たことを記録して、決めた行き先へ進む
 import type { AppContext } from '../app';
 import { assetUrl } from '../components/assets';
-import { openModal } from '../components/modal';
+import { isModalOpen, openModal } from '../components/modal';
 import { HERO_ART } from '../data/heroArt';
 import { HEROES } from '../data/heroes';
 import { PORTRAIT_ART, SCENES, STORY_NAME, type Expression, type StoryLine } from '../data/story';
@@ -33,13 +33,15 @@ export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: str
   };
   if (!scene) {
     queueMicrotask(finish);
-    return () => undefined;
+    return () => {
+      disposed = true;
+    };
   }
 
   container.innerHTML = `
   <main class="story-screen">
     <header class="story-top">
-      <span class="story-title">${scene.title}</span>
+      <h1 class="story-title">${scene.title}</h1>
       <span class="story-actions">
         <button type="button" class="chip story-log">ログ</button>
         <button type="button" class="chip story-skip">スキップ</button>
@@ -49,17 +51,21 @@ export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: str
       <div class="story-portrait left"></div>
       <div class="story-portrait right"></div>
     </div>
-    <button type="button" class="story-box" aria-label="次へ">
+    <button type="button" class="story-box">
       <span class="story-name" hidden></span>
-      <span class="story-text" aria-live="polite"></span>
+      <span class="story-text" aria-hidden="true"></span>
       <span class="story-next" aria-hidden="true">▼</span>
+      <span class="visually-hidden">次へ</span>
     </button>
+    <p class="story-say visually-hidden" aria-live="polite"></p>
   </main>`;
 
   const $ = <T extends Element>(sel: string) => container.querySelector(sel) as T;
   const box = $<HTMLButtonElement>('.story-box');
   const nameEl = $<HTMLElement>('.story-name');
   const textEl = $<HTMLElement>('.story-text');
+  // 読み上げ用：1行ごとに「名前：文」を一度だけ入れる（1文字ずつ出す欄は読み上げない）
+  const sayEl = $<HTMLElement>('.story-say');
   const sides = { left: $<HTMLElement>('.story-portrait.left'), right: $<HTMLElement>('.story-portrait.right') };
   /** 左右に今出ている人と表情 */
   const shown: Record<'left' | 'right', { id: HeroId; face: Expression } | null> = { left: null, right: null };
@@ -118,6 +124,7 @@ export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: str
       box.classList.add('narration');
     }
     full = line.text;
+    sayEl.textContent = line.who ? `${STORY_NAME[line.who]}：${line.text}` : line.text;
     box.classList.remove('ready');
     if (reduceMotion.matches) {
       stopTyping();
@@ -164,17 +171,22 @@ export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: str
       </div>`;
     const list = modal.overlay.querySelector('.story-log-list') as HTMLElement;
     list.scrollTop = list.scrollHeight;
-    modal.overlay.querySelector('.close')?.addEventListener('click', () => modal.close());
+    modal.overlay.querySelector('.close')?.addEventListener('click', () => {
+      modal.close();
+      box.focus();
+    });
     (modal.overlay.querySelector('.close') as HTMLElement).focus();
   }
 
   box.addEventListener('click', advance);
   $('.story-log').addEventListener('click', openLog);
   $('.story-skip').addEventListener('click', finish);
+  // Esc でスキップ。ログを開いているあいだの Esc はログを閉じるだけ
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') finish();
+    if (e.key === 'Escape' && !isModalOpen() && !e.defaultPrevented) finish();
   };
-  window.addEventListener('keydown', onKey);
+  // ログのダイアログが同じ Esc で閉じる前に判定したいので、捕捉の段階で受ける
+  window.addEventListener('keydown', onKey, { capture: true });
 
   // 絵を先に読み込んでから始める（最初の人の絵が遅れて出ないように）
   const ids = [...new Set(scene.lines.flatMap((l) => (l.who ? [l.who] : [])))];
@@ -185,6 +197,6 @@ export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: str
   return () => {
     disposed = true;
     if (typing !== null) clearInterval(typing);
-    window.removeEventListener('keydown', onKey);
+    window.removeEventListener('keydown', onKey, { capture: true });
   };
 }

@@ -3,7 +3,7 @@ import { ALL_HEROES } from '../src/data/heroes';
 import { ALL_STAGES } from '../src/data/stages';
 import { EXPRESSIONS, SCENES, STAGE_SCENES, STORY_NAME } from '../src/data/story';
 import { hashToRoute, routeToHash, type Route } from '../src/routes';
-import { emptyProgress, markSceneSeen, parseProgress, sceneSeen } from '../src/storage/progress';
+import { canViewScene, emptyProgress, markSceneSeen, parseProgress, sceneAfterWin, sceneBeforeBattle, sceneSeen, scenesToReplay } from '../src/storage/progress';
 
 describe('ストーリーの会話（docs/story.md）', () => {
   it('場面の id と中身がそろっていて、話す人・表情が正しい', () => {
@@ -46,5 +46,37 @@ describe('ストーリーの会話（docs/story.md）', () => {
     const back = parseProgress(JSON.stringify({ ...p, seenScenes: ['ch1-prologue', 'nope', 3] }));
     expect(back.seenScenes).toEqual(['ch1-prologue']);
     expect(parseProgress(JSON.stringify(emptyProgress())).seenScenes === undefined).toBe(true);
+  });
+});
+
+describe('会話を出すときの判定（仕様書 11.17）', () => {
+  const cleared = (id: string) => ({ ...emptyProgress(), stages: { [id]: { stars: 1, bestTurns: 5 } } });
+  it('出撃：見ていない前の会話だけ。途中のバトルの続きならとばす', () => {
+    expect(sceneBeforeBattle(emptyProgress(), '1-1', false)).toBe('ch1-prologue');
+    expect(sceneBeforeBattle(emptyProgress(), '1-1', true)).toBe(null);
+    expect(sceneBeforeBattle(markSceneSeen(emptyProgress(), 'ch1-prologue'), '1-1', false)).toBe(null);
+  });
+  it('勝ったあと：見ていない後の会話だけ。負けたときは出さない', () => {
+    expect(sceneAfterWin(emptyProgress(), '1-5', true)).toBe('ch1-end');
+    expect(sceneAfterWin(emptyProgress(), '1-5', false)).toBe(null);
+    expect(sceneAfterWin(markSceneSeen(emptyProgress(), 'ch1-end'), '1-5', true)).toBe(null);
+  });
+  it('開いてよい会話：前はステージが開いていれば、後はクリアしていれば', () => {
+    const open = (id: string) => id === '1-1';
+    expect(canViewScene(emptyProgress(), 'ch1-prologue', open)).toBe(true);
+    expect(canViewScene(emptyProgress(), 'ch1-1-after', open)).toBe(false);
+    expect(canViewScene(cleared('1-1'), 'ch1-1-after', open)).toBe(true);
+    expect(canViewScene(emptyProgress(), 'ch1-end', open)).toBe(false);
+    expect(canViewScene(emptyProgress(), 'nope', open)).toBe(false);
+  });
+  it('見直せる会話：見た前の会話と、クリアしたステージの後の会話', () => {
+    expect(scenesToReplay(emptyProgress(), '1-1')).toEqual([]);
+    expect(scenesToReplay(cleared('1-1'), '1-1')).toEqual(['ch1-1-after']);
+    expect(scenesToReplay(markSceneSeen(cleared('1-1'), 'ch1-prologue'), '1-1')).toEqual(['ch1-prologue', 'ch1-1-after']);
+  });
+  it('保存の seenScenes が配列でなければ無視する', () => {
+    for (const v of ['ch1-prologue', null, 3, { a: 1 }]) {
+      expect(parseProgress(JSON.stringify({ ...emptyProgress(), seenScenes: v })).seenScenes === undefined).toBe(true);
+    }
   });
 });

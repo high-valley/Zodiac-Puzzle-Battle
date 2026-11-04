@@ -4256,3 +4256,12 @@ html[data-route='story'] body::after {
   min-height: 32px;
   font-size: 12px;
 }
+@media (prefers-reduced-motion: reduce) {
+  .story-box.ready .story-next {
+    animation: none;
+  }
+}
+.story-title {
+  margin: 0;
+  font-weight: 400;
+}

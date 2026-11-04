@@ -10,7 +10,7 @@ import { ALL_STAGES, findStage, previousStage } from '../data/stages';
 import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
 import { isValidIntersection } from '../game/board';
 import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
-import { SCENES } from '../data/story';
+import { SCENES, STAGE_SCENES } from '../data/story';
 
 export interface StageRecord {
   /** いちばん良かった★（0〜3） */
@@ -42,6 +42,47 @@ export interface Progress {
 /** その会話を見たか */
 export function sceneSeen(progress: Progress, id: string): boolean {
   return progress.seenScenes?.includes(id) ?? false;
+}
+
+/** その会話が、どのステージの前か後か（どこにも入っていなければ null） */
+export function sceneStage(sceneId: string): { stageId: string; when: 'before' | 'after' } | null {
+  for (const [stageId, sc] of Object.entries(STAGE_SCENES)) {
+    if (sc.before === sceneId) return { stageId, when: 'before' };
+    if (sc.after === sceneId) return { stageId, when: 'after' };
+  }
+  return null;
+}
+
+/**
+ * その会話を開いてよいか（仕様書 11.17）。前の会話はステージが開いていれば、後の会話はクリアしていれば。
+ * open はステージが開いているか（開発者モードでは全部）、cleared はクリアしたと見なすか
+ */
+export function canViewScene(progress: Progress, sceneId: string, open: (stageId: string) => boolean, devAll = false): boolean {
+  const at = sceneStage(sceneId);
+  if (!at || !(sceneId in SCENES)) return false;
+  if (!open(at.stageId)) return false;
+  return at.when === 'before' || devAll || (progress.stages[at.stageId]?.stars ?? 0) > 0;
+}
+
+/** 出撃したとき、バトルの前に見せる会話（まだ見ていない前の会話。途中のバトルの続きなら見せない） */
+export function sceneBeforeBattle(progress: Progress, stageId: string, resuming: boolean): string | null {
+  const id = STAGE_SCENES[stageId]?.before;
+  return id && !resuming && !sceneSeen(progress, id) ? id : null;
+}
+
+/** 勝ったあとの「次へ」で見せる会話（まだ見ていない後の会話。負けたときは見せない） */
+export function sceneAfterWin(progress: Progress, stageId: string, victory: boolean): string | null {
+  const id = STAGE_SCENES[stageId]?.after;
+  return id && victory && !sceneSeen(progress, id) ? id : null;
+}
+
+/** クエスト選択で見直せる会話：見た前の会話と、クリアしたステージの後の会話（見ていなくても） */
+export function scenesToReplay(progress: Progress, stageId: string): string[] {
+  const sc = STAGE_SCENES[stageId];
+  const out: string[] = [];
+  if (sc?.before && sceneSeen(progress, sc.before)) out.push(sc.before);
+  if (sc?.after && (sceneSeen(progress, sc.after) || (progress.stages[stageId]?.stars ?? 0) > 0)) out.push(sc.after);
+  return out;
 }
 
 /** 会話を見たことを記録した新しい進行 */
