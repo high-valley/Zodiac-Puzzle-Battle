@@ -177,6 +177,15 @@ export const HERO_FX: Record<HeroId, HeroFx> = {
   },
 };
 
+/**
+ * 必殺のカットインの絵（2026-11-04。仕様書 11.15.1・18.3）。1枚目「構え」→ 2枚目「放つ」に切り替えて、技を出す動きに見せる。
+ * trail は武器の軌跡（絵の幅と高さを 1 とした SVG の path）。絵がまだないキャラは、立ち絵をすべり込ませる
+ */
+export const CUTIN_ART: Partial<Record<HeroId, { frames: [string, string]; trail: string }>> = {
+  // 右肩の上から右下へ振り下ろす
+  aries: { frames: ['art/cutin/aries-1.webp?v=1', 'art/cutin/aries-2.webp?v=1'], trail: 'M 0.36 0.06 Q 1.02 0.18 0.97 0.95' },
+};
+
 /** 演出の長さの目安（ms、演出 ×1 のとき）。数値を出す時刻はこれで決める（normal・special の半ばごろ）。
  * 部品が長いキャラは、その分だけ演出が続く（終わるまで待ってから次へ進む） */
 export const FX_TIMING = {
@@ -184,6 +193,8 @@ export const FX_TIMING = {
   /** 次の仲間の攻撃を始めるまで（前の仲間の演出と少し重ねる） */
   nextMember: 360,
   cutIn: 900,
+  /** 攻撃のポーズの絵（2枚）があるときのカットイン */
+  cutInPose: 1300,
   special: 820,
   constellation: 700,
 };

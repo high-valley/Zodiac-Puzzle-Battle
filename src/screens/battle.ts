@@ -12,7 +12,7 @@ import { rotateTuningOf } from '../storage/settings';
 import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { DEV_TOOLS } from '../data/devTools';
 import { HERO_ART } from '../data/heroArt';
-import { FX_TIMING } from '../data/heroFx';
+import { CUTIN_ART, FX_TIMING } from '../data/heroFx';
 import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { rotate2x2 } from '../game/board';
@@ -158,7 +158,10 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   const battleEl = $<HTMLElement>('.battle');
   const fx = createFx($<HTMLElement>('.fx-layer'), () => ctx.settings.speed);
   // 必殺のカットインの立ち絵を先に読み込んでおく（初めての必殺で絵が間に合わないことがないように）
-  for (const { id } of state.party) new Image().src = assetUrl(HERO_ART[id].file);
+  for (const { id } of state.party) {
+    new Image().src = assetUrl(HERO_ART[id].file);
+    for (const f of CUTIN_ART[id]?.frames ?? []) new Image().src = assetUrl(f);
+  }
 
   function setBar(sel: string, value: number, max: number) {
     const bar = $<HTMLElement>(sel);
