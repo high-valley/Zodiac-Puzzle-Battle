@@ -3,7 +3,8 @@ import type { AppContext } from '../app';
 import { heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { specialOrbsHtml } from '../components/specialPreview';
 import { ALL_HEROES, HEROES, PARTY_MAX } from '../data/heroes';
-import { PARTY_PROBLEM_TEXT, partyMaxHp, partyProblem } from '../game/party';
+import { DEFENSE } from '../data/balance';
+import { PARTY_PROBLEM_TEXT, partyDefense, partyMaxHp, partyProblem } from '../game/party';
 import type { HeroId } from '../game/types';
 import { heroGrowth } from '../storage/progress';
 
@@ -31,6 +32,13 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
   const slots = container.querySelector('.party-slots') as HTMLElement;
   const roster = container.querySelector('.roster') as HTMLElement;
   const status = container.querySelector('.party-status') as HTMLElement;
+
+  /** パーティーHPと防御力の合計（防御で敵の攻撃が何%減るか） */
+  function summary(members: { id: HeroId; level: number }[]) {
+    const def = partyDefense(members);
+    const cut = Math.round((def / (DEFENSE.base + def)) * 100);
+    return `パーティーHP ${partyMaxHp(members)}・防御 ${def}（受けるダメージ −${cut}%）`;
+  }
 
   function save() {
     const members = picked.map((id) => ({ id, level: level(id) }));
@@ -60,8 +68,8 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
     status.textContent =
       problem === null
         ? noHealer
-          ? `パーティーHP ${partyMaxHp(members)}　回復役がいないので、HPは回復できません（攻撃特化）`
-          : `パーティーHP ${partyMaxHp(members)}　この${members.length}人で出撃します`
+          ? `${summary(members)}　回復役がいないので、HPは回復できません（攻撃特化）`
+          : `${summary(members)}　この${members.length}人で出撃します`
         : picked.length === 0
           ? `出撃する仲間を選んでください（選ぶまでは、前の編成（${ctx.party().map((id) => HEROES[id].name).join('・')}）で出撃します）`
           : `${PARTY_PROBLEM_TEXT[problem]}（今の編成はまだ保存されていません）`;

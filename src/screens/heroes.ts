@@ -76,6 +76,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
         <dl class="hero-stats">
           <div><dt>HP</dt><dd>${st.hp}</dd></div>
           <div><dt>${h.role === 'healer' ? '回復力' : '攻撃力'}</dt><dd>${statText(st.power)}</dd></div>
+          <div><dt>防御力</dt><dd>${st.defense}</dd></div>
           <div><dt>必殺の威力</dt><dd>${st.special}</dd></div>
         </dl>
       </div>

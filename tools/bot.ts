@@ -3,7 +3,8 @@
 import { MAX_ROTATIONS_PER_TURN } from '../src/data/balance';
 import { HEROES } from '../src/data/heroes';
 import { MAX_INTERSECTION, rotate2x2 } from '../src/game/board';
-import { enemyOf, normalEffect } from '../src/game/combat';
+import { colorMultiplier, enemyOf, normalEffect } from '../src/game/combat';
+import type { EnemyDef } from '../src/data/enemies';
 import { scaled } from '../src/game/party';
 import { findMatches, matchedMask, maskToCells } from '../src/game/matching';
 import { nextInt } from '../src/game/rng';
@@ -38,7 +39,12 @@ export function nextEnemyAttack(state: BattleState): number {
 }
 
 /** 回し終えた盤面で「攻撃」したときの、仲間全員の効果の見積もり（連鎖は数えない。全員が同時に行動する。仕様書 12.7） */
-export function estimate(board: Board, party: readonly PartyMember[]): { damage: number; heal: number; special: boolean } {
+export function estimate(
+  board: Board,
+  party: readonly PartyMember[],
+  /** 敵の色の弱点・耐性（仕様書 12.11） */
+  enemy?: Pick<EnemyDef, 'weak' | 'resist'>,
+): { damage: number; heal: number; special: boolean } {
   const counts: Record<OrbColor, number> = { red: 0, blue: 0, green: 0, pink: 0 };
   for (const p of maskToCells(matchedMask(findMatches(board)))) counts[board[p.row][p.col]]++;
   let damage = 0;
@@ -46,8 +52,9 @@ export function estimate(board: Board, party: readonly PartyMember[]): { damage:
   let special = false;
   for (const m of party) {
     const def = HEROES[m.id];
-    const e = normalEffect(m.id, counts, 1, m.level);
-    const sp = detectHeroSpecial(board, m.id) !== null ? scaled(def.special.power, m.level) : 0;
+    const e = normalEffect(m.id, counts, 1, m.level, enemy);
+    const sp0 = detectHeroSpecial(board, m.id) !== null ? scaled(def.special.power, m.level) : 0;
+    const sp = def.role === 'attacker' ? Math.round(sp0 * colorMultiplier(enemy, def.special.color)) : sp0;
     if (sp > 0) special = true;
     damage += e.damage + (def.role === 'attacker' ? sp : 0);
     heal += e.heal + (def.role === 'healer' ? sp : 0);
@@ -95,7 +102,7 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
   const afterHit = (state.partyHp - attack) / state.partyMaxHp;
   const healWeight = afterHit < 0.25 ? 3 : afterHit < 0.5 ? 1.5 : 0.6;
   const value = (board: Board) => {
-    const e = estimate(board, state.party);
+    const e = estimate(board, state.party, enemyOf(state));
     const finishing = e.damage >= state.enemyHp ? 10_000 : 0;
     return finishing + e.damage + Math.min(e.heal, missing) * healWeight;
   };

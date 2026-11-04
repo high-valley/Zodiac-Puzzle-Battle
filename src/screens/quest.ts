@@ -1,5 +1,6 @@
 // クエスト選択：章のマップでステージを選び、敵と★の条件を見て出撃する
 import type { AppContext } from '../app';
+import { affinityHtml } from '../components/heroCard';
 import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
 import { CHAPTERS, STAR3_HP_RATIO, findStage, stageEnemyName } from '../data/stages';
@@ -100,6 +101,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
           <div><dt>HP</dt><dd>${enemy.maxHp.toLocaleString('ja-JP')}</dd></div>
           <div><dt>攻撃</dt><dd>${enemy.attack}</dd></div>
           <div><dt>強攻撃</dt><dd>${enemy.heavy ? `${enemy.heavy.every}ターンごとに ${enemy.heavy.attack}` : 'なし'}</dd></div>
+          <div><dt>色</dt><dd class="aff-row">${affinityHtml(enemy)}</dd></div>
         </dl>
       </div>
       <ul class="star-rules" aria-label="★の条件">

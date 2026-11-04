@@ -106,3 +106,16 @@ export const TRAITS = {
   /** 連鎖：連鎖倍率の伸びをこれに替える（ふつうは 0.25。2連鎖で1.5倍、4連鎖で2.5倍） */
   chainStep: 0.5,
 };
+
+/**
+ * 防御力（仕様書 12.11。2026-11-04 ユーザーの決定：割合で減らす）。
+ * 受けるダメージ = 敵の攻撃 × base ÷（base ＋ 仲間の防御力の合計）。四捨五入して最低 1
+ */
+export const DEFENSE = { base: 100 };
+
+export function damageTaken(attack: number, partyDefense: number): number {
+  return Math.max(1, Math.round((attack * DEFENSE.base) / (DEFENSE.base + Math.max(0, partyDefense))));
+}
+
+/** 敵の色の弱点・耐性（仕様書 12.11。2026-11-04 ユーザーの決定）。攻撃（通常・必殺）にかけ、回復にはかけない */
+export const WEAKNESS = { weak: 1.5, resist: 0.7 };

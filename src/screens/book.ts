@@ -1,7 +1,7 @@
 // 図鑑：12星座のキャラと、倒した敵（仕様書 11.3）
 import type { AppContext } from '../app';
 import { enemySvg } from '../components/enemyArt';
-import { heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
+import { affinityHtml, heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { ENEMIES } from '../data/enemies';
 import { ALL_HEROES, HEROES } from '../data/heroes';
 import { ALL_STAGES } from '../data/stages';
@@ -45,6 +45,7 @@ export function mountBook(container: HTMLElement, ctx: AppContext): () => void {
                   ? `HP ${enemy.maxHp.toLocaleString('ja-JP')}・攻撃 ${enemy.attack}${enemy.heavy ? `・${enemy.heavy.every}ターンごとに強攻撃 ${enemy.heavy.attack}` : ''}`
                   : 'まだ倒していない'
               }</p>
+              ${known ? `<p class="ee-aff aff-row">${affinityHtml(enemy)}</p>` : ''}
             </div>
           </li>`;
         })

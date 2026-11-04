@@ -43,6 +43,16 @@ export function heroMaxHp(id: HeroId, level: number): number {
   return scaled(HEROES[id].maxHpContribution, level);
 }
 
+/** そのキャラの防御力（レベル込み） */
+export function heroDefense(id: HeroId, level: number): number {
+  return scaled(HEROES[id].defense, level);
+}
+
+/** 仲間の防御力の合計（敵の攻撃で受けるダメージを割合で減らす。仕様書 12.11） */
+export function partyDefense(party: readonly PartyMember[]): number {
+  return party.reduce((sum, m) => sum + heroDefense(m.id, m.level), 0);
+}
+
 /** パーティー最大HP = 出撃する仲間の寄与値（レベル込み）の合計 */
 export function partyMaxHp(party: readonly PartyMember[]): number {
   return party.reduce((sum, m) => sum + heroMaxHp(m.id, m.level), 0);
@@ -59,6 +69,7 @@ export function memberLevel(party: readonly PartyMember[], id: HeroId): number {
 export interface HeroStats {
   hp: number;
   power: number;
+  defense: number;
   special: number;
 }
 
@@ -66,7 +77,7 @@ export function heroStats(id: HeroId, level: number): HeroStats {
   const h = HEROES[id];
   // 行動の色は1つだけ（仕様書 12.7）。必殺の色と同じだが、念のため行動の一覧から取る
   const coef = Object.values(h.actions).reduce((m, a) => Math.max(m, a?.coef ?? 0), 0);
-  return { hp: heroMaxHp(id, level), power: (coef * levelPercent(level)) / 100, special: scaled(h.special.power, level) };
+  return { hp: heroMaxHp(id, level), defense: heroDefense(id, level), power: (coef * levelPercent(level)) / 100, special: scaled(h.special.power, level) };
 }
 
 /** ステータスの数の出し方（整数ならそのまま、小数は1桁まで。例：12、12.6） */

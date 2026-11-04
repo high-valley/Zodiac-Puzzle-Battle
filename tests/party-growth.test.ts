@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { MAX_LEVEL, expToNext, levelMultiplier } from '../src/data/growth';
 import { ALL_HEROES, DEFAULT_PARTY, HEROES } from '../src/data/heroes';
 import { ALL_STAGES } from '../src/data/stages';
-import { createBattle, normalEffect, resolveTurn } from '../src/game/combat';
+import { ENEMIES } from '../src/data/enemies';
+import { colorMultiplier, createBattle, normalEffect, resolveTurn } from '../src/game/combat';
 import { battleExp, gainExp } from '../src/game/growth';
 import { heroMaxHp, partyMaxHp, partyProblem, scaled } from '../src/game/party';
 import { SHAPES } from '../src/game/specials';
@@ -19,12 +20,13 @@ describe('12星座のデータ', () => {
     for (const id of ALL_HEROES) expect(HEROES[id].id).toBe(id);
   });
 
-  it('攻撃キャラは自分の色（必殺の色）だけで攻撃し、係数は12。回復キャラはピンクだけで回復（仕様書 12.7）', () => {
+  it('攻撃キャラは自分の色（必殺の色）だけで攻撃し、係数は11〜13（防御力とのつり合い）。回復キャラはピンクだけで回復（仕様書 12.7・12.11）', () => {
     for (const id of ALL_HEROES) {
       const h = HEROES[id];
       if (h.role === 'attacker') {
         expect(Object.keys(h.actions)).toEqual([h.special.color]);
-        expect(h.actions[h.special.color]!.coef).toBe(12);
+        const c = h.actions[h.special.color]!.coef;
+        expect(c >= 11 && c <= 13).toBe(true);
         expect(h.special.color === 'pink').toBeFalsy();
       } else {
         expect(Object.keys(h.actions)).toEqual(['pink']);
@@ -115,7 +117,7 @@ describe('レベルによる強さ', () => {
   it('通常効果と必殺の威力はレベルで伸びる', () => {
     // 特性のないさそり座で確かめる
     const counts = { red: 0, blue: 3, green: 0, pink: 0 };
-    expect(normalEffect('scorpio', counts, 1, 11).damage).toBe(Math.round(12 * 3 * 1.5));
+    expect(normalEffect('scorpio', counts, 1, 11).damage).toBe(Math.round(HEROES.scorpio.actions.blue!.coef * 3 * 1.5));
     // 赤L字の盤面で、レベル1とレベル11の必殺のダメージをくらべる
     const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
     const action = { rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
@@ -124,8 +126,10 @@ describe('レベルによる強さ', () => {
       const ev = resolveTurn(s, action).events.find((e) => e.type === 'special');
       return ev && ev.type === 'special' ? ev.damage : -1;
     };
-    expect(special(1)).toBe(HEROES.aries.special.power);
-    expect(special(11)).toBe(Math.round(HEROES.aries.special.power * 1.5));
+    // 星喰いの影は赤が弱点（×1.5。仕様書 12.11）
+    const weak = colorMultiplier(ENEMIES.shadow, 'red');
+    expect(special(1)).toBe(Math.round(HEROES.aries.special.power * weak));
+    expect(special(11)).toBe(Math.round(Math.round(HEROES.aries.special.power * 1.5) * weak));
   });
 });
 
