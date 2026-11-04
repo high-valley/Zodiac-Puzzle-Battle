@@ -2,6 +2,7 @@
 import type { AppContext } from '../app';
 import { cueForEvent, turnHasSpecial } from '../audio/cues';
 import { ORB_LABEL, createBoardView } from '../components/board';
+import { assetUrl } from '../components/assets';
 import { createFx } from '../components/effects';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
@@ -10,6 +11,7 @@ import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
 import { rotateTuningOf } from '../storage/settings';
 import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { DEV_TOOLS } from '../data/devTools';
+import { HERO_ART } from '../data/heroArt';
 import { FX_TIMING } from '../data/heroFx';
 import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
@@ -154,7 +156,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   const enemyFigure = $<HTMLElement>('.enemy-figure');
   const battleEl = $<HTMLElement>('.battle');
-  const fx = createFx($<HTMLElement>('.fx-layer'));
+  const fx = createFx($<HTMLElement>('.fx-layer'), () => ctx.settings.speed);
+  // 必殺のカットインの立ち絵を先に読み込んでおく（初めての必殺で絵が間に合わないことがないように）
+  for (const { id } of state.party) new Image().src = assetUrl(HERO_ART[id].file);
 
   function setBar(sel: string, value: number, max: number) {
     const bar = $<HTMLElement>(sel);
@@ -249,10 +253,12 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     const layer = $<HTMLElement>(sel);
     const p = document.createElement('span');
     p.className = `popup ${kind}${big ? ' big' : ''}`;
+    // 中央寄せのグリッドの中では、左の余白の半分だけ中心が動くので2倍にする
     if (dx) p.style.marginLeft = `${dx * 2}px`;
     p.textContent = text;
     layer.append(p);
-    setTimeout(() => p.remove(), ms(1100));
+    // 「視差効果を減らす」でも数値は見せる（11.15.1）。演出 ×2 では半分
+    setTimeout(() => p.remove(), fxMs(big ? 1400 : 1100));
   }
 
   function setBusy(value: boolean) {
@@ -283,6 +289,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     const play = isSpecial ? fx.special(id, card, target) : fx.normal(id, card, target);
     // 当たった瞬間に数値を出す（演出の半ばあたり）
     await wait(fxMs(isSpecial ? FX_TIMING.special * 0.4 : FX_TIMING.normal * 0.5));
+    // 画面を離れたら、音も数値も出さない
+    if (disposed) return;
     if (damage > 0) {
       hp.enemy = Math.max(0, hp.enemy - damage);
       popup('.enemy-popups', `${damage}`, 'damage', isSpecial, dx);
@@ -293,8 +301,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       // 最大HPで頭打ちになった分は出さない
       const healed = Math.min(heal, state.partyMaxHp - hp.party);
       hp.party += healed;
-      if (healed > 0) popup('.party-popups', `+${healed}`, 'heal', isSpecial, dx);
-      sound.play({ name: 'heal', big: isSpecial });
+      // 満タンで回復できなかったときは、数値も音も出さない（エンジンも heal の出来事を出さない）
+      if (healed > 0) {
+        popup('.party-popups', `+${healed}`, 'heal', isSpecial, dx);
+        sound.play({ name: 'heal', big: isSpecial });
+      }
     }
     renderStatus(hp.enemy, hp.party);
     await play;
@@ -338,7 +349,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         battleEl.dataset.flash = ev.special.color;
         await board.drawConstellation(ev.special.cells, fxMs(FX_TIMING.constellation));
         battleEl.classList.remove('special-flash');
+        if (disposed) return;
         await fx.cutIn(id);
+        if (disposed) return;
         await hitBy(id, ev.damage, ev.heal, hp, true);
         break;
       }
@@ -475,7 +488,6 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       else recordOutcome();
       board.mark([], []);
       try {
-        fx.setSpeed(ctx.settings.speed);
         let acted = false;
         for (const ev of turn.events) {
           if (disposed) return;

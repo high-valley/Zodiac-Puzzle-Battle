@@ -24,14 +24,11 @@ export interface FxView {
   cutIn(heroId: HeroId): Promise<void>;
   /** 必殺の技 */
   special(heroId: HeroId, from: Element, to: Element): Promise<void>;
-  /** 部品の長さに演出の速さをかける（演出 ×2 なら半分） */
-  setSpeed(speed: number): void;
 }
 
-/** layer は演出を重ねる要素（画面いっぱい、指の操作は通さない） */
-export function createFx(layer: HTMLElement): FxView {
-  let speed = 1;
-  const t = (n: number) => n / speed;
+/** layer は演出を重ねる要素（画面いっぱい、指の操作は通さない）。speed は演出の速さ（×2 なら長さが半分。ターンの途中で変えてもよい） */
+export function createFx(layer: HTMLElement, speed: () => number): FxView {
+  const t = (n: number) => n / speed();
   const svg = svgEl('svg', { class: 'fx-svg', 'aria-hidden': 'true' });
   layer.append(svg);
 
@@ -75,11 +72,11 @@ export function createFx(layer: HTMLElement): FxView {
       g.append(glow, edge, core);
       const len = size * 1.15;
       for (const p of [glow, edge, core]) {
-        p.style.strokeDasharray = `${len}`;
-        p.style.strokeDashoffset = `${len}`;
+        p.style.strokeDasharray = `${len}px`;
+        p.style.strokeDashoffset = `${len}px`;
       }
       const draw = [glow, edge, core].map((p) =>
-        p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: t(160), easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }),
+        p.animate([{ strokeDashoffset: `${len}px` }, { strokeDashoffset: '0px' }], { duration: t(160), easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' }),
       );
       jobs.push(
         Promise.all(draw.map(done)).then(async () => {
@@ -119,8 +116,8 @@ export function createFx(layer: HTMLElement): FxView {
         await done(
           c.animate(
             [
-              { transform: 'scale(0.15)', opacity: 1, strokeWidth: 10 },
-              { transform: 'scale(1)', opacity: 0, strokeWidth: 1 },
+              { transform: 'scale(0.15)', opacity: 1, strokeWidth: '10px' },
+              { transform: 'scale(1)', opacity: 0, strokeWidth: '1px' },
             ],
             { duration: t(460), easing: 'cubic-bezier(.1,.6,.3,1)', fill: 'forwards' },
           ),
@@ -209,11 +206,11 @@ export function createFx(layer: HTMLElement): FxView {
     const core = svgEl('line', { x1: 0, y1: 0, x2: len, y2: 0, stroke: '#fff', 'stroke-width': w * 0.45, 'stroke-linecap': 'round' });
     g.append(glow, core);
     for (const p of [glow, core]) {
-      p.style.strokeDasharray = `${len}`;
-      p.style.strokeDashoffset = `${len}`;
+      p.style.strokeDasharray = `${len}px`;
+      p.style.strokeDashoffset = `${len}px`;
     }
     await Promise.all(
-      [glow, core].map((p) => done(p.animate([{ strokeDashoffset: len }, { strokeDashoffset: 0 }], { duration: t(200), easing: 'cubic-bezier(.5,0,.9,.5)', fill: 'forwards' }))),
+      [glow, core].map((p) => done(p.animate([{ strokeDashoffset: `${len}px` }, { strokeDashoffset: '0px' }], { duration: t(200), easing: 'cubic-bezier(.5,0,.9,.5)', fill: 'forwards' }))),
     );
     await done(g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: t(220), fill: 'forwards' }));
     g.remove();
@@ -450,8 +447,5 @@ export function createFx(layer: HTMLElement): FxView {
     normal: (heroId, from, to) => run(HERO_FX[heroId].normal, heroId, from, to),
     special: (heroId, from, to) => run(HERO_FX[heroId].special, heroId, from, to),
     cutIn,
-    setSpeed(s) {
-      speed = s;
-    },
   };
 }
