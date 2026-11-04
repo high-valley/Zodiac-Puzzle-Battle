@@ -157,6 +157,8 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     if (hero.trait === 'shield' && sHeal > 0) shielded = true;
     if (hero.trait === 'rain') rainFrom += sHeal;
     if (hero.trait === 'poison') poisonFrom += sDamage;
+    // 必殺で攻撃したターンも、溜めは溜まらない（溜めた力は通常の攻撃で使う）
+    if (hero.trait === 'charge' && sDamage > 0) chargeUsed = true;
     damage += sDamage;
     heal += sHeal;
     specials.push(special);
@@ -245,16 +247,20 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     if (partyHp > before) events.push({ type: 'rain', amount: partyHp - before, partyHp });
     rain.turns -= 1;
   }
-  if (rainFrom > 0) rain = { amount: Math.max(1, Math.round(rainFrom * TRAITS.rainRatio)), turns: TRAITS.rainTurns };
+  // 新しい雨は、残っている雨より強いときだけ上書きする（毒と同じ）
+  const newRain = Math.max(1, Math.round(rainFrom * TRAITS.rainRatio + 1e-9));
+  if (rainFrom > 0 && (!rain || rain.turns <= 0 || newRain > rain.amount)) rain = { amount: newRain, turns: TRAITS.rainTurns };
   if (rain && rain.turns <= 0) rain = undefined;
 
   // 毒：このターンの攻撃で新しくかかった毒は強い方で上書きし、ターンの終わりにダメージを与える
   let poison = prevTraits.poison && prevTraits.poison.turns > 0 ? { ...prevTraits.poison } : undefined;
-  const newPoison = Math.round(poisonFrom * TRAITS.poisonRatio);
-  if (newPoison > 0 && (!poison || newPoison >= poison.amount)) poison = { amount: newPoison, turns: TRAITS.poisonTurns };
+  const newPoison = Math.round(poisonFrom * TRAITS.poisonRatio + 1e-9);
+  if (newPoison > 0 && (!poison || newPoison > poison.amount)) poison = { amount: newPoison, turns: TRAITS.poisonTurns };
   if (poison && enemyHp > 0) {
+    // amount は実際に減った量
+    const before = enemyHp;
     enemyHp = Math.max(0, enemyHp - poison.amount);
-    events.push({ type: 'poison', amount: poison.amount, enemyHp });
+    events.push({ type: 'poison', amount: before - enemyHp, enemyHp });
     poison.turns -= 1;
   }
   if (poison && poison.turns <= 0) poison = undefined;
@@ -282,7 +288,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     // 仲間の防御力の合計で、受けるダメージを割合で減らす（仕様書 12.11）
     amount = damageTaken(amount, partyDefense(state.party));
     // 盾（かに座）：回復したターンは、敵の攻撃を軽くする
-    if (shielded) amount = Math.max(1, Math.round(amount * (1 - TRAITS.shieldCut)));
+    if (shielded) amount = Math.max(1, Math.round(amount * (1 - TRAITS.shieldCut) + 1e-9));
     partyHp = Math.max(0, partyHp - amount);
     events.push({ type: 'enemyAttack', amount, partyHp, heavy, ...(shielded ? { shield: true } : {}) });
     if (partyHp === 0) status = 'defeat';

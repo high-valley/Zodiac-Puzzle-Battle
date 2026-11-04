@@ -355,12 +355,12 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   /** 連鎖が終わったら、動いた仲間が編成の順に1人ずつ攻撃・回復する（仕様書 11.15.1） */
   async function membersAct(events: BattleEvent[], hp: { enemy: number; party: number }) {
-    const total = new Map<HeroId, { damage: number; heal: number }>();
+    const total = new Map<HeroId, { damage: number; heal: number; hits: number }>();
     for (const ev of events) {
       if (ev.type !== 'clear') continue;
       for (const a of ev.actors) {
-        const t = total.get(a.heroId) ?? { damage: 0, heal: 0 };
-        total.set(a.heroId, { damage: t.damage + a.damage, heal: t.heal + a.heal });
+        const t = total.get(a.heroId) ?? { damage: 0, heal: 0, hits: 1 };
+        total.set(a.heroId, { damage: t.damage + a.damage, heal: t.heal + a.heal, hits: Math.max(t.hits, a.hits ?? 1) });
       }
     }
     const jobs: Promise<void>[] = [];
@@ -370,7 +370,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       if (disposed) break;
       flashActors([id]);
       // 数値は左から順に少しずつずらして出す（続けて出ても重ならないように）
-      jobs.push(hitBy(id, t.damage, t.heal, hp, false, Math.round((i - (acting.length - 1) / 2) * 46), HEROES[id].trait === 'twin' ? 2 : 1));
+      jobs.push(hitBy(id, t.damage, t.heal, hp, false, Math.round((i - (acting.length - 1) / 2) * 46), t.hits));
       // 前の仲間の演出と少し重ねて、次の仲間を始める
       await wait(fxMs(FX_TIMING.nextMember));
     }

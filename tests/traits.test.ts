@@ -92,3 +92,36 @@ describe('キャラ特性（仕様書 12.8。12人全員）', () => {
     expect(r.state.traits?.rain).toBe(undefined);
   });
 });
+
+describe('特性：ターンをまたぐもの（レビューの指摘）', () => {
+  it('溜め：必殺だけで攻撃したターンは溜まらない。やぎ座がいなければ溜まらない', () => {
+    const horns = ['GBGPR', 'GPGBR', 'RGBRB', 'BRPGP', 'PBRBG'];
+    const s = stateWith(createBattle(1, 'stardust', [{ id: 'capricorn', level: 1 }]), horns);
+    const r = resolveTurn(s, quiet);
+    expect(r.events.some((e) => e.type === 'special')).toBe(true);
+    expect(r.state.traits?.charge).toBe(undefined);
+    const noCap = resolveTurn(stateWith(createBattle(1, 'stardust'), QUIET_ROWS), quiet);
+    expect(noCap.state.traits?.charge).toBe(undefined);
+  });
+
+  it('溜め：攻撃した段で使い切る', () => {
+    const r = normalEffect('capricorn', c({ green: 3 }), 1, 1, undefined, { charge: 3 });
+    expect(r.damage).toBe(Math.round(coef('capricorn') * 3 * 2.5));
+  });
+
+  it('毒：毒で倒せば敵は攻撃せず勝ち。表示する量は実際に減った量', () => {
+    const s = stateWith(createBattle(1, 'stardust'), QUIET_ROWS, { enemyHp: 10, traits: { poison: { amount: 15, turns: 2 } } });
+    const r = resolveTurn(s, quiet);
+    expect(r.state.status).toBe('victory');
+    expect(r.events.some((e) => e.type === 'enemyAttack')).toBe(false);
+    expect(r.events.find((e) => e.type === 'poison')?.type === 'poison' && (r.events.find((e) => e.type === 'poison') as { amount: number }).amount).toBe(10);
+  });
+
+  it('再現性：特性の状態を持ったまま、同じ入力なら同じ結果', () => {
+    const s = stateWith(createBattle(3, 'stardust', [{ id: 'scorpio', level: 1 }, { id: 'aquarius', level: 1 }, { id: 'capricorn', level: 1 }]), QUIET_ROWS, {
+      traits: { poison: { amount: 9, turns: 2 }, rain: { amount: 4, turns: 2 }, charge: 2 },
+      partyHp: 100,
+    });
+    expect(JSON.stringify(resolveTurn(s, quiet))).toBe(JSON.stringify(resolveTurn(s, quiet)));
+  });
+});

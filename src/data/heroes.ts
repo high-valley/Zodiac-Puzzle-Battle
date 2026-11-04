@@ -1,5 +1,6 @@
 // キャラの設定データ（数値は仮）。12星座の性能の考え方は仕様書 12.3
 import type { HeroId, OrbColor, PartyMember, SpecialShape } from '../game/types';
+import { TRAITS } from './balance';
 
 export interface ColorAction {
   /** 技名（表示用） */
@@ -19,14 +20,14 @@ export const TRAIT_LABEL: Record<HeroTrait, { name: string; text: string }> = {
   mass: { name: '量', text: '自分の色を一度に多く消すほど、ダメージが伸びる' },
   chain: { name: '連鎖', text: '連鎖が深いほど、ダメージが大きく伸びる' },
   twin: { name: '2回攻撃', text: '1回は弱いが、必ず2回当たる（合わせると少し強い）' },
-  poison: { name: '毒', text: '攻撃すると敵に毒が回り、3ターンのあいだターンの終わりにダメージを与える' },
-  far: { name: '遠距離', text: '盤面の上の2段で自分の色を消すと、その分だけ強くなる' },
+  poison: { name: '毒', text: `攻撃すると敵に毒が回り、${TRAITS.poisonTurns}ターンのあいだダメージを与える` },
+  far: { name: '遠距離', text: `盤面の上の${TRAITS.farRows}段で自分の色を消すと、その分だけ強くなる` },
   balance: { name: '均衡', text: '同じ段にほかの色も消えると、色の数だけ強くなる' },
-  charge: { name: '溜め', text: '自分の色が消えなかったターンごとに力が溜まり（最大3）、次の一撃が大きくなる' },
+  charge: { name: '溜め', text: `自分の色で攻撃しなかったターンごとに力が溜まり（最大${TRAITS.chargeMax}）、次の一撃が大きくなる` },
   vortex: { name: '渦', text: '2段目からの連鎖で攻撃するたびに、少しずつ回復もする' },
-  shield: { name: '盾', text: '回復したターンは、敵の攻撃を3割軽くする' },
-  bigHeal: { name: '大回復', text: 'ピンクを一度に4個以上消すと、回復が大きくなる' },
-  rain: { name: '恵みの雨', text: '回復すると、次の2ターンも少しずつ回復が続く' },
+  shield: { name: '盾', text: `回復したターンは、敵の攻撃を${Math.round(TRAITS.shieldCut * 10)}割軽くする` },
+  bigHeal: { name: '大回復', text: `ピンクを一度に${TRAITS.bigHealMin}個以上消すと、回復が大きくなる` },
+  rain: { name: '恵みの雨', text: `回復すると、次の${TRAITS.rainTurns}ターンも少しずつ回復が続く` },
 };
 
 export interface HeroDef {

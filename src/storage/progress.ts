@@ -9,7 +9,7 @@ import { partyMaxHp, partyProblem } from '../game/party';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
 import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
 import { isValidIntersection } from '../game/board';
-import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
+import { MAX_ROTATIONS_PER_TURN, TRAITS } from '../data/balance';
 import { SCENES, STAGE_SCENES } from '../data/story';
 
 export interface StageRecord {
@@ -175,9 +175,9 @@ export function isBattleState(v: unknown): v is BattleState {
     const t = s.traits as Record<string, unknown> | null;
     if (typeof t !== 'object' || t === null) return false;
     const lasting = (v: unknown) =>
-      v === undefined || (typeof v === 'object' && v !== null && isInt((v as Record<string, unknown>).amount, 1) && isInt((v as Record<string, unknown>).turns, 1, 9));
+      v === undefined || (typeof v === 'object' && v !== null && isInt((v as Record<string, unknown>).amount, 1) && isInt((v as Record<string, unknown>).turns, 1, Math.max(TRAITS.poisonTurns, TRAITS.rainTurns)));
     if (!lasting(t.poison) || !lasting(t.rain)) return false;
-    if (t.charge !== undefined && !isInt(t.charge, 0, 9)) return false;
+    if (t.charge !== undefined && !isInt(t.charge, 0, TRAITS.chargeMax)) return false;
   }
   const st = s.stats as Record<string, unknown> | null;
   if (typeof st !== 'object' || st === null) return false;
