@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
-import { classifySwipe, gripOf, pickIntersection, swipeAlong, turnDirection, type Grip } from '../input/swipe';
+import { angleAround, clampTurns, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -28,7 +28,8 @@ export interface BoardView {
   select(pos: Pos | null): void;
   setLocked(locked: boolean): void;
   /** 回す動き */
-  animateRotate(board: Board, at: Pos, direction: Direction, ms: number): Promise<void>;
+  /** 回す動き。startBoard は、指で何回分も回したときの、最後の1回の手前の盤面（そこから最後の1回を見せる） */
+  animateRotate(board: Board, at: Pos, direction: Direction, ms: number, startBoard?: Board): Promise<void>;
   /** 回している途中なら、すぐ回し終える（次の入力を待たせないため） */
   finishRotate(): void;
   animateClear(cells: Pos[], ms: number): Promise<void>;
@@ -52,7 +53,7 @@ function quad(at: Pos): Pos[] {
   ];
 }
 
-/** 2×2 の中心のまわりを角度 p（0〜1 で 90 度）だけ回した位置の transform。1マス＝オーブの大きさの100% */
+/** 2×2 の中心のまわりを角度 p（1 で 90 度。1 を超えてもよい）だけ回した位置の transform。1マス＝オーブの大きさの100% */
 function arcTransform(from: Pos, at: Pos, direction: Direction, p: number): string {
   const cx = at.col + 1;
   const cy = at.row + 1;
@@ -61,24 +62,24 @@ function arcTransform(from: Pos, at: Pos, direction: Direction, p: number): stri
   const x = cx + Math.SQRT1_2 * Math.cos(a) - 0.5;
   const y = cy + Math.SQRT1_2 * Math.sin(a) - 0.5;
   // 途中で少しだけ大きくして、持ち上げて回す感じを出す
-  const lift = 1 + 0.06 * Math.sin(Math.PI * p);
+  const lift = 1 + 0.06 * Math.abs(Math.sin(Math.PI * p));
   return `translate(${x * 100}%, ${y * 100}%) scale(${lift})`;
 }
 
 /**
- * @param onRotate 回すと決まったとき（指を離したとき・回転ボタン）
- * @param canRotate 今回せるか（回せないときは、指に合わせて動かさない）
+ * @param onRotate 回すと決まったとき（指を離したとき・回転ボタン）。steps は続けて回す回数（指で 180 度回したら 2）
+ * @param remaining 今あと何回回せるか（0 なら指に合わせて動かさない。指で回せるのもこの回数まで）
  */
 export function createBoardView(
-  onRotate: (at: Pos, direction: Direction) => void,
-  canRotate: () => boolean = () => true,
+  onRotate: (at: Pos, direction: Direction, steps: number) => void,
+  remaining: () => number = () => 3,
   /** 回す動きの速さ（開発者画面で変えられるので、使うたびに読む） */
   tuning: () => RotateTuning = () => DEFAULT_ROTATE_TUNING,
 ): BoardView {
   const el = document.createElement('div');
   el.className = 'board';
   el.setAttribute('role', 'grid');
-  el.setAttribute('aria-label', '盤面。2×2 の4個のどれかを押して指をすべらせると、押したオーブがその向きに動くように4個が回ります');
+  el.setAttribute('aria-label', '盤面。2×2 の4個を押して、つまみを回すように指で円を描くと、4個がその向きに回ります');
 
   const orbLayer = document.createElement('div');
   orbLayer.className = 'orbs';
@@ -153,25 +154,27 @@ export function createBoardView(
     current = pos;
     if (pos) stars[pos.row][pos.col].classList.add('on');
     ring.hidden = pos === null;
-    ring.classList.remove('hint-cw', 'hint-ccw');
     if (pos) {
       ring.style.setProperty('--r', String(pos.row));
       ring.style.setProperty('--c', String(pos.col));
     }
   }
 
-  // 交点スワイプ
-  let start: { x: number; y: number; id: number; grip: Grip } | null = null;
-  /** 指に合わせて回している途中のようす（p は 0〜1 で 90 度、v は指の速さ px/ms） */
-  let drag: { at: Pos; direction: Direction; p: number; v: number; axis: 'x' | 'y'; lastX: number; lastT: number } | null = null;
-  /** 指を離して回すと決まり、その続きを animateRotate に引き継ぐもの */
+  // 指で回す：選んだ 2×2 の中心のまわりを、つまみを回すように（2026-11-04）。指の角度にぴったり付いて回る
+  /** q は回した量（90度＝1、正＝時計回り）、v は角速度（90度＝1 / ms）、moved は押してから動いた最大の距離（px） */
+  let start: { x: number; y: number; id: number; lastAngle: number | null; q: number; v: number; lastT: number; moved: number } | null = null;
+  /** 指に合わせて回している途中のようす */
+  let drag: { at: Pos; q: number } | null = null;
+  /** 指を離して回すと決まり、その続きを animateRotate に引き継ぐもの（p は最後の1回のうち回した割合、v は指の速さ px/ms） */
   let release: { at: Pos; direction: Direction; p: number; v: number } | null = null;
 
-  function setDrag(at: Pos, direction: Direction, p: number) {
+  const dirOf = (q: number): Direction => (q >= 0 ? 'clockwise' : 'counterclockwise');
+
+  function setDrag(at: Pos, q: number) {
     for (const from of quad(at)) {
       const o = orbAt(from);
       o.classList.add('dragging');
-      o.style.transform = arcTransform(from, at, direction, p);
+      o.style.transform = arcTransform(from, at, dirOf(q), Math.abs(q));
     }
   }
 
@@ -184,16 +187,18 @@ export function createBoardView(
   }
 
   /** 回しきらずに離したときは、もとの位置へ戻す */
-  function springBack(state: { at: Pos; direction: Direction; p: number }) {
-    if (state.p <= 0 || typeof el.animate !== 'function') {
+  function springBack(state: { at: Pos; q: number }) {
+    if (state.q === 0 || typeof el.animate !== 'function') {
       clearDrag(state.at);
       return;
     }
+    const dir = dirOf(state.q);
+    const p = Math.abs(state.q);
     for (const from of quad(state.at)) {
       const o = orbAt(from);
       const anim = o.animate(
-        [{ transform: arcTransform(from, state.at, state.direction, state.p) }, { transform: arcTransform(from, state.at, state.direction, 0) }],
-        { duration: ROTATE_ANIM.springBackMs, easing: 'ease-out' },
+        [{ transform: arcTransform(from, state.at, dir, p) }, { transform: arcTransform(from, state.at, dir, 0) }],
+        { duration: ROTATE_ANIM.springBackMs * Math.min(2, Math.max(1, p * 2)), easing: 'ease-out' },
       );
       o.style.transform = '';
       o.classList.remove('dragging');
@@ -205,6 +210,13 @@ export function createBoardView(
   function local(e: PointerEvent) {
     const rect = el.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top, cell: rect.width / BOARD_SIZE };
+  }
+
+  /** 中心から近すぎる所では角度を読まない */
+  function angleOf(e: PointerEvent, at: Pos): number | null {
+    const p = local(e);
+    const { angle, r } = angleAround(p.x, p.y, p.cell, at);
+    return r < SWIPE.centerDeadCells * p.cell ? null : angle;
   }
 
   el.addEventListener('pointerdown', (e) => {
@@ -219,22 +231,15 @@ export function createBoardView(
     // 押している間は枠を少し強く光らせる。選び直したときは、移ったことが分かるように軽く光らせる
     ring.classList.add('pressing');
     if (before && current && (before.row !== current.row || before.col !== current.col)) flashRing();
-    // 押した位置（選んだ 2×2 のどのあたりか）。回す向きを、押したオーブがすべらせた向きに動くように決める
-    const grip: Grip = current ? gripOf(p.x, p.y, p.cell, current) : { x: 0, y: 0, cell: p.cell };
-    start = { x: e.clientX, y: e.clientY, id: e.pointerId, grip };
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId, lastAngle: current ? angleOf(e, current) : null, q: 0, v: 0, lastT: e.timeStamp, moved: 0 };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
 
   el.addEventListener('pointermove', (e) => {
     if (!start || e.pointerId !== start.id) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    const result = classifySwipe(dx, dy, SWIPE, start.grip);
-    ring.classList.toggle('hint-cw', result.kind === 'rotate' && result.direction === 'clockwise');
-    ring.classList.toggle('hint-ccw', result.kind === 'rotate' && result.direction === 'counterclockwise');
-    // 指に合わせて回す：横か縦に動かした分だけ（1マス弱で 90 度）。押したオーブが指の向きに動く向き。斜めでは回さない
-    if (!current || locked || running.length > 0 || !canRotate() || typeof el.animate !== 'function') {
+    const left = remaining();
+    if (!current || locked || running.length > 0 || left <= 0 || typeof el.animate !== 'function') {
       // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
       if (drag) {
         clearDrag(drag.at);
@@ -242,65 +247,68 @@ export function createBoardView(
       }
       return;
     }
-    const s = swipeAlong(dx, dy);
-    // 斜めを通るあいだは、回しかけの位置のまま止めておく（横から縦へ動きを変えても、飛ばないように）
-    if (!s) return;
-    const direction: Direction = turnDirection(s.axis, s.along, start.grip);
-    if (drag && (drag.direction !== direction || drag.at !== current)) {
-      clearDrag(drag.at);
-      drag = null;
+    start.moved = Math.max(start.moved, Math.hypot(e.clientX - start.x, e.clientY - start.y));
+    const angle = angleOf(e, current);
+    if (angle === null) {
+      // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく
+      start.lastAngle = null;
+      return;
     }
-    const cell = el.getBoundingClientRect().width / BOARD_SIZE;
-    const p = Math.min(tuning().dragMaxP, (Math.abs(s.along) - SWIPE.dragDeadZone) / (cell * SWIPE.dragCellsPer90));
-    const now = e.timeStamp;
-    const pos = s.axis === 'x' ? e.clientX : e.clientY;
-    // 同じ向きのまま横と縦を持ちかえたときは、速さを引き継がない（別の軸の位置どうしを比べない）
-    const sameAxis = drag !== null && drag.axis === s.axis;
-    const v = drag && sameAxis && now > drag.lastT ? Math.abs(pos - drag.lastX) / (now - drag.lastT) : 0;
-    drag = { at: current, direction, axis: s.axis, p, v: drag && sameAxis ? drag.v * 0.5 + v * 0.5 : v, lastX: pos, lastT: now };
-    setDrag(current, direction, p);
+    if (start.lastAngle === null || start.moved < SWIPE.dragDeadZone) {
+      start.lastAngle = angle;
+      return;
+    }
+    const dq = toTurns(wrapAngle(angle - start.lastAngle));
+    start.lastAngle = angle;
+    // 残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
+    const q = clampTurns(start.q + dq, left);
+    const dt = e.timeStamp - start.lastT;
+    if (dt > 0) start.v = start.v * 0.5 + ((q - start.q) / dt) * 0.5;
+    start.q = q;
+    start.lastT = e.timeStamp;
+    drag = { at: current, q };
+    setDrag(current, q);
   });
 
   el.addEventListener('pointerup', (e) => {
     if (!start || e.pointerId !== start.id) return;
     ring.classList.remove('pressing');
-    const result = classifySwipe(e.clientX - start.x, e.clientY - start.y, SWIPE, start.grip);
+    const st = start;
     start = null;
-    ring.classList.remove('hint-cw', 'hint-ccw');
     const dragged = drag;
     drag = null;
-    // 離す直前に指を止めていたら、そのぶん遅く回しきる
-    if (dragged && e.timeStamp - dragged.lastT > ROTATE_ANIM.stillMs) dragged.v *= ROTATE_ANIM.stillMs / (e.timeStamp - dragged.lastT);
-    if (locked) {
-      if (dragged) clearDrag(dragged.at);
+    if (!dragged) return;
+    if (locked || !current) {
+      clearDrag(dragged.at);
       return;
     }
-    if (result.kind === 'rotate' && current) {
-      if (dragged && dragged.direction === result.direction && dragged.at === current) {
-        // 指を離した位置と速さから続きを回す（animateRotate が引き継ぐ）
-        release = { at: dragged.at, direction: dragged.direction, p: dragged.p, v: dragged.v };
-        const mine = release;
-        onRotate(current, result.direction);
-        // 回せなかったとき（上限など）は、もとに戻す
-        setTimeout(() => {
-          if (release === mine) {
-            release = null;
-            springBack(mine);
-          }
-        }, 60);
-      } else {
-        if (dragged) clearDrag(dragged.at);
-        onRotate(current, result.direction);
-      }
-    } else if (dragged) {
+    // 離す直前に指を止めていたら、払った速さとして扱わない
+    const still = e.timeStamp - st.lastT;
+    const v = still > ROTATE_ANIM.stillMs ? st.v * (ROTATE_ANIM.stillMs / still) : st.v;
+    const steps = Math.max(-remaining(), Math.min(remaining(), releaseSteps(dragged.q, v, st.moved)));
+    if (steps === 0) {
       springBack(dragged);
+      return;
     }
+    const direction = dirOf(steps);
+    const k = Math.abs(steps);
+    const cell = el.getBoundingClientRect().width / BOARD_SIZE;
+    // 最後の1回のうち、もう回した割合から続きを回す（1 を超えていたら戻しながら止める）
+    release = { at: dragged.at, direction, p: Math.abs(dragged.q) - (k - 1), v: Math.abs(v) * cell * (Math.PI / 4) * Math.SQRT2 };
+    const mine = release;
+    onRotate(dragged.at, direction, k);
+    // 回せなかったとき（上限など）は、もとに戻す
+    setTimeout(() => {
+      if (release === mine) {
+        release = null;
+        springBack(dragged);
+      }
+    }, 60);
   });
 
   el.addEventListener('pointercancel', () => {
     ring.classList.remove('pressing');
     start = null;
-    ring.classList.remove('hint-cw', 'hint-ccw');
     if (drag) springBack(drag);
     drag = null;
   });
@@ -321,7 +329,7 @@ export function createBoardView(
     finishRotate() {
       for (const a of running) a.finish();
     },
-    async animateRotate(board, at, direction, ms) {
+    async animateRotate(board, at, direction, ms, startBoard) {
       const { row: r, col: c } = at;
       // 各マスの移動先。時計回り：左上→右上→右下→左下→左上
       const cw: [Pos, Pos][] = [
@@ -348,13 +356,16 @@ export function createBoardView(
       // 指で回していた続きなら、その位置から指の速さで回しきる。ボタンなら最初から（始まりと終わりはゆっくり）
       const fromDrag = release && release.at.row === r && release.at.col === c && release.direction === direction ? release : null;
       release = null;
+      // 指で何回分も回したときは、最後の1回の手前の盤面にしてから、その1回を見せる（見た目はもうそこまで回っている）
+      if (startBoard) render(startBoard);
       const p0 = fromDrag ? fromDrag.p : 0;
       let duration = ms;
       let easing = 'cubic-bezier(0.45, 0.05, 0.3, 1)';
       if (fromDrag) {
         const cell = el.getBoundingClientRect().width / BOARD_SIZE;
-        // 残りの弧を、離したときの指の速さで回しきる。速すぎ・遅すぎは抑える（data/balance の releaseDuration）
-        duration = releaseDuration(p0, fromDrag.v, cell, ms, tuning());
+        // 残りの弧を、離したときの指の速さで回しきる。速すぎ・遅すぎは抑える（data/balance の releaseDuration）。
+        // 回しすぎていたら、少し戻して止める
+        duration = p0 >= 1 ? ROTATE_ANIM.springBackMs * Math.min(1, 0.3 + (p0 - 1) * 2) : releaseDuration(p0, fromDrag.v, cell, ms, tuning());
         easing = 'cubic-bezier(0.2, 0.6, 0.35, 1)';
       }
       const STEPS = 12;
