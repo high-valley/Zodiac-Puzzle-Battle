@@ -1,0 +1,190 @@
+// ストーリーの会話の場面（docs/story.md 4章）。上半身の絵を左右に出し、下の枠に名前と文を出す。押すと次へ。
+// 見終えたら（またはスキップしたら）見たことを記録して、決めた行き先へ進む
+import type { AppContext } from '../app';
+import { assetUrl } from '../components/assets';
+import { openModal } from '../components/modal';
+import { HERO_ART } from '../data/heroArt';
+import { HEROES } from '../data/heroes';
+import { PORTRAIT_ART, SCENES, STORY_NAME, type Expression, type StoryLine } from '../data/story';
+import type { HeroId } from '../game/types';
+import type { Route } from '../routes';
+import { markSceneSeen } from '../storage/progress';
+
+/** 文を1文字ずつ出す速さ（ms。「視差効果を減らす」ではすぐ全部出す） */
+const TYPE_MS = 28;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+/** 会話の絵：表情ごとの絵があればそれ、無ければ仕上げの立ち絵の上半身を切り出す */
+function portraitImg(id: HeroId, face: Expression): string {
+  const art = PORTRAIT_ART[id]?.[face] ?? PORTRAIT_ART[id]?.normal;
+  if (art) return `<img class="sp-art bust" src="${assetUrl(art)}" alt="" draggable="false" />`;
+  const a = HERO_ART[id];
+  return `<img class="sp-art crop" src="${assetUrl(a.file)}" alt="" draggable="false" style="--hx:${a.headX};--ht:${a.headTop}" />`;
+}
+
+export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: string, next: Route): () => void {
+  const scene = SCENES[sceneId];
+  let disposed = false;
+  const finish = () => {
+    if (disposed) return;
+    disposed = true;
+    if (scene) ctx.setProgress(markSceneSeen(ctx.progress, scene.id));
+    ctx.navigate(next, { replace: true });
+  };
+  if (!scene) {
+    queueMicrotask(finish);
+    return () => undefined;
+  }
+
+  container.innerHTML = `
+  <main class="story-screen">
+    <header class="story-top">
+      <span class="story-title">${scene.title}</span>
+      <span class="story-actions">
+        <button type="button" class="chip story-log">ログ</button>
+        <button type="button" class="chip story-skip">スキップ</button>
+      </span>
+    </header>
+    <div class="story-stage" aria-hidden="true">
+      <div class="story-portrait left"></div>
+      <div class="story-portrait right"></div>
+    </div>
+    <button type="button" class="story-box" aria-label="次へ">
+      <span class="story-name" hidden></span>
+      <span class="story-text" aria-live="polite"></span>
+      <span class="story-next" aria-hidden="true">▼</span>
+    </button>
+  </main>`;
+
+  const $ = <T extends Element>(sel: string) => container.querySelector(sel) as T;
+  const box = $<HTMLButtonElement>('.story-box');
+  const nameEl = $<HTMLElement>('.story-name');
+  const textEl = $<HTMLElement>('.story-text');
+  const sides = { left: $<HTMLElement>('.story-portrait.left'), right: $<HTMLElement>('.story-portrait.right') };
+  /** 左右に今出ている人と表情 */
+  const shown: Record<'left' | 'right', { id: HeroId; face: Expression } | null> = { left: null, right: null };
+  let index = -1;
+  let typing: number | null = null;
+  let full = '';
+
+  function sideOf(line: StoryLine): 'left' | 'right' {
+    if (line.side) return line.side;
+    if (shown.left?.id === line.who) return 'left';
+    if (shown.right?.id === line.who) return 'right';
+    return shown.left ? 'right' : 'left';
+  }
+
+  function stopTyping() {
+    if (typing !== null) clearInterval(typing);
+    typing = null;
+    textEl.textContent = full;
+    box.classList.add('ready');
+  }
+
+  function show(line: StoryLine) {
+    if (line.who) {
+      const side = sideOf(line);
+      const face = line.face ?? 'normal';
+      // 同じ側に別の人が出ていたら入れ替える。同じ人なら表情だけ変える
+      const cur = shown[side];
+      if (!cur || cur.id !== line.who || cur.face !== face) {
+        const el = sides[side];
+        el.innerHTML = portraitImg(line.who, face);
+        el.dataset.color = HEROES[line.who].special.color;
+        if (!cur || cur.id !== line.who) {
+          el.classList.remove('enter');
+          void el.offsetWidth;
+          el.classList.add('enter');
+        }
+        shown[side] = { id: line.who, face };
+      }
+      // ほかの側に同じ人が残っていたら消す（左右を入れ替えたとき）
+      const other = side === 'left' ? 'right' : 'left';
+      if (shown[other]?.id === line.who) {
+        sides[other].innerHTML = '';
+        shown[other] = null;
+      }
+      sides.left.classList.toggle('speaking', side === 'left');
+      sides.right.classList.toggle('speaking', side === 'right');
+      nameEl.hidden = false;
+      nameEl.innerHTML = `${STORY_NAME[line.who]}<small>${HEROES[line.who].name}</small>`;
+      nameEl.dataset.side = side;
+      box.classList.remove('narration');
+    } else {
+      // 地の文：名前の札なし、二人とも少し暗く
+      sides.left.classList.remove('speaking');
+      sides.right.classList.remove('speaking');
+      nameEl.hidden = true;
+      box.classList.add('narration');
+    }
+    full = line.text;
+    box.classList.remove('ready');
+    if (reduceMotion.matches) {
+      stopTyping();
+      return;
+    }
+    let n = 0;
+    textEl.textContent = '';
+    if (typing !== null) clearInterval(typing);
+    typing = window.setInterval(() => {
+      n++;
+      textEl.textContent = full.slice(0, n);
+      if (n >= full.length) stopTyping();
+    }, TYPE_MS);
+  }
+
+  function advance() {
+    if (disposed) return;
+    // 文を出している途中なら、まず全部出す
+    if (typing !== null) {
+      stopTyping();
+      return;
+    }
+    index++;
+    if (index >= scene.lines.length) {
+      finish();
+      return;
+    }
+    ctx.sound.play({ name: 'select' });
+    show(scene.lines[index]);
+  }
+
+  function openLog() {
+    const modal = openModal(ctx.root, $<HTMLElement>('.story-screen'), { className: 'sheet', labelledBy: 'log-title' });
+    if (!modal) return;
+    const rows = scene.lines
+      .slice(0, index + 1)
+      .map((l) => `<li class="${l.who ? '' : 'narr'}">${l.who ? `<b>${STORY_NAME[l.who]}</b>` : ''}<span>${l.text}</span></li>`)
+      .join('');
+    modal.overlay.innerHTML = `
+      <div class="sheet-card story-log-card">
+        <h2 id="log-title">ログ</h2>
+        <ol class="story-log-list">${rows}</ol>
+        <button type="button" class="primary-btn close">とじる</button>
+      </div>`;
+    const list = modal.overlay.querySelector('.story-log-list') as HTMLElement;
+    list.scrollTop = list.scrollHeight;
+    modal.overlay.querySelector('.close')?.addEventListener('click', () => modal.close());
+    (modal.overlay.querySelector('.close') as HTMLElement).focus();
+  }
+
+  box.addEventListener('click', advance);
+  $('.story-log').addEventListener('click', openLog);
+  $('.story-skip').addEventListener('click', finish);
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') finish();
+  };
+  window.addEventListener('keydown', onKey);
+
+  // 絵を先に読み込んでから始める（最初の人の絵が遅れて出ないように）
+  const ids = [...new Set(scene.lines.flatMap((l) => (l.who ? [l.who] : [])))];
+  for (const id of ids) new Image().src = assetUrl(HERO_ART[id].file);
+  advance();
+  box.focus();
+
+  return () => {
+    disposed = true;
+    if (typing !== null) clearInterval(typing);
+    window.removeEventListener('keydown', onKey);
+  };
+}

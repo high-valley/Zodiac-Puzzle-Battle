@@ -1,4 +1,6 @@
 // リザルト：勝敗・★・記録。勝てば「次へ」、負ければ「もう一度」を主ボタンにする
+import { STAGE_SCENES } from '../data/story';
+import { sceneSeen } from '../storage/progress';
 import type { AppContext } from '../app';
 import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
@@ -77,9 +79,13 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
     </div>
   </main>`;
 
-  container.querySelector('.next')?.addEventListener('click', () =>
-    ctx.navigate(next ? { name: 'quest', stageId: next.id } : { name: 'quest', stageId: stage.id }),
-  );
+  container.querySelector('.next')?.addEventListener('click', () => {
+    const to = next ? { name: 'quest' as const, stageId: next.id } : { name: 'quest' as const, stageId: stage.id };
+    // 勝ったあとの会話をまだ見ていなければ、会話を見てから次へ
+    const after = STAGE_SCENES[stage.id]?.after;
+    if (after && !sceneSeen(ctx.progress, after)) ctx.navigate({ name: 'story', sceneId: after, next: to });
+    else ctx.navigate(to);
+  });
   container.querySelectorAll('.again').forEach((b) =>
     b.addEventListener('click', () => ctx.navigate({ name: 'battle', stageId: stage.id })),
   );

@@ -8,6 +8,7 @@ import { mountBattle, type BattleOutcome } from './screens/battle';
 import { mountHome } from './screens/home';
 import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
+import { mountStory } from './screens/story';
 import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress } from './storage/progress';
 import { DEV_TOOLS } from './data/devTools';
 import { CURRENT_BUILD, buildLabel, fetchLatestBuild, reloadToLatest } from './version';
@@ -152,6 +153,8 @@ export function mountApp(root: HTMLElement): void {
     // まだ仲間でないキャラの詳しい画面は開かない
     if (route.name === 'heroes' && route.heroId && !ctx.heroJoined(route.heroId)) route = { name: 'heroes' };
     if (route.name === 'dev' && !DEV_TOOLS) route = { name: 'home' };
+    // 会話のあとに入るバトルも、開いていないステージなら入れない
+    if (route.name === 'story' && route.next.name === 'battle' && !ctx.stageOpen(route.next.stageId)) route = { name: 'quest' };
     if (routeToHash(route) !== location.hash && location.hash !== '' && location.hash !== '#/') {
       history.replaceState(null, '', routeToHash(route));
     }
@@ -182,6 +185,9 @@ export function mountApp(root: HTMLElement): void {
         break;
       case 'feature':
         cleanup = mountComingSoon(container, ctx, route.id);
+        break;
+      case 'story':
+        cleanup = mountStory(container, ctx, route.sceneId, route.next);
         break;
       case 'dev': {
         // 開発者画面は必要なときだけ読む（DEV_TOOLS が false の版には入らない）

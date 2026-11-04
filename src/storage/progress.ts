@@ -10,6 +10,7 @@ import { ALL_STAGES, findStage, previousStage } from '../data/stages';
 import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
 import { isValidIntersection } from '../game/board';
 import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
+import { SCENES } from '../data/story';
 
 export interface StageRecord {
   /** いちばん良かった★（0〜3） */
@@ -34,6 +35,19 @@ export interface Progress {
   party: HeroId[];
   /** キャラごとのレベルと経験値（無いキャラはレベル1） */
   heroes: Partial<Record<HeroId, HeroGrowth>>;
+  /** 見たストーリーの会話（data/story の場面の id。2026-11-04〜。前の版の保存には無い） */
+  seenScenes?: string[];
+}
+
+/** その会話を見たか */
+export function sceneSeen(progress: Progress, id: string): boolean {
+  return progress.seenScenes?.includes(id) ?? false;
+}
+
+/** 会話を見たことを記録した新しい進行 */
+export function markSceneSeen(progress: Progress, id: string): Progress {
+  if (sceneSeen(progress, id)) return progress;
+  return { ...progress, seenScenes: [...(progress.seenScenes ?? []), id] };
 }
 
 const KEY = 'zodiac-puzzle-battle:progress';
@@ -164,6 +178,10 @@ export function parseProgress(raw: string | null): Progress {
   if (Array.isArray(d.party) && d.party.every(isHeroId)) {
     const ids = d.party as HeroId[];
     if (partyProblem(ids.map((id) => ({ id, level: 1 }))) === null) progress.party = [...ids];
+  }
+  // 見た会話（知らない id は捨てる）
+  if (Array.isArray(d.seenScenes)) {
+    progress.seenScenes = [...new Set(d.seenScenes.filter((v): v is string => typeof v === 'string' && v in SCENES))];
   }
   // 途中のバトルは、まだ開いていないステージのものなら捨てる
   const b = d.battle as Record<string, unknown> | null | undefined;

@@ -4050,3 +4050,209 @@ html[data-route='result'] body::after {
 .hc-stats {
   gap: 6px;
 }
+
+/* ───────── ストーリーの会話（2026-11-04。docs/story.md） ───────── */
+html[data-route='story'] body::after {
+  background:
+    url('/art/bg/quest.webp') center / cover no-repeat,
+    linear-gradient(180deg, #0d1638 0%, #131c3f 35%, #1e2a54 100%);
+}
+.story-screen {
+  position: relative;
+  max-width: var(--col);
+  margin: 0 auto;
+  height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) 12px max(14px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.story-screen::before {
+  /* 背景を少し暗くして、絵と文を読みやすく */
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #0b0f2e66, #0b0f2e22 40%, #0b0f2ecc 85%);
+}
+.story-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+}
+.story-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--gold);
+  text-shadow: 0 1px 4px #000c;
+}
+.story-actions {
+  display: flex;
+  gap: 6px;
+}
+.story-stage {
+  position: relative;
+  min-height: 0;
+}
+.story-portrait {
+  position: absolute;
+  bottom: -8px;
+  width: 70%;
+  aspect-ratio: 3 / 4;
+  max-height: 100%;
+  overflow: hidden;
+  transition:
+    filter 0.2s,
+    transform 0.2s;
+  filter: brightness(0.55) saturate(0.85);
+  transform: scale(0.96);
+  transform-origin: bottom center;
+}
+.story-portrait.left {
+  left: -6%;
+}
+.story-portrait.right {
+  right: -6%;
+}
+.story-portrait.speaking {
+  filter: none;
+  transform: none;
+  z-index: 1;
+}
+.story-portrait.enter {
+  animation: story-enter 0.32s ease-out;
+}
+@keyframes story-enter {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.sp-art {
+  position: absolute;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 6px 14px #000a);
+}
+.sp-art.bust {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+}
+/* 上半身の絵が届くまでは、立ち絵の頭から腰の少し上までを切り出す */
+.sp-art.crop {
+  left: 50%;
+  top: 4%;
+  height: 175%;
+  width: auto;
+  max-width: none;
+  translate: calc(var(--hx) * -100%) calc(var(--ht) * -100%);
+  -webkit-mask-image: linear-gradient(180deg, #000 82%, transparent);
+  mask-image: linear-gradient(180deg, #000 82%, transparent);
+}
+.story-box {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  min-height: 132px;
+  padding: 22px 18px 18px;
+  border-radius: 16px;
+  border: 1px solid #f1c07399;
+  background: linear-gradient(180deg, #141c48f2, #0b0f2ef7);
+  box-shadow: 0 -6px 24px #0008;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.story-name {
+  position: absolute;
+  top: -14px;
+  left: 14px;
+  padding: 3px 14px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: #1b2560;
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+.story-name[data-side='right'] {
+  left: auto;
+  right: 14px;
+}
+.story-name small {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+.story-text {
+  display: block;
+  font-size: 15px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+.story-box.narration .story-text {
+  color: #dfe3ff;
+  font-style: normal;
+}
+.story-next {
+  position: absolute;
+  right: 14px;
+  bottom: 8px;
+  font-size: 11px;
+  color: var(--gold);
+  opacity: 0;
+}
+.story-box.ready .story-next {
+  opacity: 1;
+  animation: story-next 1s ease-in-out infinite;
+}
+@keyframes story-next {
+  50% {
+    translate: 0 3px;
+  }
+}
+.story-log-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.story-log-list b {
+  display: block;
+  font-size: 12px;
+  color: var(--gold);
+}
+.story-log-list .narr span {
+  color: var(--ink-soft);
+}
+.stage-story {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.stage-story .text-btn {
+  min-height: 32px;
+  font-size: 12px;
+}
