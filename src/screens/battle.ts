@@ -2,6 +2,7 @@
 import type { AppContext } from '../app';
 import { cueForEvent, turnHasSpecial } from '../audio/cues';
 import { ORB_LABEL, createBoardView } from '../components/board';
+import { createFx } from '../components/effects';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialPreviewSvg } from '../components/specialPreview';
@@ -9,6 +10,7 @@ import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
 import { rotateTuningOf } from '../storage/settings';
 import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { DEV_TOOLS } from '../data/devTools';
+import { FX_TIMING } from '../data/heroFx';
 import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { rotate2x2 } from '../game/board';
@@ -64,6 +66,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   // パズルの動き（回す・消える・落ちる）は、端末の「視差効果を減らす」に関係なく、だれでも同じ速さで見せる
   // （2026-11-03 ユーザーの決定。どう動いたかが分かることはパズルに欠かせないため）。演出 ×2 では半分
   const puzzleMs = (n: number) => n / ctx.settings.speed;
+  // 攻撃・必殺の演出も、端末の「視差効果を減らす」に関係なく見せる（だれが何をしたかが分かるように）。
+  // そのかわり、画面のゆれや大きな光は「視差効果を減らす」では出さない（CSS）。演出 ×2 では半分
+  const fxMs = puzzleMs;
 
   container.innerHTML = `
   <main class="battle">
@@ -90,9 +95,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       <div class="popups enemy-popups" aria-live="polite"></div>
     </section>
 
-    <div class="board-wrap">
-      <div class="banner" hidden></div>
-    </div>
+    <div class="board-wrap"></div>
     <div class="turn-bar">
       <div class="rot-left">
         <span class="rot-dots" aria-hidden="true"></span>
@@ -137,6 +140,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       </div>
       <div class="popups party-popups" aria-live="polite"></div>
     </section>
+    <div class="fx-layer" aria-hidden="true"></div>
   </main>`;
 
   const $ = <T extends Element>(sel: string) => container.querySelector(sel) as T;
@@ -148,9 +152,9 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   );
   $('.board-wrap').prepend(board.el);
 
-  const banner = $<HTMLElement>('.banner');
   const enemyFigure = $<HTMLElement>('.enemy-figure');
   const battleEl = $<HTMLElement>('.battle');
+  const fx = createFx($<HTMLElement>('.fx-layer'));
 
   function setBar(sel: string, value: number, max: number) {
     const bar = $<HTMLElement>(sel);
@@ -240,10 +244,12 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     battleEl.classList.toggle('no-rotate-buttons', !ctx.settings.rotateButtons);
   }
 
-  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false) {
+  /** dx は横にずらす量（px。仲間ごとの数値が重ならないように） */
+  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false, dx = 0) {
     const layer = $<HTMLElement>(sel);
     const p = document.createElement('span');
     p.className = `popup ${kind}${big ? ' big' : ''}`;
+    if (dx) p.style.marginLeft = `${dx * 2}px`;
     p.textContent = text;
     layer.append(p);
     setTimeout(() => p.remove(), ms(1100));
@@ -258,24 +264,82 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     renderTurnBar();
   }
 
+  function enemyHit(big: boolean) {
+    enemyFigure.classList.remove('hit');
+    void enemyFigure.offsetWidth;
+    enemyFigure.classList.toggle('big-hit', big);
+    enemyFigure.classList.add('hit');
+  }
+
+  /**
+   * 仲間1人の攻撃・回復を見せる（仕様書 11.15.1）。数値はその仲間の分。HP の欄は見せた分だけ動かし、
+   * 最後に出来事の合計（heal・damage）で正しい値に合わせる
+   */
+  async function hitBy(id: HeroId, damage: number, heal: number, hp: { enemy: number; party: number }, isSpecial: boolean, dx = 0) {
+    const card = $<HTMLElement>(`.hero-${id}`);
+    const healer = HEROES[id].role === 'healer';
+    // 的は敵の欄（数値が出る所）と、味方のHPの欄
+    const target = healer ? $<HTMLElement>('.party') : $<HTMLElement>('.enemy');
+    const play = isSpecial ? fx.special(id, card, target) : fx.normal(id, card, target);
+    // 当たった瞬間に数値を出す（演出の半ばあたり）
+    await wait(fxMs(isSpecial ? FX_TIMING.special * 0.4 : FX_TIMING.normal * 0.5));
+    if (damage > 0) {
+      hp.enemy = Math.max(0, hp.enemy - damage);
+      popup('.enemy-popups', `${damage}`, 'damage', isSpecial, dx);
+      enemyHit(isSpecial);
+      sound.play({ name: 'hit', big: isSpecial });
+    }
+    if (heal > 0) {
+      // 最大HPで頭打ちになった分は出さない
+      const healed = Math.min(heal, state.partyMaxHp - hp.party);
+      hp.party += healed;
+      if (healed > 0) popup('.party-popups', `+${healed}`, 'heal', isSpecial, dx);
+      sound.play({ name: 'heal', big: isSpecial });
+    }
+    renderStatus(hp.enemy, hp.party);
+    await play;
+  }
+
+  /** 連鎖が終わったら、動いた仲間が編成の順に1人ずつ攻撃・回復する（仕様書 11.15.1） */
+  async function membersAct(events: BattleEvent[], hp: { enemy: number; party: number }) {
+    const total = new Map<HeroId, { damage: number; heal: number }>();
+    for (const ev of events) {
+      if (ev.type !== 'clear') continue;
+      for (const a of ev.actors) {
+        const t = total.get(a.heroId) ?? { damage: 0, heal: 0 };
+        total.set(a.heroId, { damage: t.damage + a.damage, heal: t.heal + a.heal });
+      }
+    }
+    const jobs: Promise<void>[] = [];
+    const acting = state.party.filter(({ id }) => total.has(id));
+    for (const [i, { id }] of acting.entries()) {
+      const t = total.get(id)!;
+      if (disposed) break;
+      flashActors([id]);
+      // 数値は左から順に少しずつずらして出す（続けて出ても重ならないように）
+      jobs.push(hitBy(id, t.damage, t.heal, hp, false, Math.round((i - (acting.length - 1) / 2) * 46)));
+      // 前の仲間の演出と少し重ねて、次の仲間を始める
+      await wait(fxMs(FX_TIMING.nextMember));
+    }
+    await Promise.all(jobs);
+  }
+
   async function showEvent(ev: BattleEvent, hp: { enemy: number; party: number }, special: boolean) {
     // 回転は回したときにもう見せているので、ここでは何もしない
     if (ev.type === 'rotate') return;
-    const cue = cueForEvent(ev, special);
+    const cue = ev.type === 'heal' || ev.type === 'damage' ? null : cueForEvent(ev, special);
     if (cue) sound.play(cue);
     switch (ev.type) {
       case 'special': {
-        // 必殺演出：形を星座の線で結び、キャラ名と技名を大きく出す
-        const owner = HEROES[ev.special.heroId];
-        banner.innerHTML = `<span class="banner-hero">${owner.symbol} ${owner.name}</span><span class="banner-name">${ev.name}</span>`;
-        banner.dataset.color = ev.special.color;
-        banner.hidden = false;
-        flashActors([ev.special.heroId]);
+        // 必殺演出（仕様書 11.15.1）：盤面の形を星座の線で結ぶ → 立ち絵のカットイン → その仲間だけの技
+        const id = ev.special.heroId;
+        flashActors([id]);
         battleEl.classList.add('special-flash');
         battleEl.dataset.flash = ev.special.color;
-        await board.drawConstellation(ev.special.cells, ms(1100));
+        await board.drawConstellation(ev.special.cells, fxMs(FX_TIMING.constellation));
         battleEl.classList.remove('special-flash');
-        banner.hidden = true;
+        await fx.cutIn(id);
+        await hitBy(id, ev.damage, ev.heal, hp, true);
         break;
       }
       case 'clear':
@@ -286,21 +350,15 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         // 補充は目で追える速さで（演出 ×2 なら半分）
         await board.animateDrop(ev.board, ev.cells, puzzleMs(380));
         break;
+      // 数値と演出は仲間ごとに見せ終えているので、ここでは合計の値に合わせるだけ
       case 'heal':
         hp.party = ev.partyHp;
         renderStatus(hp.enemy, hp.party);
-        popup('.party-popups', `+${ev.amount}`, 'heal', special);
-        await wait(ms(special ? 500 : 300));
         break;
       case 'damage':
         hp.enemy = ev.enemyHp;
         renderStatus(hp.enemy, hp.party);
-        popup('.enemy-popups', `${ev.amount}`, 'damage', special);
-        enemyFigure.classList.remove('hit');
-        void enemyFigure.offsetWidth;
-        enemyFigure.classList.toggle('big-hit', special);
-        enemyFigure.classList.add('hit');
-        await wait(ms(special ? 650 : 420));
+        await wait(ms(200));
         break;
       case 'enemyAttack':
         await wait(ms(200));
@@ -417,8 +475,16 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       else recordOutcome();
       board.mark([], []);
       try {
+        fx.setSpeed(ctx.settings.speed);
+        let acted = false;
         for (const ev of turn.events) {
           if (disposed) return;
+          // 消去と連鎖を見せ終えたら、仲間が1人ずつ攻撃・回復する
+          if (!acted && ev.type !== 'rotate' && ev.type !== 'special' && ev.type !== 'clear') {
+            acted = true;
+            await membersAct(turn.events, hp);
+            if (disposed) return;
+          }
           await showEvent(ev, hp, special);
         }
       } catch (e) {

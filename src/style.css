@@ -3763,3 +3763,89 @@ html[data-route='result'] body::after {
     translate: 0 0;
   }
 }
+
+/* ───────── 攻撃・回復・必殺の演出（仕様書 11.15.1。components/effects） ───────── */
+.fx-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+.fx-svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+.fx-burst {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 14%, var(--c) 34%, color-mix(in srgb, var(--c) 40%, transparent) 55%, transparent 70%);
+  mix-blend-mode: screen;
+}
+.fx-beam {
+  position: absolute;
+  transform-origin: center;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c) 70%, transparent) 30%, #fff 50%, color-mix(in srgb, var(--c) 70%, transparent) 70%, transparent);
+  mix-blend-mode: screen;
+}
+/* 必殺のカットイン：色の帯に立ち絵が入ってきて、技の名前を出す */
+.fx-cutin {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 14%;
+  height: min(44%, 380px);
+}
+.fx-cutin-band {
+  position: absolute;
+  inset: 16% -10%;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--c) 85%, #000) 0%, color-mix(in srgb, var(--c) 55%, #0b0f2e) 55%, #0b0f2ee6 100%);
+  border-block: 2px solid var(--gold);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--c) 60%, transparent);
+}
+.fx-cutin-art {
+  position: absolute;
+  left: -2%;
+  bottom: 0;
+  height: 100%;
+  width: auto;
+  max-width: none;
+  filter: drop-shadow(0 6px 14px #000a);
+}
+.fx-cutin-text {
+  position: absolute;
+  right: 6%;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  text-align: right;
+  max-width: 58%;
+}
+.fx-cutin-hero {
+  font-size: 14px;
+  color: #fff;
+  text-shadow: 0 2px 6px #000c;
+}
+.fx-cutin-name {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 8px #000d, 0 0 18px color-mix(in srgb, var(--c) 70%, transparent);
+}
+/* 「視差効果を減らす」では、画面全体の光とゆれを出さない（技の演出そのものは見せる） */
+@media (prefers-reduced-motion: reduce) {
+  .battle.special-flash::after,
+  .battle.heavy-hit::before {
+    display: none;
+  }
+  .party.shake {
+    animation: none;
+  }
+}
