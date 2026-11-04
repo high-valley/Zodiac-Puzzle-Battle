@@ -9,13 +9,15 @@ export interface Settings {
   tutorialSeen: boolean;
   /** 演出の速さ（1：ふつう、2：はやい） */
   speed: 1 | 2;
+  /** クリアしたステージでは、ストーリーの会話を自動で出さない（2026-11-05。見直しはクエスト選択から） */
+  skipClearedStory: boolean;
   /** 開発者モード：キャラとステージをすべて解放して見る（保存した進行は書き換えない） */
   devUnlockAll: boolean;
   /** 開発者モード：回す動きの速さを試すための値（null なら設定データの値） */
   devRotate: RotateTuning | null;
 }
 
-export const DEFAULT_SETTINGS: Settings = { soundOn: true, tutorialSeen: false, speed: 1, devUnlockAll: false, devRotate: null };
+export const DEFAULT_SETTINGS: Settings = { soundOn: true, tutorialSeen: false, speed: 1, skipClearedStory: false, devUnlockAll: false, devRotate: null };
 const KEY = 'zodiac-puzzle-battle:settings';
 
 /** 保存されていた文字列を読み、壊れていたり足りない項目は既定値で補う */
@@ -30,6 +32,7 @@ export function parseSettings(raw: string | null): Settings {
       soundOn: bool(d.soundOn, DEFAULT_SETTINGS.soundOn),
       tutorialSeen: bool(d.tutorialSeen, DEFAULT_SETTINGS.tutorialSeen),
       speed: d.speed === 1 || d.speed === 2 ? d.speed : DEFAULT_SETTINGS.speed,
+      skipClearedStory: bool(d.skipClearedStory, DEFAULT_SETTINGS.skipClearedStory),
       // 開発者の機能を外した版では、保存されていても使わない
       devUnlockAll: DEV_TOOLS && bool(d.devUnlockAll, DEFAULT_SETTINGS.devUnlockAll),
       devRotate: DEV_TOOLS ? parseRotateTuning(d.devRotate) : null,

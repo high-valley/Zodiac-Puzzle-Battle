@@ -12,12 +12,21 @@ export interface ColorAction {
  * キャラ特性（仕様書 12.8。数値は src/data/balance.ts の TRAITS）
  * vanguard 先陣：そのターン最初の消去に自分の色があれば強い／mass 量：一度に多く消すほど強い／chain 連鎖：連鎖が深いほど強い
  */
-export type HeroTrait = 'vanguard' | 'mass' | 'chain';
+export type HeroTrait = 'vanguard' | 'mass' | 'chain' | 'twin' | 'poison' | 'far' | 'balance' | 'charge' | 'vortex' | 'shield' | 'bigHeal' | 'rain';
 
 export const TRAIT_LABEL: Record<HeroTrait, { name: string; text: string }> = {
   vanguard: { name: '先陣', text: 'そのターン最初に消えたオーブに自分の色があると、その一撃が大きくなる' },
   mass: { name: '量', text: '自分の色を一度に多く消すほど、ダメージが伸びる' },
   chain: { name: '連鎖', text: '連鎖が深いほど、ダメージが大きく伸びる' },
+  twin: { name: '2回攻撃', text: '1回は弱いが、必ず2回当たる（合わせると少し強い）' },
+  poison: { name: '毒', text: '攻撃すると敵に毒が回り、3ターンのあいだターンの終わりにダメージを与える' },
+  far: { name: '遠距離', text: '盤面の上の2段で自分の色を消すと、その分だけ強くなる' },
+  balance: { name: '均衡', text: '同じ段にほかの色も消えると、色の数だけ強くなる' },
+  charge: { name: '溜め', text: '自分の色が消えなかったターンごとに力が溜まり（最大3）、次の一撃が大きくなる' },
+  vortex: { name: '渦', text: '2段目からの連鎖で攻撃するたびに、少しずつ回復もする' },
+  shield: { name: '盾', text: '回復したターンは、敵の攻撃を3割軽くする' },
+  bigHeal: { name: '大回復', text: 'ピンクを一度に4個以上消すと、回復が大きくなる' },
+  rain: { name: '恵みの雨', text: '回復すると、次の2ターンも少しずつ回復が続く' },
 };
 
 export interface HeroDef {
@@ -99,6 +108,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 90,
     defense: 10,
     actions: attack('blue', '鏡の閃き'),
+    trait: 'twin',
     special: { name: '双つ星の共鳴', color: 'blue', shape: 'pillars', power: 110, difficulty: 'easy' },
     description: 'ふたりで息を合わせて戦う、いたずら好きの双子。',
   },
@@ -111,6 +121,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 110,
     defense: 24,
     actions: heal('月潮の癒やし', 8),
+    trait: 'shield',
     special: { name: '蟹甲の加護', color: 'pink', shape: 'corners', power: 120, difficulty: 'easy' },
     description: '仲間を固い甲羅のように守る、面倒見のよい癒やし手。',
   },
@@ -136,6 +147,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 110,
     defense: 12,
     actions: heal('癒やしの光'),
+    trait: 'bigHeal',
     special: { name: '聖女の祝福', color: 'pink', shape: 'square', power: 110, difficulty: 'easy' },
     description: '祈りで仲間を包む、やさしい癒やし手。',
   },
@@ -148,6 +160,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 100,
     defense: 14,
     actions: attack('green', '天秤の一閃'),
+    trait: 'balance',
     special: { name: '天秤の審判', color: 'green', shape: 'smallT', power: 110, difficulty: 'easy' },
     description: '何ごとも公平に量る、冷静な裁き手。',
   },
@@ -160,6 +173,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 90,
     defense: 6,
     actions: attack('blue', '闇の一刺し', 13),
+    trait: 'poison',
     special: { name: '蠍毒の尾撃', color: 'blue', shape: 'Z', power: 160, difficulty: 'hard' },
     description: '静かに狙いすまし、一撃で仕留める。',
   },
@@ -172,6 +186,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 90,
     defense: 10,
     actions: attack('blue', '貫通射撃'),
+    trait: 'far',
     special: { name: '天穿つ星矢', color: 'blue', shape: 'cross', power: 160, difficulty: 'hard' },
     description: '星をも射抜く、誇り高き弓の名手。',
   },
@@ -184,6 +199,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 100,
     defense: 22,
     actions: attack('green', '山羊の跳撃', 11),
+    trait: 'charge',
     special: { name: '山嶺の双角', color: 'green', shape: 'horns', power: 140, difficulty: 'normal' },
     description: '険しい山も駆け上がる、粘り強い戦士。',
   },
@@ -197,6 +213,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 110,
     defense: 8,
     actions: heal('命の水', 10),
+    trait: 'rain',
     special: { name: '宝瓶の慈雨', color: 'pink', shape: 'line4', power: 110, difficulty: 'easy' },
     description: '水がめからあふれる清らかな水で仲間を癒やす、型にはまらない自由な賢者。',
   },
@@ -209,6 +226,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     maxHpContribution: 100,
     defense: 12,
     actions: attack('green', '潮の渦'),
+    trait: 'vortex',
     special: { name: '双魚の渦潮', color: 'green', shape: 'S', power: 110, difficulty: 'easy' },
     description: '二匹の魚が渦を巻いて襲いかかる、気まぐれで夢見がちな歌い手。',
   },

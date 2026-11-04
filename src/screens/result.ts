@@ -81,7 +81,7 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
   container.querySelector('.next')?.addEventListener('click', () => {
     const to = next ? { name: 'quest' as const, stageId: next.id } : { name: 'quest' as const, stageId: stage.id };
     // 勝ったあとの会話をまだ見ていなければ、会話を見てから次へ
-    const after = sceneAfterWin(ctx.progress, stage.id, win);
+    const after = sceneAfterWin(ctx.progress, stage.id, win, ctx.settings.skipClearedStory, outcome.firstClear);
     if (after) ctx.navigate({ name: 'story', sceneId: after, next: to });
     else ctx.navigate(to);
   });

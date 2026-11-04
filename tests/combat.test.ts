@@ -336,7 +336,7 @@ describe('通常効果（形ボーナスなし。自分の色だけ）', () => {
     expect(normalEffect('sagittarius', { red: 5, blue: 0, green: 5, pink: 5 }, 1)).toEqual({ damage: 0, heal: 0 });
     expect(normalEffect('aries', { red: 0, blue: 6, green: 0, pink: 6 }, 1)).toEqual({ damage: 0, heal: 0 });
     expect(normalEffect('virgo', { red: 3, blue: 3, green: 3, pink: 0 }, 1)).toEqual({ damage: 0, heal: 0 });
-    expect(normalEffect('virgo', { red: 0, blue: 0, green: 0, pink: 4 }, 1).heal).toBe(HEROES.virgo.actions.pink!.coef * 4);
+    expect(normalEffect('virgo', { red: 0, blue: 0, green: 0, pink: 3 }, 1).heal).toBe(HEROES.virgo.actions.pink!.coef * 3);
   });
 
   it('連鎖倍率は 1 + 0.25 × (段数 - 1)', () => {

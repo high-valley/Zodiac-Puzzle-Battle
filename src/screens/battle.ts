@@ -36,6 +36,8 @@ export interface BattleOutcome {
   stats: BattleStats;
   stars: number;
   newBestStars: boolean;
+  /** このバトルで初めてクリアしたか */
+  firstClear: boolean;
   newBestTurns: boolean;
   /** 出撃した仲間それぞれがもらった経験値 */
   exp: number;
@@ -49,6 +51,9 @@ export interface BattleOutcome {
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const wait = (n: number) => new Promise<void>((resolve) => setTimeout(resolve, n));
+
+/** 数値の上に添える小さな文字 */
+const TAG_TEXT = { weak: '弱点', resist: '耐性', poison: '毒', rain: '恵みの雨', shield: '盾' } as const;
 
 export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: string): () => void {
   const stage = findStage(stageId)!;
@@ -273,11 +278,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
 
   /** dx は横にずらす量（px。仲間ごとの数値が重ならないように） */
   /** tag は数値の上に添える小さな文字（「弱点」「耐性」） */
-  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false, dx = 0, tag?: 'weak' | 'resist') {
+  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false, dx = 0, tag?: keyof typeof TAG_TEXT) {
     const layer = $<HTMLElement>(sel);
     const p = document.createElement('span');
     p.className = `popup ${kind}${big ? ' big' : ''}${tag ? ` ${tag}` : ''}`;
-    if (tag) p.dataset.tag = tag === 'weak' ? '弱点' : '耐性';
+    if (tag) p.dataset.tag = TAG_TEXT[tag];
     // 中央寄せのグリッドの中では、左の余白の半分だけ中心が動くので2倍にする
     if (dx) p.style.marginLeft = `${dx * 2}px`;
     p.textContent = text;
@@ -306,7 +311,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
    * 仲間1人の攻撃・回復を見せる（仕様書 11.15.1）。数値はその仲間の分。HP の欄は見せた分だけ動かし、
    * 最後に出来事の合計（heal・damage）で正しい値に合わせる
    */
-  async function hitBy(id: HeroId, damage: number, heal: number, hp: { enemy: number; party: number }, isSpecial: boolean, dx = 0) {
+  async function hitBy(id: HeroId, damage: number, heal: number, hp: { enemy: number; party: number }, isSpecial: boolean, dx = 0, hits = 1) {
     const card = $<HTMLElement>(`.hero-${id}`);
     const healer = HEROES[id].role === 'healer';
     // 的は敵の欄（数値が出る所）と、味方のHPの欄
@@ -319,7 +324,18 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     if (damage > 0) {
       hp.enemy = Math.max(0, hp.enemy - damage);
       const c = HEROES[id].special.color;
-      popup('.enemy-popups', `${damage}`, 'damage', isSpecial, dx, enemy.weak === c ? 'weak' : enemy.resist === c ? 'resist' : undefined);
+      const tag = enemy.weak === c ? 'weak' : enemy.resist === c ? 'resist' : undefined;
+      if (hits > 1) {
+        // 2回攻撃（ふたご座）：2つに分けて、少しずらして出す
+        const first = Math.ceil(damage / 2);
+        popup('.enemy-popups', `${first}`, 'damage', isSpecial, dx - 14, tag);
+        setTimeout(() => {
+          if (!disposed) {
+            popup('.enemy-popups', `${damage - first}`, 'damage', isSpecial, dx + 14, tag);
+            enemyHit(false);
+          }
+        }, fxMs(160));
+      } else popup('.enemy-popups', `${damage}`, 'damage', isSpecial, dx, tag);
       enemyHit(isSpecial);
       sound.play({ name: 'hit', big: isSpecial });
     }
@@ -354,7 +370,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       if (disposed) break;
       flashActors([id]);
       // 数値は左から順に少しずつずらして出す（続けて出ても重ならないように）
-      jobs.push(hitBy(id, t.damage, t.heal, hp, false, Math.round((i - (acting.length - 1) / 2) * 46)));
+      jobs.push(hitBy(id, t.damage, t.heal, hp, false, Math.round((i - (acting.length - 1) / 2) * 46), HEROES[id].trait === 'twin' ? 2 : 1));
       // 前の仲間の演出と少し重ねて、次の仲間を始める
       await wait(fxMs(FX_TIMING.nextMember));
     }
@@ -399,11 +415,26 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         renderStatus(hp.enemy, hp.party);
         await wait(ms(200));
         break;
+      case 'poison':
+        // 毒（さそり座）：ターンの終わりのダメージ
+        hp.enemy = ev.enemyHp;
+        renderStatus(hp.enemy, hp.party);
+        popup('.enemy-popups', `${ev.amount}`, 'damage', false, 0, 'poison');
+        enemyHit(false);
+        await wait(ms(380));
+        break;
+      case 'rain':
+        // 恵みの雨（みずがめ座）：続く回復
+        hp.party = ev.partyHp;
+        renderStatus(hp.enemy, hp.party);
+        popup('.party-popups', `+${ev.amount}`, 'heal', false, 0, 'rain');
+        await wait(ms(320));
+        break;
       case 'enemyAttack':
         await wait(ms(200));
         hp.party = ev.partyHp;
         renderStatus(hp.enemy, hp.party);
-        popup('.party-popups', `−${ev.amount}`, 'hurt', ev.heavy);
+        popup('.party-popups', `−${ev.amount}`, 'hurt', ev.heavy, 0, ev.shield ? 'shield' : undefined);
         battleEl.classList.toggle('heavy-hit', ev.heavy);
         $('.party').classList.add('shake');
         await wait(ms(ev.heavy ? 520 : 320));
@@ -431,6 +462,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       stats: state.stats,
       stars,
       newBestStars: victory && stars > (prev?.stars ?? 0) && (prev?.stars ?? 0) > 0,
+      firstClear: victory && (prev?.stars ?? 0) === 0,
       newBestTurns: victory && prev?.bestTurns != null && turns < prev.bestTurns,
       exp: battleExp(stage.exp, victory),
       growth: [],

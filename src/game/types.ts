@@ -62,6 +62,18 @@ export interface BattleState {
   rngSeed: number;
   status: BattleStatus;
   stats: BattleStats;
+  /** 特性で続くもの（仕様書 12.8。2026-11-05〜。前の版の保存には無い） */
+  traits?: TraitState;
+}
+
+/** ターンをまたいで続く特性の状態 */
+export interface TraitState {
+  /** 毒（さそり座）：毎ターンの終わりのダメージと、残りターン */
+  poison?: { amount: number; turns: number };
+  /** 恵みの雨（みずがめ座）：毎ターンの回復と、残りターン */
+  rain?: { amount: number; turns: number };
+  /** 溜め（やぎ座）：溜まった数 */
+  charge?: number;
 }
 
 /** 1回の回転。row・col は交点の位置（0..3）＝回す 2×2 の左上のマス */
@@ -85,6 +97,8 @@ export interface Actor {
   heroId: HeroId;
   damage: number;
   heal: number;
+  /** 何回に分けて当たるか（2回攻撃のふたご座は 2。省けば 1） */
+  hits?: number;
 }
 
 export interface MatchGroup {
@@ -139,7 +153,11 @@ export type BattleEvent =
   | { type: 'heal'; amount: number; partyHp: number }
   | { type: 'damage'; amount: number; enemyHp: number }
   /** heavy は強攻撃のとき true */
-  | { type: 'enemyAttack'; amount: number; partyHp: number; heavy: boolean }
+  | { type: 'enemyAttack'; amount: number; partyHp: number; heavy: boolean; shield?: boolean }
+  /** 毒（さそり座）のターンの終わりのダメージ */
+  | { type: 'poison'; amount: number; enemyHp: number }
+  /** 恵みの雨（みずがめ座）の続く回復。amount は実際に増えた量 */
+  | { type: 'rain'; amount: number; partyHp: number }
   | { type: 'end'; status: Exclude<BattleStatus, 'playing'> };
 
 export interface TurnResult {

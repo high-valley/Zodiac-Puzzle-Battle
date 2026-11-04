@@ -175,7 +175,7 @@ describe('createSoundPlayer', () => {
 
 describe('parseSettings', () => {
   it('何も保存されていなければ既定値（音はオン、遊び方は未表示）', () => {
-    expect(parseSettings(null)).toEqual({ soundOn: true, tutorialSeen: false, speed: 1, devUnlockAll: false, devRotate: null });
+    expect(parseSettings(null)).toEqual({ soundOn: true, tutorialSeen: false, speed: 1, skipClearedStory: false, devUnlockAll: false, devRotate: null });
     expect(DEFAULT_SETTINGS.soundOn).toBe(true);
   });
 
@@ -184,6 +184,7 @@ describe('parseSettings', () => {
       soundOn: false,
       tutorialSeen: true,
       speed: 2,
+      skipClearedStory: false,
       devUnlockAll: false,
       devRotate: null,
     });

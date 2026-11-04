@@ -90,3 +90,17 @@ describe('会話用の上半身の絵', () => {
     }
   });
 });
+
+describe('クリアしたステージの会話をとばす設定（2026-11-05）', () => {
+  const cleared = { ...emptyProgress(), stages: { '1-1': { stars: 2, bestTurns: 5 } } };
+  it('設定が「とばす」なら、クリア済みのステージの前の会話を出さない', () => {
+    expect(sceneBeforeBattle(cleared, '1-1', false, false)).toBe('ch1-prologue');
+    expect(sceneBeforeBattle(cleared, '1-1', false, true)).toBe(null);
+    expect(sceneBeforeBattle(emptyProgress(), '1-1', false, true)).toBe('ch1-prologue');
+  });
+  it('後の会話は、初めてクリアしたときだけ出す（とばす設定のとき）', () => {
+    expect(sceneAfterWin(cleared, '1-1', true, true, true)).toBe('ch1-1-after');
+    expect(sceneAfterWin(cleared, '1-1', true, true, false)).toBe(null);
+    expect(sceneAfterWin(cleared, '1-1', true, false, false)).toBe('ch1-1-after');
+  });
+});
