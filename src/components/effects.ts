@@ -2,7 +2,7 @@
 // 画面いっぱいに重ねた透明な層に、線・光・粒を描いて動かし、終わったら消す
 import { assetUrl } from './assets';
 import { HERO_ART } from '../data/heroArt';
-import { FX_TIMING, HERO_FX, type FxStep } from '../data/heroFx';
+import { CUTIN_ART, FX_TIMING, HERO_FX, type FxStep } from '../data/heroFx';
 import { HEROES } from '../data/heroes';
 import type { HeroId } from '../game/types';
 
@@ -386,7 +386,123 @@ export function createFx(layer: HTMLElement, speed: () => number): FxView {
     );
   }
 
+  /** 攻撃のポーズの絵（構え → 放つ）で見せるカットイン */
+  async function cutInPose(heroId: HeroId, pose: NonNullable<(typeof CUTIN_ART)[HeroId]>) {
+    const hero = HEROES[heroId];
+    const fx = HERO_FX[heroId];
+    const el = document.createElement('div');
+    el.className = 'fx-cutin pose';
+    el.style.setProperty('--c', fx.color);
+    el.innerHTML = `
+      <div class="fx-cutin-band"></div>
+      <div class="fx-cutin-flash"></div>
+      <div class="fx-cutin-pose">
+        <img class="f1" src="${assetUrl(pose.frames[0])}" alt="" draggable="false" />
+        <img class="f2" src="${assetUrl(pose.frames[1])}" alt="" draggable="false" />
+        <svg class="fx-cutin-trail" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          <path class="glow" d="${pose.trail}" pathLength="1" />
+          <path class="core" d="${pose.trail}" pathLength="1" />
+        </svg>
+      </div>
+      <div class="fx-cutin-text">
+        <span class="fx-cutin-hero">${hero.symbol} ${hero.name}</span>
+        <span class="fx-cutin-name">${hero.special.name}</span>
+      </div>`;
+    layer.append(el);
+    const total = t(FX_TIMING.cutInPose);
+    const q = <T extends Element>(sel: string) => el.querySelector(sel) as T;
+    // 切り替えの時刻（全体に対する割合）
+    const hit = 0.42;
+    const step = 0.004;
+    const opt = (easing = 'linear'): KeyframeAnimationOptions => ({ duration: total, easing, fill: 'forwards' });
+    await Promise.all([
+      done(
+        q<HTMLElement>('.fx-cutin-band').animate(
+          [
+            { transform: 'skewY(-8deg) scaleY(0)', opacity: 0 },
+            { transform: 'skewY(-8deg) scaleY(1)', opacity: 1, offset: 0.12 },
+            { transform: 'skewY(-8deg) scaleY(1)', opacity: 1, offset: 0.88 },
+            { transform: 'skewY(-8deg) scaleY(0)', opacity: 0 },
+          ],
+          opt('ease-out'),
+        ),
+      ),
+      // 1枚目：すべり込んで、ためながら少し寄る
+      done(
+        q<HTMLElement>('.f1').animate(
+          [
+            { transform: 'translateX(-55%) scale(1)', opacity: 0 },
+            { transform: 'translateX(0) scale(1)', opacity: 1, offset: 0.13 },
+            { transform: 'translateX(-3%) scale(1.06)', opacity: 1, offset: hit },
+            { transform: 'translateX(-3%) scale(1.06)', opacity: 0, offset: hit + step },
+            { transform: 'translateX(-3%) scale(1.06)', opacity: 0 },
+          ],
+          opt(),
+        ),
+      ),
+      // 2枚目：切り替わった瞬間に前へ踏み込む
+      done(
+        q<HTMLElement>('.f2').animate(
+          [
+            { transform: 'translateX(-3%) scale(1.06)', opacity: 0 },
+            { transform: 'translateX(-3%) scale(1.06)', opacity: 0, offset: hit },
+            { transform: 'translateX(-3%) scale(1.06)', opacity: 1, offset: hit + step },
+            { transform: 'translateX(5%) scale(1.12)', opacity: 1, offset: hit + 0.08 },
+            { transform: 'translateX(7%) scale(1.12)', opacity: 1, offset: 0.84 },
+            { transform: 'translateX(20%) scale(1.12)', opacity: 0, offset: 0.96 },
+            { transform: 'translateX(20%) scale(1.12)', opacity: 0 },
+          ],
+          opt(),
+        ),
+      ),
+      // 武器の軌跡：切り替わる少し前から一気に描く
+      ...['.glow', '.core'].map((sel) =>
+        done(
+          q<SVGPathElement>(`.fx-cutin-trail ${sel}`).animate(
+            [
+              { strokeDashoffset: '1', opacity: 0 },
+              { strokeDashoffset: '1', opacity: 0, offset: hit - 0.05 },
+              { strokeDashoffset: '1', opacity: sel === '.glow' ? 0.55 : 1, offset: hit - 0.05 + step },
+              { strokeDashoffset: '0', opacity: sel === '.glow' ? 0.55 : 1, offset: hit + 0.05 },
+              { strokeDashoffset: '0', opacity: 0, offset: hit + 0.3 },
+              { strokeDashoffset: '0', opacity: 0 },
+            ],
+            opt(),
+          ),
+        ),
+      ),
+      // 当たった瞬間の白い光
+      done(
+        q<HTMLElement>('.fx-cutin-flash').animate(
+          [
+            { opacity: 0 },
+            { opacity: 0, offset: hit },
+            { opacity: 0.75, offset: hit + step },
+            { opacity: 0, offset: hit + 0.16 },
+            { opacity: 0 },
+          ],
+          opt(),
+        ),
+      ),
+      done(
+        q<HTMLElement>('.fx-cutin-text').animate(
+          [
+            { transform: 'translateX(40%)', opacity: 0 },
+            { transform: 'translateX(40%)', opacity: 0, offset: 0.1 },
+            { transform: 'translateX(0)', opacity: 1, offset: 0.3 },
+            { transform: 'translateX(-4%)', opacity: 1, offset: 0.84 },
+            { transform: 'translateX(-20%)', opacity: 0 },
+          ],
+          opt('cubic-bezier(.2,.8,.3,1)'),
+        ),
+      ),
+    ]);
+    el.remove();
+  }
+
   async function cutIn(heroId: HeroId) {
+    const pose = CUTIN_ART[heroId];
+    if (pose) return cutInPose(heroId, pose);
     const hero = HEROES[heroId];
     const fx = HERO_FX[heroId];
     const art = HERO_ART[heroId];
