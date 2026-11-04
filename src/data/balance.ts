@@ -45,7 +45,7 @@ export const SWIPE = {
  * 時間はミリ秒で、演出 ×2 ではこの半分
  */
 export interface RotateTuning {
-  /** 回転ボタンで回すとき */
+  /** 回す動きの基準の時間（回転ボタンがあったころ、ボタンで回すときの時間。指を離したあとの時間もこれを基準に縮める） */
   buttonMs: number;
   /** 指を離したあと残りを回しきる時間の下限と上限（指の速さに合わせつつ、速すぎないように）。
    *  回し始め（閾値ちょうど、残り約7割）のときの値で、残りが少ないほど短くする */
@@ -56,7 +56,7 @@ export interface RotateTuning {
 // 2026-11-03 ユーザーが画面で試して決めた値（ボタン 0.5秒／離したあと 0.5秒）
 export const DEFAULT_ROTATE_TUNING: RotateTuning = { buttonMs: 500, releaseMinMs: 500, releaseMaxMs: 500 };
 
-/** 開発者画面のつまみの範囲 */
+/** 開発者画面のつまみの範囲（buttonMs のつまみは回転ボタンと一緒に外したが、保存された値を読むときの範囲として使う） */
 export const ROTATE_TUNING_RANGE: Record<keyof RotateTuning, { min: number; max: number; step: number }> = {
   buttonMs: { min: 200, max: 5000, step: 100 },
   releaseMinMs: { min: 100, max: 5000, step: 20 },
@@ -77,7 +77,7 @@ export const ROTATE_ANIM = {
 
 /**
  * 指を離したあと、残りを回しきる時間（ms）。残りの弧の長さを指の速さで割り、残りの割合に応じた下限・上限で挟む。
- * ms は回転ボタンの時間（演出 ×2 なら半分）で、同じ割合で縮める
+ * ms は回す動きの基準の時間（buttonMs。演出 ×2 なら半分）で、同じ割合で縮める
  */
 export function releaseDuration(
   p0: number,

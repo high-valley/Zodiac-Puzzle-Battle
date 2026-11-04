@@ -1,4 +1,4 @@
-// 設定（効果音・演出の速さ・回転ボタン・遊び方・データの初期化）
+// 設定（効果音・演出の速さ・遊び方・データの初期化）
 import { openModal } from './modal';
 import type { Settings } from '../storage/settings';
 
@@ -31,7 +31,6 @@ export function openSettingsDialog(root: HTMLElement, background: HTMLElement, o
         <h2 id="settings-title">設定</h2>
         ${toggle('soundOn', '効果音', s.soundOn, 'オン', 'オフ')}
         ${toggle('speed', '演出の速さ', s.speed === 1, 'ふつう', 'はやい')}
-        ${toggle('rotateButtons', '回転ボタン', s.rotateButtons, '出す', '出さない')}
         <button type="button" class="text-btn wide show-tutorial">遊び方を見る</button>
         ${
           opts.onClearData
@@ -48,7 +47,6 @@ export function openSettingsDialog(root: HTMLElement, background: HTMLElement, o
         const key = b.dataset.key;
         if (key === 'soundOn') s.soundOn = !s.soundOn;
         if (key === 'speed') s.speed = s.speed === 1 ? 2 : 1;
-        if (key === 'rotateButtons') s.rotateButtons = !s.rotateButtons;
         opts.onChange({ ...s });
         render();
         (overlay.querySelector(`.seg[data-key="${key}"]`) as HTMLElement | null)?.focus();

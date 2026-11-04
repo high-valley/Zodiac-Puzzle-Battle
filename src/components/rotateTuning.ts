@@ -5,7 +5,6 @@ import { DEFAULT_ROTATE_TUNING, ROTATE_TUNING_RANGE, type RotateTuning } from '.
 import { rotateTuningOf } from '../storage/settings';
 
 const ITEMS: { key: keyof RotateTuning; label: string; note: string }[] = [
-  { key: 'buttonMs', label: '回転ボタンで回す時間', note: '「左回転」「右回転」ボタン' },
   { key: 'releaseMinMs', label: '指を離したあと（速く払ったとき）', note: '指で回して離してから、回しきるまで' },
   { key: 'releaseMaxMs', label: '指を離したあと（ゆっくり離したとき）', note: '速く払ったときより短くはならない' },
 ];
@@ -14,7 +13,7 @@ const show = (_key: keyof RotateTuning, v: number) => `${(v / 1000).toFixed(2)}�
 
 /** 伝えてもらうときの1行 */
 export function rotateTuningSummary(t: RotateTuning): string {
-  return `ボタン ${show('buttonMs', t.buttonMs)}／離したあと ${show('releaseMinMs', t.releaseMinMs)}〜${show('releaseMaxMs', Math.max(t.releaseMinMs, t.releaseMaxMs))}`;
+  return `離したあと ${show('releaseMinMs', t.releaseMinMs)}〜${show('releaseMaxMs', Math.max(t.releaseMinMs, t.releaseMaxMs))}`;
 }
 
 export function rotateTuningHtml(t: RotateTuning): string {

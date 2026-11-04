@@ -215,9 +215,6 @@ button:focus-visible {
 .board.locked {
   cursor: default;
 }
-.board.nudge {
-  animation: nudge 0.35s;
-}
 .orbs {
   position: absolute;
   inset: 0;
@@ -380,64 +377,6 @@ button:focus-visible {
 }
 
 /* 回転ボタンと必殺の形 */
-.controls {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 10px;
-}
-.rotate-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 48px;
-  border-radius: 14px;
-  border: 1px solid #ffffff26;
-  background: #ffffff0f;
-  cursor: pointer;
-  font-size: 14px;
-}
-.rotate-btn svg {
-  width: 20px;
-  height: 20px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.rotate-btn:active:not(:disabled) {
-  background: #ffffff21;
-}
-.rotate-btn:disabled,
-.hero:disabled,
-.text-btn:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-.special {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-}
-.special-shape svg {
-  display: block;
-  width: 58px;
-  height: 58px;
-}
-.special-shape .links {
-  stroke: var(--gold);
-  stroke-width: 1.5;
-  opacity: 0.85;
-}
-.special-shape .dim {
-  fill: #ffffff40;
-}
-.special-shape .lit {
-  stroke: #fff;
-  stroke-width: 1;
-}
 .orb-fill-red {
   fill: var(--red);
 }
@@ -450,12 +389,6 @@ button:focus-visible {
 .orb-fill-pink {
   fill: var(--pink);
 }
-.special-name {
-  font-size: 11px;
-  color: var(--gold);
-  white-space: nowrap;
-}
-
 /* キャラ選択 */
 .heroes {
   display: grid;
@@ -488,15 +421,6 @@ button:focus-visible {
   font-size: 10.5px;
   color: var(--ink-soft);
 }
-.hero.active {
-  border-color: var(--gold);
-  background: #f1c0731f;
-}
-.hero.active .hero-symbol {
-  color: var(--gold);
-  text-shadow: 0 0 10px #f1c07399;
-}
-
 /* パーティー */
 .party {
   position: relative;
@@ -1091,9 +1015,6 @@ button:focus-visible {
   background: radial-gradient(circle at 50% 100%, #e5484d55, transparent 70%);
   animation: flash 0.5s ease-out;
 }
-.battle.no-rotate-buttons .rotate-btn {
-  visibility: hidden;
-}
 html[data-speed='2'] .orb.moving {
   transition-duration: 0.085s;
 }
@@ -1480,12 +1401,8 @@ html[data-speed='2'] .popup {
   .battle .hint {
     display: none;
   }
-  .special-shape svg {
-    width: 44px;
-    height: 44px;
-  }
-  .rotate-btn {
-    min-height: 44px;
+  .specials .mini-shape {
+    --cell: 13px;
   }
   .hero {
     padding: 4px 4px 6px;
@@ -1617,15 +1534,8 @@ html[data-speed='2'] .popup {
   .enemy-info {
     gap: 2px;
   }
-  .special-shape svg {
-    width: 36px;
-    height: 36px;
-  }
-  .special-name {
-    font-size: 10px;
-  }
-  .rotate-btn {
-    min-height: 40px;
+  .specials .mini-shape {
+    --cell: 11px;
   }
   .rot-text {
     font-size: 11px;
@@ -2674,15 +2584,6 @@ body::after {
 /* 金の二重線の枠（パネル・カード・ボタン共通） */
 .enemy,
 .hero,
-.rotate-btn,
-.attack-btn:not(.ready) {
-  border: 1px solid var(--gold-deep);
-  background: var(--panel);
-  box-shadow:
-    inset 0 0 0 2px #1a2552,
-    inset 0 0 0 3px #f1c07340;
-}
-
 /* 敵の欄：枠つきのパネル */
 .enemy {
   padding: 8px 12px;
@@ -2831,31 +2732,7 @@ body::after {
     inset 0 0 0 2px #1a2552,
     inset 0 0 0 3px #f1c07322;
 }
-.hero.active {
-  border-color: var(--gold-hi);
-  background: linear-gradient(180deg, #3a3f7a 0%, #262f66 100%);
-  box-shadow:
-    inset 0 0 0 2px #262f66,
-    inset 0 0 0 3px #fce5a777,
-    0 0 14px #f1c07355;
-}
-.hero.active .hero-symbol {
-  color: var(--gold-hi);
-  text-shadow: 0 0 10px #f1c07399;
-}
-
 /* 回転ボタン */
-.rotate-btn {
-  border-radius: 999px;
-  color: var(--ink);
-}
-.rotate-btn svg {
-  color: var(--gold);
-}
-.rotate-btn:active:not(:disabled) {
-  background: linear-gradient(180deg, #34437f 0%, #26326a 100%);
-}
-
 /* 金の主ボタン（攻撃・出撃・次へ）：金地に、両端の小さな星 */
 .attack-btn {
   border-radius: 999px;
@@ -3836,4 +3713,168 @@ html[data-route='result'] body::after {
 .fx-cutin.pose .fx-cutin-text {
   max-width: 50%;
   top: 72%;
+}
+
+/* ───────── 仲間の必殺の形（回転ボタンのかわり。本物のオーブで並べる。2026-11-04） ───────── */
+.specials {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 6px;
+  align-items: stretch;
+}
+.special-item {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  justify-items: center;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 7px 4px 6px;
+  border-radius: 12px;
+  background: #0b0f2ea6;
+  border: 1px solid #f1c07340;
+}
+.mini-shape {
+  --cell: 15px;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-template-rows: repeat(var(--rows), var(--cell));
+  gap: 1px;
+}
+.specials[data-n='1'] .mini-shape,
+.specials[data-n='2'] .mini-shape {
+  --cell: 21px;
+}
+.specials[data-n='3'] .mini-shape {
+  --cell: 17px;
+}
+.mini-orb {
+  width: var(--cell);
+  height: var(--cell);
+  border-radius: 50%;
+  background:
+    var(--orb-img) center / calc(216 / 202 * 100%) no-repeat,
+    radial-gradient(circle closest-side, var(--orb, #888) 0 92%, transparent 100%);
+  filter: drop-shadow(0 0 3px var(--orb-glow, #fff6));
+}
+.mini-dot {
+  width: var(--cell);
+  height: var(--cell);
+  background: radial-gradient(circle, #ffffff3d 0 11%, transparent 15%);
+}
+.special-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+.special-owner {
+  margin-right: 3px;
+  color: var(--gold);
+}
+.special-item.pulse {
+  animation: special-pulse 0.7s ease-out;
+}
+@keyframes special-pulse {
+  0% {
+    box-shadow: 0 0 0 2px var(--gold-hi), 0 0 18px var(--gold);
+    background: #26305fe6;
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+/* ───────── バトル突入の画面（絵を読み込むあいだ。2026-11-04） ───────── */
+.battle-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at 50% 45%, #1b2560 0%, #0b0f2e 70%);
+  transition: opacity 0.28s ease-out;
+}
+.battle-intro.out {
+  opacity: 0;
+  pointer-events: none;
+}
+.intro-band {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 22px 16px;
+  border-block: 1px solid #f1c07399;
+  background: linear-gradient(90deg, transparent, #f1c0731f 30%, #f1c0732e 50%, #f1c0731f 70%, transparent);
+  animation: intro-band 0.45s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.intro-stage {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--ink-soft);
+}
+.intro-title {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  text-shadow: 0 2px 10px #000c, 0 0 24px #f1c07366;
+}
+.intro-enemy {
+  font-size: 15px;
+  color: #fff;
+}
+@keyframes intro-band {
+  from {
+    transform: scaleX(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* （回転ボタンと一緒にまとめて書いていた指定のうち、残すもの） */
+.hero:disabled,
+.text-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.attack-btn:not(.ready) {
+  border: 1px solid var(--gold-deep);
+  background: var(--panel);
+  box-shadow:
+    inset 0 0 0 2px #1a2552,
+    inset 0 0 0 3px #f1c07340;
+}
+.specials[data-n='4'] .mini-shape {
+  --cell: 13px;
+}
+/* 「視差効果を減らす」でも、押した仲間の形が分かるように枠の色を変える */
+.special-item.pulse {
+  border-color: var(--gold);
+}
+/* 背の低い端末（iPhone SE など）では、形の図を小さくして技名を省く（技名は図の読み上げに入っている） */
+@media (max-height: 740px) {
+  .specials[data-n] .mini-shape {
+    --cell: 10px;
+  }
+  .special-item {
+    padding: 4px 3px;
+  }
+  .special-label {
+    display: none;
+  }
+  /* 4人のとき「みずがめ座」などが2行にならないように */
+  .heroes .hero-name {
+    white-space: nowrap;
+    font-size: 13px;
+  }
 }
