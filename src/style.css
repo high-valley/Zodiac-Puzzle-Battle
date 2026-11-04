@@ -3692,6 +3692,11 @@ html[data-route='result'] body::after {
   z-index: 1;
   filter: brightness(0.9) saturate(0.95);
 }
+/* 4人のとき、後ろの2人は少し上に立たせて前の2人の肩の上から顔が見えるようにする */
+.home-figure.back.lift {
+  --s: 0.86;
+  --ground: 100px;
+}
 /* 4人のときは名前の札を小さく */
 .home-plates.count-4 {
   gap: 4px;

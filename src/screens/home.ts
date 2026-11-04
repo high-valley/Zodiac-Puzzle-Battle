@@ -25,11 +25,12 @@ const BOLT_ICON = '<path d="M13 2L5 13h6l-1 9 8-11h-6z"/>';
  * 編成の人数ごとの並び（編成の順に、横の位置％・手前か奥か）。1人目がいちばん手前のまんなか寄り。
  * 名前の札は見た目の順（左から）に並べ、読み上げも同じ順にする
  */
-const FORMATION: Record<number, { x: number; back: boolean }[]> = {
+// lift：後ろの列を少し上に立たせる（4人のとき、前の2人の肩の上から顔が見えるように）
+const FORMATION: Record<number, { x: number; back: boolean; lift?: boolean }[]> = {
   1: [{ x: 50, back: false }],
   2: [{ x: 38, back: false }, { x: 64, back: true }],
   3: [{ x: 50, back: false }, { x: 25, back: true }, { x: 75, back: true }],
-  4: [{ x: 40, back: false }, { x: 63, back: false }, { x: 21, back: true }, { x: 81, back: true }],
+  4: [{ x: 24, back: false }, { x: 76, back: false }, { x: 41, back: true, lift: true }, { x: 60, back: true, lift: true }],
 };
 
 const sideBtn = (id: FeatureId) => `
@@ -38,11 +39,14 @@ const sideBtn = (id: FeatureId) => `
     <span class="side-label">${featureShortName(id)}</span>
   </button>`;
 
-/** 立ち絵（仮）と、その後ろの星座の線画。背丈の比のまま並べる（data/heroArt） */
-function figureHtml(id: HeroId, place: { x: number; back: boolean }): string {
+/** 並べたときの絵の幅（いちばん背の高いキャラの背丈を 1 とした割合） */
+const artWidth = (id: HeroId) => (HERO_ART[id].width / HERO_ART[id].height) * artHeightRatio(id);
+
+/** 立ち絵と、その後ろの星座の線画。背丈の比のまま並べる（data/heroArt） */
+function figureHtml(id: HeroId, place: { x: number; back: boolean; lift?: boolean }): string {
   const a = HERO_ART[id];
   return `
-      <div class="home-figure${place.back ? ' back' : ' front'}" style="--h:${artHeightRatio(id).toFixed(3)};--hx:${a.headX};--x:${place.x}%" aria-hidden="true">
+      <div class="home-figure${place.back ? ' back' : ' front'}${place.lift ? ' lift' : ''}" style="--h:${artHeightRatio(id).toFixed(3)};--hx:${a.headX};--x:${place.x}%" aria-hidden="true">
         ${constellationSvg(id, '')}
         <img src="${assetUrl(a.file)}" width="${a.width}" height="${a.height}" alt="" decoding="async" draggable="false" />
       </div>`;
@@ -52,6 +56,9 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   const saved = ctx.progress.battle;
   const party = ctx.party();
   const formation = FORMATION[party.length] ?? FORMATION[3];
+  // 4人のときは、絵の細い2人を前に、幅の広い2人（大きな剣・ふたりの双子など）を後ろの少し高い所に立たせる。
+  // 前に幅の広い絵が来ると、後ろの2人がほとんど隠れるため。札は左からの並びで出すので、どの位置でも名前と合う
+  const placed = party.length === 4 ? [...party].sort((p, q) => artWidth(p) - artWidth(q)) : party;
   const savedStage = saved ? findStage(saved.stageId) : undefined;
   const chapter = CHAPTERS[0];
   const stars = chapter.stages.reduce((sum, s) => sum + (ctx.progress.stages[s.id]?.stars ?? 0), 0);
@@ -78,9 +85,9 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
     <h1 class="logo"><span class="logo-ja">アストラクロニクル</span><span class="logo-en" aria-hidden="true">ASTRA CHRONICLE</span></h1>
 
     <div class="home-party">
-      ${party.map((id, i) => figureHtml(id, formation[i])).join('')}
+      ${placed.map((id, i) => figureHtml(id, formation[i])).join('')}
       <ul class="home-plates count-${party.length}" aria-label="パーティー">
-        ${party
+        ${placed
           .map((id, i) => ({ id, x: formation[i].x }))
           .sort((p, q) => p.x - q.x)
           .map(({ id }) => id)
