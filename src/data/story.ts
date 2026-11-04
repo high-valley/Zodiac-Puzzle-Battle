@@ -190,4 +190,18 @@ export const STAGE_SCENES: Record<string, { before?: string; after?: string }> =
 };
 
 /** 会話用の上半身の絵（表情ごと）。届いた分だけ入れる。無い表情・キャラは、立ち絵の上半身を切り出して使う */
-export const PORTRAIT_ART: Partial<Record<HeroId, Partial<Record<Expression, string>>>> = {};
+// 2026-11-05：12人の「ふつう」を入れた（ほかの表情はまだ。無い表情は「ふつう」を使う）
+export const PORTRAIT_ART: Partial<Record<HeroId, Partial<Record<Expression, string>>>> = {
+  aries: { normal: 'art/portraits/aries-normal.webp?v=1' },
+  taurus: { normal: 'art/portraits/taurus-normal.webp?v=1' },
+  gemini: { normal: 'art/portraits/gemini-normal.webp?v=1' },
+  cancer: { normal: 'art/portraits/cancer-normal.webp?v=1' },
+  leo: { normal: 'art/portraits/leo-normal.webp?v=1' },
+  virgo: { normal: 'art/portraits/virgo-normal.webp?v=1' },
+  libra: { normal: 'art/portraits/libra-normal.webp?v=1' },
+  scorpio: { normal: 'art/portraits/scorpio-normal.webp?v=1' },
+  sagittarius: { normal: 'art/portraits/sagittarius-normal.webp?v=1' },
+  capricorn: { normal: 'art/portraits/capricorn-normal.webp?v=1' },
+  aquarius: { normal: 'art/portraits/aquarius-normal.webp?v=1' },
+  pisces: { normal: 'art/portraits/pisces-normal.webp?v=1' },
+};
