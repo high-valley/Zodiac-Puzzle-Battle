@@ -21,6 +21,16 @@ export function colorMultiplier(enemy: Pick<EnemyDef, 'weak' | 'resist'> | undef
   return 1;
 }
 
+/**
+ * 必殺の効果（攻撃キャラはダメージ、回復役は回復）。ダメージには敵の色の弱点・耐性がかかる（2026-11-04 ユーザーの決定）。
+ * 丸めは最後に1回だけ（レベルと弱点をかけてから）
+ */
+export function specialEffect(heroId: HeroId, level: number, enemy?: Pick<EnemyDef, 'weak' | 'resist'>): { damage: number; heal: number } {
+  const hero = HEROES[heroId];
+  if (hero.role === 'healer') return { damage: 0, heal: scaled(hero.special.power, level) };
+  return { damage: Math.round((hero.special.power * levelPercent(level) * colorMultiplier(enemy, hero.special.color)) / 100 + 1e-9), heal: 0 };
+}
+
 export function enemyOf(state: Pick<BattleState, 'enemyId'>): EnemyDef {
   const enemy = ENEMIES[state.enemyId];
   if (!enemy) throw new RangeError(`敵が見つかりません: ${state.enemyId}`);
@@ -82,7 +92,8 @@ export function normalEffect(
     if (hero.role === 'attacker') mult *= colorMultiplier(enemy, color);
     amount += action.coef * n * mult * (levelPercent(level) / 100);
   }
-  const rounded = Math.round(amount);
+  // 小数の誤差で .5 が切り捨てにならないように、ごく小さな値を足してから丸める（仕様書 12.4「.5 は切り上げ」）
+  const rounded = Math.round(amount + 1e-9);
   return hero.role === 'healer' ? { damage: 0, heal: rounded } : { damage: rounded, heal: 0 };
 }
 
@@ -124,10 +135,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const special = detectHeroSpecial(board, m.id);
     if (!special) continue;
     const hero = HEROES[m.id];
-    const power = scaled(hero.special.power, m.level);
-    // 必殺にも色の弱点・耐性がかかる（2026-11-04 ユーザーの決定）
-    const sDamage = hero.role === 'attacker' ? Math.round(power * colorMultiplier(foe, hero.special.color)) : 0;
-    const sHeal = hero.role === 'healer' ? power : 0;
+    const { damage: sDamage, heal: sHeal } = specialEffect(m.id, m.level, foe);
     damage += sDamage;
     heal += sHeal;
     specials.push(special);

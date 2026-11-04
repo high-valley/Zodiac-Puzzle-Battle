@@ -1,11 +1,11 @@
 // 計測用の自動プレイヤー（ゲームには入れない）。
 // 見えている盤面だけで判断する：回したあとの盤面は見るが、補充で何が落ちてくるか（seed の先）は見ない
-import { MAX_ROTATIONS_PER_TURN } from '../src/data/balance';
+import { MAX_ROTATIONS_PER_TURN, damageTaken } from '../src/data/balance';
 import { HEROES } from '../src/data/heroes';
 import { MAX_INTERSECTION, rotate2x2 } from '../src/game/board';
-import { colorMultiplier, enemyOf, normalEffect } from '../src/game/combat';
+import { enemyOf, normalEffect, specialEffect } from '../src/game/combat';
 import type { EnemyDef } from '../src/data/enemies';
-import { scaled } from '../src/game/party';
+import { partyDefense } from '../src/game/party';
 import { findMatches, matchedMask, maskToCells } from '../src/game/matching';
 import { nextInt } from '../src/game/rng';
 import { SHAPES, detectHeroSpecial } from '../src/game/specials';
@@ -35,7 +35,8 @@ const ROTATIONS = allRotations();
 /** 次のターンの終わりに受ける敵の攻撃（強攻撃が来るならその量）。画面にも出ている公開情報 */
 export function nextEnemyAttack(state: BattleState): number {
   const enemy = enemyOf(state);
-  return enemy.heavy && state.enemyChargeIn === 1 ? enemy.heavy.attack : enemy.attack;
+  // 実際に受けるのは、仲間の防御力で減らした量（仕様書 12.11）
+  return damageTaken(enemy.heavy && state.enemyChargeIn === 1 ? enemy.heavy.attack : enemy.attack, partyDefense(state.party));
 }
 
 /** 回し終えた盤面で「攻撃」したときの、仲間全員の効果の見積もり（連鎖は数えない。全員が同時に行動する。仕様書 12.7） */
@@ -51,13 +52,11 @@ export function estimate(
   let heal = 0;
   let special = false;
   for (const m of party) {
-    const def = HEROES[m.id];
     const e = normalEffect(m.id, counts, 1, m.level, enemy);
-    const sp0 = detectHeroSpecial(board, m.id) !== null ? scaled(def.special.power, m.level) : 0;
-    const sp = def.role === 'attacker' ? Math.round(sp0 * colorMultiplier(enemy, def.special.color)) : sp0;
-    if (sp > 0) special = true;
-    damage += e.damage + (def.role === 'attacker' ? sp : 0);
-    heal += e.heal + (def.role === 'healer' ? sp : 0);
+    const sp = detectHeroSpecial(board, m.id) !== null ? specialEffect(m.id, m.level, enemy) : { damage: 0, heal: 0 };
+    if (sp.damage + sp.heal > 0) special = true;
+    damage += e.damage + sp.damage;
+    heal += e.heal + sp.heal;
   }
   return { damage, heal, special };
 }

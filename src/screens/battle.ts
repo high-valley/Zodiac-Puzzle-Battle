@@ -8,7 +8,8 @@ import { affinityHtml } from '../components/heroCard';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialOrbsHtml } from '../components/specialPreview';
-import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
+import { MAX_ROTATIONS_PER_TURN, damageTaken } from '../data/balance';
+import { partyDefense } from '../game/party';
 import { rotateTuningOf } from '../storage/settings';
 import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { DEV_TOOLS } from '../data/devTools';
@@ -198,7 +199,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     }
     el.classList.toggle('imminent', chargeIn === 1);
     el.textContent =
-      chargeIn === 1 ? `このターンの終わりに強攻撃（${enemy.heavy.attack}）` : `強攻撃まで あと${chargeIn}ターン`;
+      chargeIn === 1 ? `このターンの終わりに強攻撃（−${damageTaken(enemy.heavy.attack, partyDefense(state.party))}）` : `強攻撃まで あと${chargeIn}ターン`;
   }
 
   /** このターンに回した分を反映した盤面（まだ何も消えていない） */
