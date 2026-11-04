@@ -31,6 +31,7 @@ export function openSettingsDialog(root: HTMLElement, background: HTMLElement, o
         <h2 id="settings-title">設定</h2>
         ${toggle('soundOn', '効果音', s.soundOn, 'オン', 'オフ')}
         ${toggle('speed', '演出の速さ', s.speed === 1, 'ふつう', 'はやい')}
+        ${toggle('skipClearedStory', 'クリアしたステージの会話', !s.skipClearedStory, '見る', 'とばす')}
         <button type="button" class="text-btn wide show-tutorial">遊び方を見る</button>
         ${
           opts.onClearData
@@ -47,6 +48,7 @@ export function openSettingsDialog(root: HTMLElement, background: HTMLElement, o
         const key = b.dataset.key;
         if (key === 'soundOn') s.soundOn = !s.soundOn;
         if (key === 'speed') s.speed = s.speed === 1 ? 2 : 1;
+        if (key === 'skipClearedStory') s.skipClearedStory = !s.skipClearedStory;
         opts.onChange({ ...s });
         render();
         (overlay.querySelector(`.seg[data-key="${key}"]`) as HTMLElement | null)?.focus();

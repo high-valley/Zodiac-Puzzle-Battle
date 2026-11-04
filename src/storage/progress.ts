@@ -9,7 +9,7 @@ import { partyMaxHp, partyProblem } from '../game/party';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
 import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
 import { isValidIntersection } from '../game/board';
-import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
+import { MAX_ROTATIONS_PER_TURN, TRAITS } from '../data/balance';
 import { SCENES, STAGE_SCENES } from '../data/story';
 
 export interface StageRecord {
@@ -65,14 +65,18 @@ export function canViewScene(progress: Progress, sceneId: string, open: (stageId
 }
 
 /** 出撃したとき、バトルの前に見せる会話（まだ見ていない前の会話。途中のバトルの続きなら見せない） */
-export function sceneBeforeBattle(progress: Progress, stageId: string, resuming: boolean): string | null {
+export function sceneBeforeBattle(progress: Progress, stageId: string, resuming: boolean, skipCleared = false): string | null {
   const id = STAGE_SCENES[stageId]?.before;
+  // 「クリアしたステージの会話をとばす」設定なら、クリア済みのステージでは出さない（2026-11-05）
+  if (skipCleared && (progress.stages[stageId]?.stars ?? 0) > 0) return null;
   return id && !resuming && !sceneSeen(progress, id) ? id : null;
 }
 
 /** 勝ったあとの「次へ」で見せる会話（まだ見ていない後の会話。負けたときは見せない） */
-export function sceneAfterWin(progress: Progress, stageId: string, victory: boolean): string | null {
+export function sceneAfterWin(progress: Progress, stageId: string, victory: boolean, skipCleared = false, firstClear = true): string | null {
   const id = STAGE_SCENES[stageId]?.after;
+  // 「とばす」設定で、前からクリアしていたステージなら出さない（初めてクリアしたときは見せる）
+  if (skipCleared && !firstClear) return null;
   return id && victory && !sceneSeen(progress, id) ? id : null;
 }
 
@@ -166,6 +170,15 @@ export function isBattleState(v: unknown): v is BattleState {
   if (enemy.heavy ? !isInt(s.enemyChargeIn, 1, enemy.heavy.every) : s.enemyChargeIn !== null) return false;
   if (!isInt(s.rngSeed, 0, 0xffffffff)) return false;
   if (s.status !== 'playing') return false;
+  // 特性で続くもの（2026-11-05〜。無くてもよい）
+  if (s.traits !== undefined) {
+    const t = s.traits as Record<string, unknown> | null;
+    if (typeof t !== 'object' || t === null) return false;
+    const lasting = (v: unknown) =>
+      v === undefined || (typeof v === 'object' && v !== null && isInt((v as Record<string, unknown>).amount, 1) && isInt((v as Record<string, unknown>).turns, 1, Math.max(TRAITS.poisonTurns, TRAITS.rainTurns)));
+    if (!lasting(t.poison) || !lasting(t.rain)) return false;
+    if (t.charge !== undefined && !isInt(t.charge, 0, TRAITS.chargeMax)) return false;
+  }
   const st = s.stats as Record<string, unknown> | null;
   if (typeof st !== 'object' || st === null) return false;
   return isInt(st.maxChain, 0) && isInt(st.specials, 0) && isInt(st.damageDealt, 0) && isInt(st.healed, 0);

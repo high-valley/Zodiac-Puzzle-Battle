@@ -26,6 +26,7 @@ function sampleOutcome(ctx: AppContext, victory: boolean): BattleOutcome {
     stats: { maxChain: 4, specials: 2, damageDealt: victory ? 1480 : 1138, healed: 160 },
     stars: victory ? 3 : 0,
     newBestStars: false,
+    firstClear: false,
     newBestTurns: false,
     exp: victory ? 50 : 12,
     growth: party.map((id, i) => ({ id, before: 3, after: victory && i === 0 ? 4 : 3 })),

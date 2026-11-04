@@ -139,7 +139,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     panel.querySelector('.go')?.addEventListener('click', () => {
       // まだ見ていない「前の会話」があれば、会話を見てからバトルへ（途中のバトルの続きなら会話はとばす）。
       // よそのステージの途中のバトルは、会話を見終えてバトルに入るときに消える（会話の途中で戻ればそのまま残る）
-      const before = sceneBeforeBattle(ctx.progress, stage.id, savedHere);
+      const before = sceneBeforeBattle(ctx.progress, stage.id, savedHere, ctx.settings.skipClearedStory);
       if (before) {
         ctx.navigate({ name: 'story', sceneId: before, next: { name: 'battle', stageId: stage.id } });
         return;

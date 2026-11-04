@@ -9,7 +9,7 @@ import { partyDefense, partyMaxHp, partyProblem, scaled } from './party';
 import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
 import { findMatches, matchedMask, maskToCells } from './matching';
 import { detectHeroSpecial } from './specials';
-import type { Actor, BattleEvent, BattleState, HeroId, OrbColor, PartyMember, SpecialResult, TurnAction, TurnResult } from './types';
+import type { Actor, BattleEvent, BattleState, HeroId, OrbColor, PartyMember, SpecialResult, TraitState, TurnAction, TurnResult } from './types';
 
 export { partyMaxHp } from './party';
 
@@ -79,6 +79,8 @@ export function normalEffect(
   level = 1,
   /** 敵の色の弱点・耐性（攻撃だけにかける。仕様書 12.11）。省けば倍率なし */
   enemy?: Pick<EnemyDef, 'weak' | 'resist'>,
+  /** 特性に使う、その段のようす（遠距離：上の段で消えた色ごとの個数、均衡：消えた色の数、溜め：溜まった数） */
+  step: { top?: Record<OrbColor, number>; colors?: number; charge?: number } = {},
 ): { damage: number; heal: number } {
   const hero = HEROES[heroId];
   let amount = 0;
@@ -89,12 +91,21 @@ export function normalEffect(
     if (hero.trait === 'chain') mult = 1 + TRAITS.chainStep * (chain - 1);
     if (hero.trait === 'vanguard' && chain === 1) mult *= TRAITS.vanguardMultiplier;
     if (hero.trait === 'mass') mult *= 1 + TRAITS.massPerExtra * Math.max(0, n - 3);
+    if (hero.trait === 'twin') mult *= TRAITS.twinTotal;
+    // 遠距離：上の段で消えた分だけ、1個あたり farBonus ぶん強く（全体の個数に対する割合でかける）
+    if (hero.trait === 'far') mult *= 1 + (TRAITS.farBonus * Math.min(n, step.top?.[color] ?? 0)) / n;
+    if (hero.trait === 'balance') mult *= 1 + TRAITS.balancePerColor * Math.max(0, (step.colors ?? 1) - 1);
+    if (hero.trait === 'charge') mult *= 1 + TRAITS.chargeStep * Math.min(TRAITS.chargeMax, step.charge ?? 0);
+    if (hero.trait === 'bigHeal' && n >= TRAITS.bigHealMin) mult *= TRAITS.bigHealMultiplier;
     if (hero.role === 'attacker') mult *= colorMultiplier(enemy, color);
     amount += action.coef * n * mult * (levelPercent(level) / 100);
   }
   // 小数の誤差で .5 が切り捨てにならないように、ごく小さな値を足してから丸める（仕様書 12.4「.5 は切り上げ」）
   const rounded = Math.round(amount + 1e-9);
-  return hero.role === 'healer' ? { damage: 0, heal: rounded } : { damage: rounded, heal: 0 };
+  if (hero.role === 'healer') return { damage: 0, heal: rounded };
+  // 渦（うお座）：2段目からの連鎖で攻撃したら、そのダメージの一部だけ回復もする
+  const vortex = hero.trait === 'vortex' && chain >= 2 ? Math.round(rounded * TRAITS.vortexHeal + 1e-9) : 0;
+  return { damage: rounded, heal: vortex };
 }
 
 export function resolveTurn(state: BattleState, action: TurnAction): TurnResult {
@@ -126,6 +137,13 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
 
   let damage = 0;
   let heal = 0;
+  // 特性で続くもの（仕様書 12.8）
+  const prevTraits = state.traits ?? {};
+  let charge = prevTraits.charge ?? 0;
+  let chargeUsed = false;
+  let poisonFrom = 0;
+  let rainFrom = 0;
+  let shielded = false;
   // 敵の色の弱点・耐性（攻撃にかける）
   const foe = enemyOf(state);
 
@@ -136,6 +154,11 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     if (!special) continue;
     const hero = HEROES[m.id];
     const { damage: sDamage, heal: sHeal } = specialEffect(m.id, m.level, foe);
+    if (hero.trait === 'shield' && sHeal > 0) shielded = true;
+    if (hero.trait === 'rain') rainFrom += sHeal;
+    if (hero.trait === 'poison') poisonFrom += sDamage;
+    // 必殺で攻撃したターンも、溜めは溜まらない（溜めた力は通常の攻撃で使う）
+    if (hero.trait === 'charge' && sDamage > 0) chargeUsed = true;
     damage += sDamage;
     heal += sHeal;
     specials.push(special);
@@ -155,13 +178,29 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     }
     const matched = matchedMask(groups);
     const counts = emptyCounts();
-    for (const p of maskToCells(matched)) counts[board[p.row][p.col]]++;
+    const top = emptyCounts();
+    for (const p of maskToCells(matched)) {
+      counts[board[p.row][p.col]]++;
+      if (p.row < TRAITS.farRows) top[board[p.row][p.col]]++;
+    }
+    const colors = (Object.values(counts) as number[]).filter((n) => n > 0).length;
     // 仲間全員が同時に行動する。自分の色が消えたキャラだけ動く
     const actors: Actor[] = [];
     if (groups.length > 0) {
       for (const m of state.party) {
-        const e = normalEffect(m.id, counts, chain, m.level, foe);
-        if (e.damage > 0 || e.heal > 0) actors.push({ heroId: m.id, damage: e.damage, heal: e.heal });
+        const hero = HEROES[m.id];
+        const e = normalEffect(m.id, counts, chain, m.level, foe, { top, colors, charge });
+        if (e.damage > 0 || e.heal > 0) {
+          actors.push({ heroId: m.id, damage: e.damage, heal: e.heal, ...(hero.trait === 'twin' && e.damage > 0 ? { hits: 2 } : {}) });
+          if (hero.trait === 'charge') {
+            // 溜めた力は、攻撃した段で使い切る
+            charge = 0;
+            chargeUsed = true;
+          }
+          if (hero.trait === 'poison') poisonFrom += e.damage;
+          if (hero.trait === 'shield') shielded = true;
+          if (hero.trait === 'rain') rainFrom += e.heal;
+        }
       }
     }
     const stepDamage = actors.reduce((sum, a) => sum + a.damage, 0);
@@ -200,6 +239,35 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     events.push({ type: 'damage', amount: damage, enemyHp });
   }
 
+  // 恵みの雨（前のターンから続く分）：このターンの回復のあとに入る
+  let rain = prevTraits.rain && prevTraits.rain.turns > 0 ? { ...prevTraits.rain } : undefined;
+  if (rain) {
+    const before = partyHp;
+    partyHp = Math.min(state.partyMaxHp, partyHp + rain.amount);
+    if (partyHp > before) events.push({ type: 'rain', amount: partyHp - before, partyHp });
+    rain.turns -= 1;
+  }
+  // 新しい雨は、残っている雨より強いときだけ上書きする（毒と同じ）
+  const newRain = Math.max(1, Math.round(rainFrom * TRAITS.rainRatio + 1e-9));
+  if (rainFrom > 0 && (!rain || rain.turns <= 0 || newRain > rain.amount)) rain = { amount: newRain, turns: TRAITS.rainTurns };
+  if (rain && rain.turns <= 0) rain = undefined;
+
+  // 毒：このターンの攻撃で新しくかかった毒は強い方で上書きし、ターンの終わりにダメージを与える
+  let poison = prevTraits.poison && prevTraits.poison.turns > 0 ? { ...prevTraits.poison } : undefined;
+  const newPoison = Math.round(poisonFrom * TRAITS.poisonRatio + 1e-9);
+  if (newPoison > 0 && (!poison || newPoison > poison.amount)) poison = { amount: newPoison, turns: TRAITS.poisonTurns };
+  if (poison && enemyHp > 0) {
+    // amount は実際に減った量
+    const before = enemyHp;
+    enemyHp = Math.max(0, enemyHp - poison.amount);
+    events.push({ type: 'poison', amount: before - enemyHp, enemyHp });
+    poison.turns -= 1;
+  }
+  if (poison && poison.turns <= 0) poison = undefined;
+
+  // 溜め：やぎ座が出撃していて、このターン攻撃しなかったら1つ溜まる
+  if (!chargeUsed && state.party.some((m) => HEROES[m.id].trait === 'charge')) charge = Math.min(TRAITS.chargeMax, charge + 1);
+
   // 敵の行動：強攻撃のある敵は、残りターンが 0 になったら強攻撃して数え直す
   let status: BattleState['status'] = 'playing';
   let chargeIn = state.enemyChargeIn;
@@ -219,14 +287,20 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     }
     // 仲間の防御力の合計で、受けるダメージを割合で減らす（仕様書 12.11）
     amount = damageTaken(amount, partyDefense(state.party));
+    // 盾（かに座）：回復したターンは、敵の攻撃を軽くする
+    if (shielded) amount = Math.max(1, Math.round(amount * (1 - TRAITS.shieldCut) + 1e-9));
     partyHp = Math.max(0, partyHp - amount);
-    events.push({ type: 'enemyAttack', amount, partyHp, heavy });
+    events.push({ type: 'enemyAttack', amount, partyHp, heavy, ...(shielded ? { shield: true } : {}) });
     if (partyHp === 0) status = 'defeat';
   }
   if (status !== 'playing') events.push({ type: 'end', status });
 
   const maxChainThisTurn = events.reduce((m, e) => (e.type === 'clear' ? Math.max(m, e.chain) : m), 0);
-  const healedThisTurn = events.reduce((sum, e) => (e.type === 'heal' ? sum + e.amount : sum), 0);
+  const healedThisTurn = events.reduce((sum, e) => (e.type === 'heal' || e.type === 'rain' ? sum + e.amount : sum), 0);
+  const traits: TraitState = {};
+  if (poison) traits.poison = poison;
+  if (rain) traits.rain = rain;
+  if (charge > 0) traits.charge = charge;
   return {
     state: {
       ...state,
@@ -237,6 +311,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       enemyChargeIn: chargeIn,
       rngSeed: seed,
       status,
+      traits,
       stats: {
         maxChain: Math.max(state.stats.maxChain, maxChainThisTurn),
         specials: state.stats.specials + specials.length,

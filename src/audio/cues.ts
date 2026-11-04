@@ -32,6 +32,10 @@ export function cueForEvent(ev: BattleEvent, specialThisTurn: boolean): SoundCue
       return { name: 'hit', big: specialThisTurn };
     case 'heal':
       return { name: 'heal', big: specialThisTurn };
+    case 'poison':
+      return { name: 'hit', big: false };
+    case 'rain':
+      return { name: 'heal', big: false };
     case 'enemyAttack':
       return { name: 'hurt', heavy: ev.heavy };
     case 'end':

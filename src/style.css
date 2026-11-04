@@ -4265,3 +4265,14 @@ html[data-route='story'] body::after {
   margin: 0;
   font-weight: 400;
 }
+.popup.poison::before,
+.popup.rain::before,
+.popup.shield::before {
+  content: attr(data-tag);
+  display: block;
+  font-size: 12px;
+  text-align: center;
+}
+.popup.poison {
+  color: #c9a2ff;
+}
