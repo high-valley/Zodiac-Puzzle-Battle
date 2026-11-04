@@ -23,7 +23,7 @@ export function orbSymbolSvg(color: OrbColor): string {
 export interface BoardView {
   el: HTMLElement;
   render(board: Board): void;
-  /** 選んだ交点（回転ボタン用） */
+  /** 選んだ交点 */
   selected(): Pos | null;
   select(pos: Pos | null): void;
   setLocked(locked: boolean): void;
@@ -67,7 +67,7 @@ function arcTransform(from: Pos, at: Pos, direction: Direction, p: number): stri
 }
 
 /**
- * @param onRotate 回すと決まったとき（指を離したとき・回転ボタン）。steps は続けて回す回数（指で 180 度回したら 2）
+ * @param onRotate 回すと決まったとき（指を離したとき）。steps は続けて回す回数（指で 180 度回したら 2）
  * @param remaining 今あと何回回せるか（0 なら指に合わせて動かさない。指で回せるのもこの回数まで）
  */
 export function createBoardView(

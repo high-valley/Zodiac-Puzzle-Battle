@@ -16,7 +16,10 @@ export function preloadImages(urls: string[], timeoutMs = 1500): Promise<void> {
       const img = new Image();
       img.decoding = 'async';
       img.src = url;
-      job = (typeof img.decode === 'function' ? img.decode() : new Promise<void>((r) => (img.onload = () => r()))).catch(() => undefined);
+      job = (typeof img.decode === 'function' ? img.decode() : new Promise<void>((r) => {
+              img.onload = () => r();
+              img.onerror = () => r();
+            })).catch(() => undefined);
       loaded.set(url, job);
     }
     return job;

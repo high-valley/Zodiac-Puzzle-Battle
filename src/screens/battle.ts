@@ -58,7 +58,6 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   let pending: Rotation[] = resuming ? [...saved.pending] : [];
   let rotating = false;
   const enemy = enemyOf(state);
-  // 下に必殺の形を出している仲間（押して切り替える。行動するキャラを選ぶものではない。全員が同時に行動する：仕様書 12.7）
   let busy = false;
   let disposed = false;
   const sound = ctx.sound;
@@ -105,13 +104,13 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       <button type="button" class="attack-btn">攻撃</button>
     </div>
 
-    <div class="specials" data-n="${state.party.length}" aria-label="仲間の必殺の形（盤面にこの形があると、「攻撃」で必殺技が出る）">
+    <div class="specials" role="group" data-n="${state.party.length}" aria-label="仲間の必殺の形（盤面にこの形があると、「攻撃」で必殺技が出る）">
       ${state.party
         .map(
           ({ id }) => `
-        <div class="special-item" data-hero="${id}">
+        <div class="special-item" id="special-${id}" data-hero="${id}">
           ${specialOrbsHtml(id)}
-          <span class="special-label"><span class="special-owner" aria-hidden="true">${HEROES[id].symbol}</span>${HEROES[id].special.name}</span>
+          <span class="special-label" aria-hidden="true"><span class="special-owner" aria-hidden="true">${HEROES[id].symbol}</span>${HEROES[id].special.name}</span>
         </div>`,
         )
         .join('')}
@@ -120,7 +119,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     <div class="heroes" aria-label="仲間（全員が同時に行動する。押すと上の必殺の形が光る）">
       ${state.party.map(
         ({ id }) => `
-        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-label="${HEROES[id].name}（${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）">
+        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-describedby="special-${id}" aria-label="${HEROES[id].name}（${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）">
           <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="hero-name">${HEROES[id].name}</span>
           <span class="hero-role"><span class="hero-dot orb-${HEROES[id].special.color}" aria-hidden="true"></span><span class="long">${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
@@ -167,13 +166,19 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       <span class="intro-enemy">${enemy.name}</span>
     </div>`;
   battleEl.append(intro);
+  // 帯を出している間は、裏のボタンにキーボードでも届かないようにする
+  const behind = [...battleEl.children].filter((el) => el !== intro) as HTMLElement[];
+  for (const el of behind) el.inert = true;
   const introStart = performance.now();
   void preloadImages(images, BATTLE_INTRO.maxMs).then(async () => {
     const left = BATTLE_INTRO.minMs - (performance.now() - introStart);
     if (left > 0) await wait(left);
     if (disposed) return;
+    for (const el of behind) el.inert = false;
     intro.classList.add('out');
-    await wait(BATTLE_INTRO.fadeMs);
+    // 初めてのバトルなら、帯が消えてから遊び方を開く（帯の下に隠れないように）
+    if (!ctx.settings.tutorialSeen) ctx.openTutorial(battleEl);
+      await wait(BATTLE_INTRO.fadeMs);
     intro.remove();
   });
 
@@ -626,7 +631,6 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   renderSettings();
   renderTurnBar();
   renderMarks();
-  if (!ctx.settings.tutorialSeen) ctx.openTutorial(battleEl);
 
   return () => {
     disposed = true;
