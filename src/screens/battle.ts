@@ -6,7 +6,7 @@ import { assetUrl, BATTLE_IMAGES, preloadImages } from '../components/assets';
 import { createFx } from '../components/effects';
 import { affinityHtml } from '../components/heroCard';
 import { enemySvg } from '../components/enemyArt';
-import { openModal } from '../components/modal';
+import { isModalOpen, openModal } from '../components/modal';
 import { specialOrbsHtml } from '../components/specialPreview';
 import { AUTO_ATTACK_DELAY_MS, MAX_ROTATIONS_PER_TURN, damageTaken } from '../data/balance';
 import { partyDefense } from '../game/party';
@@ -180,8 +180,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     intro.classList.add('out');
     // 初めてのバトルなら、帯が消えてから遊び方を開く（帯の下に隠れないように）
     if (!ctx.settings.tutorialSeen) ctx.openTutorial(battleEl);
-    // 3回回したところで中断していたら、続きはそのまま攻撃する
-    else autoAttackIfFull();
+    // 3回回したところで中断していたら、続きはそのまま攻撃する（遊び方を開いたなら、閉じてから）
+    autoAttackIfFull();
       await wait(BATTLE_INTRO.fadeMs);
     intro.remove();
   });
@@ -491,19 +491,26 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         board.setLocked(busy);
         renderMarks();
         renderTurnBar();
+        autoAttackIfFull();
       }
     }
-    autoAttackIfFull();
   }
 
   /** 回せる回数を使い切ったら、「攻撃」を押さなくてもそのまま攻撃する（2026-11-04 ユーザーの要望） */
   function autoAttackIfFull() {
     if (pending.length < MAX_ROTATIONS_PER_TURN || busy || disposed || state.status !== 'playing') return;
     const turn = state.turn;
-    setTimeout(() => {
+    const fire = () => {
       // 待っているあいだに自分で「攻撃」を押していたら、何もしない
-      if (!disposed && !busy && !rotating && state.turn === turn && pending.length >= MAX_ROTATIONS_PER_TURN) void attack();
-    }, puzzleMs(AUTO_ATTACK_DELAY_MS));
+      if (disposed || busy || rotating || state.turn !== turn || pending.length < MAX_ROTATIONS_PER_TURN || state.status !== 'playing') return;
+      // メニュー・遊び方・設定を開いている間は攻撃しない（裏で勝敗が決まらないように）。閉じるのを待つ
+      if (isModalOpen()) {
+        setTimeout(fire, 300);
+        return;
+      }
+      void attack();
+    };
+    setTimeout(fire, puzzleMs(AUTO_ATTACK_DELAY_MS));
   }
 
   /** 「攻撃」：回し終えた盤面で、必殺と消去と敵の行動を進める */
