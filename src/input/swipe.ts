@@ -70,7 +70,24 @@ export function releaseSteps(q: number, speed: number, moved: number, rule = SWI
   const a = Math.abs(q);
   let k = Math.floor(a);
   const frac = a - k;
-  if (frac >= rule.snapAt) k++;
+  if (frac > rule.snapAt) k++;
   else if (moved >= rule.minDistance && speed * sign >= rule.flickSpeed && frac >= rule.flickMinFrac) k++;
   return sign * k;
+}
+
+/** 指で回している途中のようす。q は回した量（90度＝1、正＝時計回り）、lastAngle は前の指の角度（読めないときは null） */
+export interface DialState {
+  q: number;
+  lastAngle: number | null;
+}
+
+/**
+ * 指が動いたときの、回した量の更新（純粋な関数）。angle は 2×2 の中心から見た指の角度（中心に近すぎて読めないときは null）、
+ * moved は押してから動いた最大の距離（px）、remaining は今あと何回回せるか。
+ * 中心を通るあいだと、動きが dragDeadZone 未満のあいだは、角度の基準だけ取り直して回さない。±180度をまたいでもひと続きに足す
+ */
+export function advanceDial(s: DialState, angle: number | null, moved: number, remaining: number, rule = SWIPE): DialState {
+  if (angle === null) return { q: s.q, lastAngle: null };
+  if (s.lastAngle === null || moved < rule.dragDeadZone) return { q: s.q, lastAngle: angle };
+  return { q: clampTurns(s.q + toTurns(wrapAngle(angle - s.lastAngle)), remaining), lastAngle: angle };
 }

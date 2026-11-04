@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { angleAround, clampTurns, nearestIntersection, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
+import { advanceDial, angleAround, clampTurns, nearestIntersection, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -52,6 +52,8 @@ describe('指で回す（つまみを回すように。2026-11-04）', () => {
 
   it('離したとき：半分（45度）を超えていれば回しきり、届かなければ元に戻す', () => {
     expect(releaseSteps(0.49, 0, 40)).toBe(0);
+    // ちょうど45度は戻す（仕様書 6.1「45度より多く」）
+    expect(releaseSteps(0.5, 0, 40)).toBe(0);
     expect(releaseSteps(0.51, 0, 40)).toBe(1);
     expect(releaseSteps(-0.6, 0, 40)).toBe(-1);
     // 続けて回したとき：90度ごとに1回
@@ -166,3 +168,41 @@ describe('pickIntersection（押した位置で選ぶ交点。2026-11-03）', ()
 });
 
 
+
+describe('advanceDial（指の角度から回した量を足す。2026-11-04）', () => {
+  const deg = (d: number) => (d * Math.PI) / 180;
+  // 小数の誤差をならして比べる
+  const near = (x: number) => Math.round(x * 1e6) / 1e6;
+  // 角度の並びを順に入れて、最後の回した量を返す
+  const run = (angles: (number | null)[], remaining = 3, moved = 40) =>
+    angles.reduce((s, a) => advanceDial(s, a === null ? null : deg(a), moved, remaining), { q: 0, lastAngle: null as number | null }).q;
+
+  it('時計回りに90度描くと1回分、逆なら -1', () => {
+    expect(near(run([0, 30, 60, 90]))).toBe(near(1));
+    expect(near(run([0, -45, -90]))).toBe(near(-1));
+  });
+
+  it('±180度をまたいでも、ひと続きに足す', () => {
+    expect(near(run([150, 170, -170, -150]))).toBe(near(60 / 90));
+    expect(near(run([-150, -170, 170, 150]))).toBe(near(-60 / 90));
+  });
+
+  it('中心を通るあいだ（角度が読めない）は回さず、通りすぎたら基準を取り直す', () => {
+    expect(near(run([0, 45, null, 200, 245]))).toBe(near(1));
+  });
+
+  it('残りの回数で止まり、そこから逆へ回せばすぐ戻る', () => {
+    expect(near(run([0, 90, 180, 270], 2))).toBe(near(2));
+    expect(near(run([0, 90, 180, 270, 225], 2))).toBe(near(1.5));
+  });
+
+  it('動きが小さいあいだ（dragDeadZone 未満）は回さない', () => {
+    expect(run([0, 30, 60], 3, SWIPE.dragDeadZone - 1)).toBe(0);
+  });
+});
+
+describe('古い保存設定の互換', () => {
+  it('前の版の「指に付いて回る角度」（dragMaxP）が残っていても読める', () => {
+    expect(parseRotateTuning({ ...DEFAULT_ROTATE_TUNING, dragMaxP: 1 })).toEqual(DEFAULT_ROTATE_TUNING);
+  });
+});

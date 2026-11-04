@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Direction, OrbColor, Pos } from '../game/types';
-import { angleAround, clampTurns, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../input/swipe';
+import { advanceDial, angleAround, pickIntersection, releaseSteps } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -240,28 +240,21 @@ export function createBoardView(
     if (!start || e.pointerId !== start.id) return;
     const left = remaining();
     if (!current || locked || running.length > 0 || left <= 0 || typeof el.animate !== 'function') {
-      // 回せなくなった（別の指で攻撃を押したなど）ら、回しかけを元に戻す
+      // 回せなくなった（別の指で攻撃やボタンを押したなど）ら、回しかけを元に戻し、回した量も捨てて基準を取り直す
+      // （回せるようになったとき、前の回しかけが急に付いて盤面が飛ばないように）
       if (drag) {
         clearDrag(drag.at);
         drag = null;
       }
+      resetDial();
       return;
     }
     start.moved = Math.max(start.moved, Math.hypot(e.clientX - start.x, e.clientY - start.y));
-    const angle = angleOf(e, current);
-    if (angle === null) {
-      // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく
-      start.lastAngle = null;
-      return;
-    }
-    if (start.lastAngle === null || start.moved < SWIPE.dragDeadZone) {
-      start.lastAngle = angle;
-      return;
-    }
-    const dq = toTurns(wrapAngle(angle - start.lastAngle));
-    start.lastAngle = angle;
-    // 残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
-    const q = clampTurns(start.q + dq, left);
+    // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく。残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
+    const next = advanceDial(start, angleOf(e, current), start.moved, left);
+    start.lastAngle = next.lastAngle;
+    const q = next.q;
+    if (q === start.q) return;
     const dt = e.timeStamp - start.lastT;
     if (dt > 0) start.v = start.v * 0.5 + ((q - start.q) / dt) * 0.5;
     start.q = q;
@@ -306,12 +299,24 @@ export function createBoardView(
     }, 60);
   });
 
-  el.addEventListener('pointercancel', () => {
+  /** 回した量を捨てて、今の指の角度から数え直す */
+  function resetDial() {
+    if (!start) return;
+    start.q = 0;
+    start.v = 0;
+    start.lastAngle = null;
+  }
+
+  // 回している指の取り消しだけを扱う（ほかの指の取り消しで、回している操作を止めない）
+  const cancel = (e: PointerEvent) => {
+    if (!start || e.pointerId !== start.id) return;
     ring.classList.remove('pressing');
     start = null;
     if (drag) springBack(drag);
     drag = null;
-  });
+  };
+  el.addEventListener('pointercancel', cancel);
+  el.addEventListener('lostpointercapture', cancel);
 
   return {
     el,
@@ -325,6 +330,7 @@ export function createBoardView(
         clearDrag(drag.at);
         drag = null;
       }
+      if (value) resetDial();
     },
     finishRotate() {
       for (const a of running) a.finish();

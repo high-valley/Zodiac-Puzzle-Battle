@@ -35,7 +35,7 @@ const STEPS: Step[] = [
           ${orb('red', 'a')}${orb('blue', 'b')}${orb('pink', 'd')}${orb('green', 'c')}
           <span class="t-star"></span>
         </div>
-        <span class="t-finger">→ ↓</span>
+        <span class="t-finger">↻</span>
       </div>`,
   },
   {
