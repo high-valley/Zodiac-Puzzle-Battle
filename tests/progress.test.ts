@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ENEMIES } from '../src/data/enemies';
 import { ALL_STAGES, findStage, starsFor } from '../src/data/stages';
+import { damageTaken } from '../src/data/balance';
 import { createBattle, resolveTurn } from '../src/game/combat';
+import { partyDefense } from '../src/game/party';
 import { emptyProgress, isBattleState, isUnlocked, nextStageId, parseProgress, recordResult, type Progress } from '../src/storage/progress';
 import { QUIET_ROWS, stateWith } from './helpers';
 
@@ -17,7 +19,8 @@ describe('敵の強攻撃と記録', () => {
       const r = resolveTurn(state, { rotations: [{ row: 3, col: 3, direction: t % 2 ? 'clockwise' : 'counterclockwise' }] });
       const attack = r.events.find((e) => e.type === 'enemyAttack');
       if (attack?.type !== 'enemyAttack') throw new Error('攻撃がない');
-      expect(attack.amount).toBe(attack.heavy ? heavy.attack : enemy.attack);
+      // 仲間の防御力で減らした量（仕様書 12.11）
+      expect(attack.amount).toBe(damageTaken(attack.heavy ? heavy.attack : enemy.attack, partyDefense(state.party)));
       if (attack.heavy) heavyTurns.push(t);
       charges.push(r.state.enemyChargeIn);
       state = { ...r.state, partyHp: r.state.partyMaxHp }; // 負けないように満タンに戻す

@@ -3988,3 +3988,65 @@ html[data-route='result'] body::after {
   font-size: 13px;
   letter-spacing: -0.02em;
 }
+
+/* ───────── 敵の色の弱点・耐性（2026-11-04。仕様書 12.11） ───────── */
+.aff-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  vertical-align: middle;
+}
+.enemy-name .aff-row {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.aff {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px 1px 2px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.aff-weak {
+  background: #ffd37a26;
+  color: var(--gold-hi, #fce5a7);
+  box-shadow: inset 0 0 0 1px #ffd37a66;
+}
+.aff-resist {
+  background: #ffffff12;
+  color: var(--ink-soft);
+  box-shadow: inset 0 0 0 1px #ffffff2a;
+}
+.aff-orb {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background:
+    var(--orb-img) center / calc(216 / 202 * 100%) no-repeat,
+    radial-gradient(circle closest-side, var(--orb, #888) 0 92%, transparent 100%);
+}
+.ee-aff {
+  margin: 4px 0 0;
+}
+/* 弱点・耐性の数値には小さな印を添える */
+.popup.weak::before,
+.popup.resist::before {
+  content: attr(data-tag);
+  display: block;
+  font-size: 12px;
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+.popup.weak {
+  color: #ffe08a;
+}
+.popup.resist {
+  color: #c9cbe0;
+}
+.hc-stats {
+  gap: 6px;
+}

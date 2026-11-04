@@ -4,10 +4,12 @@ import { cueForEvent, turnHasSpecial } from '../audio/cues';
 import { createBoardView } from '../components/board';
 import { assetUrl, BATTLE_IMAGES, preloadImages } from '../components/assets';
 import { createFx } from '../components/effects';
+import { affinityHtml } from '../components/heroCard';
 import { enemySvg } from '../components/enemyArt';
 import { openModal } from '../components/modal';
 import { specialOrbsHtml } from '../components/specialPreview';
-import { MAX_ROTATIONS_PER_TURN } from '../data/balance';
+import { MAX_ROTATIONS_PER_TURN, damageTaken } from '../data/balance';
+import { partyDefense } from '../game/party';
 import { rotateTuningOf } from '../storage/settings';
 import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { DEV_TOOLS } from '../data/devTools';
@@ -86,7 +88,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     <section class="enemy" aria-label="敵">
       <div class="enemy-figure">${enemySvg(enemy.tint)}</div>
       <div class="enemy-info">
-        <span class="enemy-name">${enemy.name}</span>
+        <span class="enemy-name">${enemy.name}<span class="aff-row">${affinityHtml(enemy)}</span></span>
         <div class="bar enemy-bar" role="meter" aria-label="敵のHP" aria-valuemin="0" aria-valuemax="${state.enemyMaxHp}">
           <span class="fill"></span>
         </div>
@@ -197,7 +199,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     }
     el.classList.toggle('imminent', chargeIn === 1);
     el.textContent =
-      chargeIn === 1 ? `このターンの終わりに強攻撃（${enemy.heavy.attack}）` : `強攻撃まで あと${chargeIn}ターン`;
+      chargeIn === 1 ? `このターンの終わりに強攻撃（−${damageTaken(enemy.heavy.attack, partyDefense(state.party))}）` : `強攻撃まで あと${chargeIn}ターン`;
   }
 
   /** このターンに回した分を反映した盤面（まだ何も消えていない） */
@@ -268,10 +270,12 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   }
 
   /** dx は横にずらす量（px。仲間ごとの数値が重ならないように） */
-  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false, dx = 0) {
+  /** tag は数値の上に添える小さな文字（「弱点」「耐性」） */
+  function popup(sel: string, text: string, kind: 'damage' | 'heal' | 'hurt' | 'chain', big = false, dx = 0, tag?: 'weak' | 'resist') {
     const layer = $<HTMLElement>(sel);
     const p = document.createElement('span');
-    p.className = `popup ${kind}${big ? ' big' : ''}`;
+    p.className = `popup ${kind}${big ? ' big' : ''}${tag ? ` ${tag}` : ''}`;
+    if (tag) p.dataset.tag = tag === 'weak' ? '弱点' : '耐性';
     // 中央寄せのグリッドの中では、左の余白の半分だけ中心が動くので2倍にする
     if (dx) p.style.marginLeft = `${dx * 2}px`;
     p.textContent = text;
@@ -312,7 +316,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     if (disposed) return;
     if (damage > 0) {
       hp.enemy = Math.max(0, hp.enemy - damage);
-      popup('.enemy-popups', `${damage}`, 'damage', isSpecial, dx);
+      const c = HEROES[id].special.color;
+      popup('.enemy-popups', `${damage}`, 'damage', isSpecial, dx, enemy.weak === c ? 'weak' : enemy.resist === c ? 'resist' : undefined);
       enemyHit(isSpecial);
       sound.play({ name: 'hit', big: isSpecial });
     }

@@ -30,6 +30,8 @@ export interface HeroDef {
   role: 'attacker' | 'healer';
   /** パーティー最大HPへの寄与値（レベル1のとき） */
   maxHpContribution: number;
+  /** 防御力（レベル1のとき）。仲間の合計で、敵の攻撃で減るHPを割合で減らす（仕様書 12.11。式は data/balance の DEFENSE） */
+  defense: number;
   /** 色ごとの通常効果。自分の色（必殺の色）だけ。ほかの色は直接効果なし（連鎖には寄与する。仕様書 12.7） */
   actions: Partial<Record<OrbColor, ColorAction>>;
   /** キャラ特性（仕様書 12.8）。まだ決めていないキャラは無し */
@@ -56,8 +58,9 @@ export const ATTACK_COEF = 12;
 export const HEAL_COEF = 9;
 
 // 攻撃キャラ：自分の色（必殺の色）のオーブが消えたときだけ攻撃する
-const attack = (color: OrbColor, name: string): Partial<Record<OrbColor, ColorAction>> => ({ [color]: { name, coef: ATTACK_COEF } });
-const heal = (name: string): Partial<Record<OrbColor, ColorAction>> => ({ pink: { name, coef: HEAL_COEF } });
+// 2026-11-04：防御力の高いキャラは係数を少し下げ、低いキャラは少し上げる（ユーザーの決定。仕様書 12.11）。coef を省けば標準
+const attack = (color: OrbColor, name: string, coef = ATTACK_COEF): Partial<Record<OrbColor, ColorAction>> => ({ [color]: { name, coef } });
+const heal = (name: string, coef = HEAL_COEF): Partial<Record<OrbColor, ColorAction>> => ({ pink: { name, coef } });
 
 export const HEROES: Record<HeroId, HeroDef> = {
   aries: {
@@ -67,6 +70,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♈︎',
     role: 'attacker',
     maxHpContribution: 100,
+    defense: 12,
     actions: attack('red', '紅蓮の一撃'),
     trait: 'vanguard',
     special: { name: '炎角・紅蓮衝', color: 'red', shape: 'L', power: 140, difficulty: 'normal' },
@@ -80,7 +84,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
     role: 'attacker',
     maxHpContribution: 110,
     // 2026-11-03 緑から赤に（赤・青・緑・ピンクを3人ずつにそろえる）
-    actions: attack('red', '猛進'),
+    defense: 24,
+    actions: attack('red', '猛進', 11),
     trait: 'mass',
     special: { name: '金牛の猛進', color: 'red', shape: 'T', power: 140, difficulty: 'normal' },
     description: '大地のように揺るがない、頼れる守り手。',
@@ -92,6 +97,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♊︎',
     role: 'attacker',
     maxHpContribution: 90,
+    defense: 10,
     actions: attack('blue', '鏡の閃き'),
     special: { name: '双つ星の共鳴', color: 'blue', shape: 'pillars', power: 110, difficulty: 'easy' },
     description: 'ふたりで息を合わせて戦う、いたずら好きの双子。',
@@ -103,7 +109,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♋︎',
     role: 'healer',
     maxHpContribution: 110,
-    actions: heal('月潮の癒やし'),
+    defense: 24,
+    actions: heal('月潮の癒やし', 8),
     special: { name: '蟹甲の加護', color: 'pink', shape: 'corners', power: 120, difficulty: 'easy' },
     description: '仲間を固い甲羅のように守る、面倒見のよい癒やし手。',
   },
@@ -114,7 +121,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♌︎',
     role: 'attacker',
     maxHpContribution: 100,
-    actions: attack('red', '獅子の爪'),
+    defense: 6,
+    actions: attack('red', '獅子の爪', 13),
     trait: 'chain',
     special: { name: '獅子王の咆哮', color: 'red', shape: 'line5', power: 160, difficulty: 'hard' },
     description: '百獣の王の誇りを胸に、正面から敵を討つ。',
@@ -126,6 +134,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♍︎',
     role: 'healer',
     maxHpContribution: 110,
+    defense: 12,
     actions: heal('癒やしの光'),
     special: { name: '聖女の祝福', color: 'pink', shape: 'square', power: 110, difficulty: 'easy' },
     description: '祈りで仲間を包む、やさしい癒やし手。',
@@ -137,6 +146,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♎︎',
     role: 'attacker',
     maxHpContribution: 100,
+    defense: 14,
     actions: attack('green', '天秤の一閃'),
     special: { name: '天秤の審判', color: 'green', shape: 'smallT', power: 110, difficulty: 'easy' },
     description: '何ごとも公平に量る、冷静な裁き手。',
@@ -148,7 +158,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♏︎',
     role: 'attacker',
     maxHpContribution: 90,
-    actions: attack('blue', '闇の一刺し'),
+    defense: 6,
+    actions: attack('blue', '闇の一刺し', 13),
     special: { name: '蠍毒の尾撃', color: 'blue', shape: 'Z', power: 160, difficulty: 'hard' },
     description: '静かに狙いすまし、一撃で仕留める。',
   },
@@ -159,6 +170,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♐︎',
     role: 'attacker',
     maxHpContribution: 90,
+    defense: 10,
     actions: attack('blue', '貫通射撃'),
     special: { name: '天穿つ星矢', color: 'blue', shape: 'cross', power: 160, difficulty: 'hard' },
     description: '星をも射抜く、誇り高き弓の名手。',
@@ -170,7 +182,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♑︎',
     role: 'attacker',
     maxHpContribution: 100,
-    actions: attack('green', '山羊の跳撃'),
+    defense: 22,
+    actions: attack('green', '山羊の跳撃', 11),
     special: { name: '山嶺の双角', color: 'green', shape: 'horns', power: 140, difficulty: 'normal' },
     description: '険しい山も駆け上がる、粘り強い戦士。',
   },
@@ -182,7 +195,8 @@ export const HEROES: Record<HeroId, HeroDef> = {
     // 2026-11-03 攻撃（青）から回復役に
     role: 'healer',
     maxHpContribution: 110,
-    actions: heal('命の水'),
+    defense: 8,
+    actions: heal('命の水', 10),
     special: { name: '宝瓶の慈雨', color: 'pink', shape: 'line4', power: 110, difficulty: 'easy' },
     description: '水がめからあふれる清らかな水で仲間を癒やす、型にはまらない自由な賢者。',
   },
@@ -193,6 +207,7 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♓︎',
     role: 'attacker',
     maxHpContribution: 100,
+    defense: 12,
     actions: attack('green', '潮の渦'),
     special: { name: '双魚の渦潮', color: 'green', shape: 'S', power: 110, difficulty: 'easy' },
     description: '二匹の魚が渦を巻いて襲いかかる、気まぐれで夢見がちな歌い手。',

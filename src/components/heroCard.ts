@@ -4,7 +4,8 @@ import { HERO_ART } from '../data/heroArt';
 import { HERO_JOIN, HEROES } from '../data/heroes';
 import { heroStats, statText } from '../game/party';
 import { findStage } from '../data/stages';
-import type { HeroId } from '../game/types';
+import type { HeroId, OrbColor } from '../game/types';
+import { ORB_LABEL } from './board';
 
 export const ROLE_SHORT = { attacker: 'アタッカー', healer: 'ヒーラー' } as const;
 /** 狭い所（ホームの名前の札）での呼び方 */
@@ -49,5 +50,14 @@ export function heroCardInner(id: HeroId, level: number | null): string {
     ${heroPortrait(id)}
     <span class="hc-name">${h.name}</span>
     ${level === null ? '' : `<span class="hc-level">Lv.${level}</span>`}
-    <span class="hc-stats"><span>HP <b>${st.hp}</b></span><span>${h.role === 'healer' ? '回復' : '攻撃'} <b>${statText(st.power)}</b></span></span>`;
+    <span class="hc-stats"><span>HP <b>${st.hp}</b></span><span>${h.role === 'healer' ? '回復' : '攻撃'} <b>${statText(st.power)}</b></span><span>防御 <b>${st.defense}</b></span></span>`;
+}
+
+/** 敵の色の弱点・耐性の印（オーブの絵つき。仕様書 12.11） */
+export function affinityHtml(enemy: { weak?: OrbColor; resist?: OrbColor }): string {
+  const chip = (kind: 'weak' | 'resist', color: OrbColor | undefined) =>
+    color
+      ? `<span class="aff aff-${kind}"><span class="aff-orb orb-${color}" aria-hidden="true"></span>${kind === 'weak' ? '弱点' : '耐性'}<span class="visually-hidden">：${ORB_LABEL[color]}</span></span>`
+      : '';
+  return `${chip('weak', enemy.weak)}${chip('resist', enemy.resist)}`;
 }

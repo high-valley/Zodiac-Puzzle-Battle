@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { TRAITS, chainMultiplier } from '../src/data/balance';
+import { TRAITS, chainMultiplier, damageTaken } from '../src/data/balance';
 import { ENEMIES } from '../src/data/enemies';
 import { DEFAULT_PARTY, HEROES } from '../src/data/heroes';
-import { createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game/combat';
+import { colorMultiplier, createBattle, normalEffect, partyMaxHp, resolveTurn } from '../src/game/combat';
+import { partyDefense } from '../src/game/party';
 import { rotate2x2 } from '../src/game/board';
 import { findMatches } from '../src/game/matching';
 import { detectHeroSpecial } from '../src/game/specials';
@@ -12,6 +13,10 @@ import { QUIET_ROWS, boardToStrings, parseBoard, stateWith } from './helpers';
 // 強攻撃のない敵で、ふつうの攻撃だけを確かめる
 const base = createBattle(1, 'stardust');
 const ENEMY = ENEMIES.stardust;
+// 敵の攻撃で実際に減るHP（仲間の防御力で減らした量。仕様書 12.11）
+const HIT = damageTaken(ENEMY.attack, partyDefense(base.party));
+// この敵への赤の攻撃の倍率（星屑のかけらは赤が弱点）
+const RED = colorMultiplier(ENEMY, 'red');
 
 // QUIET_ROWS で交点(3,3)を回しても、マッチも必殺の形もできない
 const quietMove = (direction: Direction = 'clockwise'): TurnAction => ({
@@ -47,7 +52,7 @@ describe('resolveTurn', () => {
     const { state: next, events } = resolveTurn(state, quietMove());
     expect(events.map((e) => e.type)).toEqual(['rotate', 'enemyAttack']);
     expect(next.enemyHp).toBe(state.enemyHp);
-    expect(next.partyHp).toBe(state.partyHp - ENEMY.attack);
+    expect(next.partyHp).toBe(state.partyHp - HIT);
     expect(next.turn).toBe(state.turn + 1);
     expect(next.rngSeed).toBe(state.rngSeed);
   });
@@ -65,7 +70,7 @@ describe('resolveTurn', () => {
     // 必殺 → 必殺に使った4個を消す（通常効果なし）→ 回復 → 敵の攻撃
     expect(events.map((e) => e.type)).toEqual(['rotate', 'special', 'clear', 'heal', 'enemyAttack']);
     const heal = HEROES.virgo.special.power;
-    expect(next.partyHp).toBe(100 + heal - ENEMY.attack);
+    expect(next.partyHp).toBe(100 + heal - HIT);
     expect(next.enemyHp).toBe(state.enemyHp);
   });
 
@@ -81,7 +86,7 @@ describe('resolveTurn', () => {
     expect(types.indexOf('special')).toBe(1);
     expect(types.indexOf('clear')).toBeGreaterThan(1);
     const special = events.find((e) => e.type === 'special');
-    expect(special && special.type === 'special' && special.damage).toBe(HEROES.aries.special.power);
+    expect(special && special.type === 'special' && special.damage).toBe(Math.round(HEROES.aries.special.power * RED));
     const firstClear = events.find((e) => e.type === 'clear');
     expect(firstClear && firstClear.type === 'clear' && firstClear.counts.red).toBe(5);
   });
@@ -94,7 +99,7 @@ describe('resolveTurn', () => {
     const { state: next, events } = resolveTurn(state, { rotations: [{ row: 3, col: 0, direction: 'clockwise' }] });
     expect(events.filter((e) => e.type === 'special')).toHaveLength(1);
     const normal = events.reduce((sum, e) => (e.type === 'clear' ? sum + e.damage : sum), 0);
-    expect(state.enemyHp - next.enemyHp).toBe(Math.min(state.enemyHp, HEROES.aries.special.power + normal));
+    expect(state.enemyHp - next.enemyHp).toBe(Math.min(state.enemyHp, Math.round(HEROES.aries.special.power * RED) + normal));
   });
 
   it('ダメージ合計は 必殺 ＋ 各連鎖の通常効果 で、敵HPに反映される', () => {
@@ -114,7 +119,7 @@ describe('resolveTurn', () => {
     expect(heal && heal.type === 'heal' && heal.partyHp).toBe(base.partyMaxHp);
     // 回復量は実際に増えた分だけ
     expect(heal && heal.type === 'heal' && heal.amount).toBe(10);
-    expect(next.partyHp).toBe(base.partyMaxHp - ENEMY.attack);
+    expect(next.partyHp).toBe(base.partyMaxHp - HIT);
   });
 
   it('HPが満タンなら回復の出来事は出ない（必殺の演出は出る）', () => {
@@ -386,11 +391,13 @@ describe('仲間全員が同時に行動する（仕様書 12.7）', () => {
 
 describe('キャラ特性（仕様書 12.8）', () => {
   const red = (n: number) => ({ red: n, blue: 0, green: 0, pink: 0 });
-  const plain = (n: number, chain: number) => Math.round(12 * n * chainMultiplier(chain));
+  // キャラごとの係数（2026-11-04 から防御力とのつり合いで 11〜13）
+  const coef = (id: 'aries' | 'taurus' | 'leo') => HEROES[id].actions.red!.coef;
+  const plain = (id: 'aries' | 'taurus' | 'leo', n: number, chain: number) => Math.round(coef(id) * n * chainMultiplier(chain));
 
   it('先陣（おひつじ座）：そのターン最初の消去だけ大きくなる', () => {
-    expect(normalEffect('aries', red(3), 1).damage).toBe(Math.round(12 * 3 * TRAITS.vanguardMultiplier));
-    expect(normalEffect('aries', red(3), 2).damage).toBe(plain(3, 2));
+    expect(normalEffect('aries', red(3), 1).damage).toBe(Math.round(coef('aries') * 3 * TRAITS.vanguardMultiplier));
+    expect(normalEffect('aries', red(3), 2).damage).toBe(plain('aries', 3, 2));
   });
 
   it('先陣：必殺だけの消去のあとに落ちてきた赤も、連鎖1段目なので大きくなる', () => {
@@ -399,26 +406,57 @@ describe('キャラ特性（仕様書 12.8）', () => {
     expect(clears[0].chain).toBe(0);
     expect(clears[1].chain).toBe(1);
     const aries = clears[1].actors.find((a) => a.heroId === 'aries');
-    expect(aries?.damage).toBe(Math.round(12 * clears[1].counts.red * TRAITS.vanguardMultiplier));
+    expect(aries?.damage).toBe(Math.round(coef('aries') * clears[1].counts.red * TRAITS.vanguardMultiplier * RED));
   });
 
   it('量（おうし座）：同じ段で離れて消えた赤も合わせて数える', () => {
-    expect(normalEffect('taurus', red(6), 1).damage).toBe(Math.round(12 * 6 * (1 + TRAITS.massPerExtra * 3)));
+    expect(normalEffect('taurus', red(6), 1).damage).toBe(Math.round(coef('taurus') * 6 * (1 + TRAITS.massPerExtra * 3)));
   });
 
   it('特性はレベルの倍率と重なる', () => {
-    expect(normalEffect('leo', red(3), 3, 11).damage).toBe(Math.round(12 * 3 * (1 + TRAITS.chainStep * 2) * 1.5));
+    expect(normalEffect('leo', red(3), 3, 11).damage).toBe(Math.round(coef('leo') * 3 * (1 + TRAITS.chainStep * 2) * 1.5));
   });
 
   it('量（おうし座）：一度に多く消すほど伸びる（3個までは同じ）', () => {
-    expect(normalEffect('taurus', red(3), 1).damage).toBe(plain(3, 1));
-    expect(normalEffect('taurus', red(5), 1).damage).toBe(Math.round(12 * 5 * (1 + TRAITS.massPerExtra * 2)));
+    expect(normalEffect('taurus', red(3), 1).damage).toBe(plain('taurus', 3, 1));
+    expect(normalEffect('taurus', red(5), 1).damage).toBe(Math.round(coef('taurus') * 5 * (1 + TRAITS.massPerExtra * 2)));
   });
 
   it('連鎖（しし座）：連鎖が深いほど大きく伸びる', () => {
-    expect(normalEffect('leo', red(3), 1).damage).toBe(plain(3, 1));
-    expect(normalEffect('leo', red(3), 3).damage).toBe(Math.round(12 * 3 * (1 + TRAITS.chainStep * 2)));
-    expect(normalEffect('leo', red(3), 3).damage).toBeGreaterThan(plain(3, 3));
+    expect(normalEffect('leo', red(3), 1).damage).toBe(plain('leo', 3, 1));
+    expect(normalEffect('leo', red(3), 3).damage).toBe(Math.round(coef('leo') * 3 * (1 + TRAITS.chainStep * 2)));
+    expect(normalEffect('leo', red(3), 3).damage).toBeGreaterThan(plain('leo', 3, 3));
+  });
+});
+
+describe('防御力と色の弱点（仕様書 12.11。2026-11-04）', () => {
+  const red3 = { red: 3, blue: 0, green: 0, pink: 0 };
+  it('弱点の色は ×1.5、耐性の色は ×0.7、ほかは ×1（回復にはかからない）', () => {
+    const foe = { weak: 'red' as const, resist: 'blue' as const };
+    const c = HEROES.aries.actions.red!.coef;
+    expect(normalEffect('aries', red3, 2, 1, foe).damage).toBe(Math.round(c * 3 * chainMultiplier(2) * 1.5));
+    expect(normalEffect('sagittarius', { red: 0, blue: 3, green: 0, pink: 0 }, 1, 1, foe).damage).toBe(Math.round(HEROES.sagittarius.actions.blue!.coef * 3 * 0.7));
+    expect(normalEffect('libra', { red: 0, blue: 0, green: 3, pink: 0 }, 1, 1, foe).damage).toBe(HEROES.libra.actions.green!.coef * 3);
+    expect(normalEffect('virgo', { red: 0, blue: 0, green: 0, pink: 3 }, 1, 1, { weak: 'pink' }).heal).toBe(HEROES.virgo.actions.pink!.coef * 3);
+  });
+
+  it('必殺にも弱点がかかる', () => {
+    const { events } = resolveTurn(stateWith(base, RED_L), quietMove());
+    const sp = events.find((e) => e.type === 'special');
+    expect(sp && sp.type === 'special' && sp.damage).toBe(Math.round(HEROES.aries.special.power * 1.5));
+  });
+
+  it('敵の攻撃は、仲間の防御力の合計で割合で減る（最低1）', () => {
+    expect(damageTaken(100, 0)).toBe(100);
+    expect(damageTaken(100, 50)).toBe(67);
+    expect(damageTaken(1, 500)).toBe(1);
+    const { state: next } = resolveTurn(stateWith(base, QUIET_ROWS), quietMove());
+    expect(base.partyHp - next.partyHp).toBe(damageTaken(ENEMY.attack, partyDefense(base.party)));
+  });
+
+  it('防御力の高い壁役は攻撃が低め、低いキャラは高め', () => {
+    expect(HEROES.taurus.defense).toBeGreaterThan(HEROES.leo.defense);
+    expect(HEROES.taurus.actions.red!.coef).toBeLessThan(HEROES.leo.actions.red!.coef);
   });
 });
 

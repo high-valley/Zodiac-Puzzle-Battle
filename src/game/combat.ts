@@ -1,17 +1,35 @@
 // 戦闘の開始と1ターンの解決
 // 処理順：回転（1〜3回。この間は何も消えない）→ 攻撃で確定 → 固有形判定（仲間全員）→ 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
 // 出撃した仲間は全員が同時に行動し、各キャラは自分の色のオーブが消えたときだけ動く（仕様書 12.7）
-import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, TRAITS, chainMultiplier } from '../data/balance';
+import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, TRAITS, WEAKNESS, chainMultiplier, damageTaken } from '../data/balance';
 import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
 import { DEFAULT_PARTY, HEROES } from '../data/heroes';
 import { levelPercent } from '../data/growth';
-import { partyMaxHp, partyProblem, scaled } from './party';
+import { partyDefense, partyMaxHp, partyProblem, scaled } from './party';
 import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
 import { findMatches, matchedMask, maskToCells } from './matching';
 import { detectHeroSpecial } from './specials';
 import type { Actor, BattleEvent, BattleState, HeroId, OrbColor, PartyMember, SpecialResult, TurnAction, TurnResult } from './types';
 
 export { partyMaxHp } from './party';
+
+/** 敵の色の弱点・耐性による、その色の攻撃の倍率（仕様書 12.11）。敵がいなければ 1 */
+export function colorMultiplier(enemy: Pick<EnemyDef, 'weak' | 'resist'> | undefined, color: OrbColor): number {
+  if (!enemy) return 1;
+  if (enemy.weak === color) return WEAKNESS.weak;
+  if (enemy.resist === color) return WEAKNESS.resist;
+  return 1;
+}
+
+/**
+ * 必殺の効果（攻撃キャラはダメージ、回復役は回復）。ダメージには敵の色の弱点・耐性がかかる（2026-11-04 ユーザーの決定）。
+ * 丸めは最後に1回だけ（レベルと弱点をかけてから）
+ */
+export function specialEffect(heroId: HeroId, level: number, enemy?: Pick<EnemyDef, 'weak' | 'resist'>): { damage: number; heal: number } {
+  const hero = HEROES[heroId];
+  if (hero.role === 'healer') return { damage: 0, heal: scaled(hero.special.power, level) };
+  return { damage: Math.round((hero.special.power * levelPercent(level) * colorMultiplier(enemy, hero.special.color)) / 100 + 1e-9), heal: 0 };
+}
 
 export function enemyOf(state: Pick<BattleState, 'enemyId'>): EnemyDef {
   const enemy = ENEMIES[state.enemyId];
@@ -59,6 +77,8 @@ export function normalEffect(
   counts: Record<OrbColor, number>,
   chain: number,
   level = 1,
+  /** 敵の色の弱点・耐性（攻撃だけにかける。仕様書 12.11）。省けば倍率なし */
+  enemy?: Pick<EnemyDef, 'weak' | 'resist'>,
 ): { damage: number; heal: number } {
   const hero = HEROES[heroId];
   let amount = 0;
@@ -69,9 +89,11 @@ export function normalEffect(
     if (hero.trait === 'chain') mult = 1 + TRAITS.chainStep * (chain - 1);
     if (hero.trait === 'vanguard' && chain === 1) mult *= TRAITS.vanguardMultiplier;
     if (hero.trait === 'mass') mult *= 1 + TRAITS.massPerExtra * Math.max(0, n - 3);
+    if (hero.role === 'attacker') mult *= colorMultiplier(enemy, color);
     amount += action.coef * n * mult * (levelPercent(level) / 100);
   }
-  const rounded = Math.round(amount);
+  // 小数の誤差で .5 が切り捨てにならないように、ごく小さな値を足してから丸める（仕様書 12.4「.5 は切り上げ」）
+  const rounded = Math.round(amount + 1e-9);
   return hero.role === 'healer' ? { damage: 0, heal: rounded } : { damage: rounded, heal: 0 };
 }
 
@@ -104,6 +126,8 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
 
   let damage = 0;
   let heal = 0;
+  // 敵の色の弱点・耐性（攻撃にかける）
+  const foe = enemyOf(state);
 
   // 必殺は回し終えた盤面で、通常マッチを消す前に判定する。仲間それぞれ、1ターン1回（同じターンに何人出てもよい）
   const specials: SpecialResult[] = [];
@@ -111,9 +135,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const special = detectHeroSpecial(board, m.id);
     if (!special) continue;
     const hero = HEROES[m.id];
-    const power = scaled(hero.special.power, m.level);
-    const sDamage = hero.role === 'attacker' ? power : 0;
-    const sHeal = hero.role === 'healer' ? power : 0;
+    const { damage: sDamage, heal: sHeal } = specialEffect(m.id, m.level, foe);
     damage += sDamage;
     heal += sHeal;
     specials.push(special);
@@ -138,7 +160,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const actors: Actor[] = [];
     if (groups.length > 0) {
       for (const m of state.party) {
-        const e = normalEffect(m.id, counts, chain, m.level);
+        const e = normalEffect(m.id, counts, chain, m.level, foe);
         if (e.damage > 0 || e.heal > 0) actors.push({ heroId: m.id, damage: e.damage, heal: e.heal });
       }
     }
@@ -195,6 +217,8 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
         chargeIn = enemy.heavy.every;
       }
     }
+    // 仲間の防御力の合計で、受けるダメージを割合で減らす（仕様書 12.11）
+    amount = damageTaken(amount, partyDefense(state.party));
     partyHp = Math.max(0, partyHp - amount);
     events.push({ type: 'enemyAttack', amount, partyHp, heavy });
     if (partyHp === 0) status = 'defeat';
