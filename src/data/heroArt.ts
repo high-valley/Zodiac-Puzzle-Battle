@@ -49,14 +49,14 @@ export const HERO_ART: Record<HeroId, HeroArt> = {
   aries: art('aries', 794, 0.01, 0.42),
   taurus: art('taurus', 713, 0.06, 0.46),
   gemini: art('gemini', 947, 0.005, 0.5),
-  cancer: art('cancer', 852, 0.01, 0.58),
+  cancer: art('cancer', 852, 0.01, 0.46),
   leo: art('leo', 869, 0.01, 0.35),
   virgo: art('virgo', 644, 0.02, 0.5),
   libra: art('libra', 474, 0.005, 0.5),
-  scorpio: art('scorpio', 849, 0.005, 0.5, 0.9),
-  sagittarius: art('sagittarius', 893, 0.035, 0.3),
+  scorpio: art('scorpio', 849, 0.005, 0.42, 0.9),
+  sagittarius: art('sagittarius', 893, 0.035, 0.48),
   capricorn: art('capricorn', 666, 0.03, 0.46),
-  aquarius: art('aquarius', 765, 0.005, 0.46),
+  aquarius: art('aquarius', 765, 0.005, 0.54),
   pisces: art('pisces', 794, 0.01, 0.47),
 };
 

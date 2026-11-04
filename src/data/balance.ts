@@ -119,3 +119,6 @@ export function damageTaken(attack: number, partyDefense: number): number {
 
 /** 敵の色の弱点・耐性（仕様書 12.11。2026-11-04 ユーザーの決定）。攻撃（通常・必殺）にかけ、回復にはかけない */
 export const WEAKNESS = { weak: 1.5, resist: 0.7 };
+
+/** 3回回しきったら、少し待ってから自動で「攻撃」する（ms。演出 ×2 なら半分）。最後の盤面と光る印を見せるための間（2026-11-04 ユーザーの要望） */
+export const AUTO_ATTACK_DELAY_MS = 350;
