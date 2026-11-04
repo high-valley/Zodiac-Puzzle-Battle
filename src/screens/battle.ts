@@ -1,7 +1,7 @@
 // バトル画面。ゲームの判定はすべて src/game に任せ、ここは表示と入力だけ
 import type { AppContext } from '../app';
 import { cueForEvent, turnHasSpecial } from '../audio/cues';
-import { ORB_LABEL, createBoardView } from '../components/board';
+import { createBoardView } from '../components/board';
 import { assetUrl, BATTLE_IMAGES, preloadImages } from '../components/assets';
 import { createFx } from '../components/effects';
 import { enemySvg } from '../components/enemyArt';
@@ -119,10 +119,10 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     <div class="heroes" aria-label="仲間（全員が同時に行動する。押すと上の必殺の形が光る）">
       ${state.party.map(
         ({ id }) => `
-        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-describedby="special-${id}" aria-label="${HEROES[id].name}（${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}）">
+        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-describedby="special-${id}" aria-label="${HEROES[id].name}（${HEROES[id].role === 'healer' ? '回復役' : '攻撃役'}）">
           <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
           <span class="hero-name">${HEROES[id].name}</span>
-          <span class="hero-role"><span class="hero-dot orb-${HEROES[id].special.color}" aria-hidden="true"></span><span class="long">${ORB_LABEL[HEROES[id].special.color]}で${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span><span class="short">${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span></span>
+          <span class="hero-role"><span class="hero-main-orb orb-${HEROES[id].special.color}" aria-hidden="true"></span>${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span>
         </button>`,
       ).join('')}
     </div>
