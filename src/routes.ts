@@ -11,7 +11,9 @@ export type Route =
   | { name: 'heroes'; heroId?: HeroId }
   | { name: 'book' }
   | { name: 'feature'; id: FeatureId }
-  | { name: 'dev' };
+  | { name: 'dev' }
+  /** ストーリーの会話。next は見終わったあとの行き先（バトルかクエスト選択） */
+  | { name: 'story'; sceneId: string; next: { name: 'battle'; stageId: string } | { name: 'quest'; stageId?: string } };
 
 /** まだ中身の決まっていない画面（準備中。仕様書 11.3）。URL は #/<id> */
 export const FEATURE_IDS = ['news', 'gift', 'mission', 'friend', 'guild', 'shop', 'exchange', 'gacha', 'event'] as const;
@@ -45,6 +47,7 @@ export function tabOf(route: Route): Tab | null {
       return 'menu';
     case 'battle':
     case 'result':
+    case 'story':
       return null;
   }
 }
@@ -69,6 +72,8 @@ export function routeToHash(route: Route): string {
       return `#/${route.id}`;
     case 'dev':
       return '#/dev';
+    case 'story':
+      return `#/story/${route.sceneId}${routeToHash(route.next).replace(/^#/, '')}`;
   }
 }
 
@@ -84,5 +89,9 @@ export function hashToRoute(hash: string): Route {
   if (parts[0] === 'book') return { name: 'book' };
   if (isFeatureId(parts[0])) return { name: 'feature', id: parts[0] };
   if (parts[0] === 'dev') return { name: 'dev' };
+  if (parts[0] === 'story' && parts[1]) {
+    const next = hashToRoute(`#/${parts.slice(2).join('/')}`);
+    return { name: 'story', sceneId: parts[1], next: next.name === 'battle' ? next : next.name === 'quest' ? next : { name: 'quest' } };
+  }
   return { name: 'home' };
 }

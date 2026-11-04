@@ -1,6 +1,8 @@
 // クエスト選択：章のマップでステージを選び、敵と★の条件を見て出撃する
 import type { AppContext } from '../app';
 import { affinityHtml } from '../components/heroCard';
+import { SCENES } from '../data/story';
+import { sceneBeforeBattle, sceneSeen, scenesToReplay } from '../storage/progress';
 import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
 import { CHAPTERS, STAR3_HP_RATIO, findStage, stageEnemyName } from '../data/stages';
@@ -17,6 +19,15 @@ const NODE_POS: [number, number][] = [
 ];
 
 const starsText = (n: number) => '★★★'.slice(0, n) + '☆☆☆'.slice(0, 3 - n);
+
+/** 見直せる会話のボタン（見た前の会話と、クリアしたステージの後の会話） */
+function storyLinksFor(ctx: AppContext, stageId: string): string {
+  const ids = scenesToReplay(ctx.progress, stageId);
+  if (ids.length === 0) return '';
+  return `<p class="stage-story"><span>ストーリー</span>${ids
+    .map((id) => `<button type="button" class="text-btn" data-scene="${id}">${SCENES[id].title}${sceneSeen(ctx.progress, id) ? '' : '（まだ見ていない）'}</button>`)
+    .join('')}</p>`;
+}
 
 export function mountQuest(container: HTMLElement, ctx: AppContext, initialStageId?: string): () => void {
   const chapter = CHAPTERS[0];
@@ -116,6 +127,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
       }</p>
       ${joiners.length ? `<p class="stage-join">${record && record.stars > 0 ? '仲間になった' : '初めてクリアすると仲間になる'}：${joiners.map((id) => `<span class="sj-hero">${HEROES[id].symbol} ${HEROES[id].name}</span>`).join('')}</p>` : ''}
       ${savedElsewhere ? `<p class="stage-note">出撃すると、途中の ${savedElsewhere} のバトルは消えます</p>` : ''}
+      ${storyLinksFor(ctx, stage.id)}
       <div class="stage-actions">
         ${
           savedHere
@@ -125,9 +137,19 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
         }
       </div>`;
     panel.querySelector('.go')?.addEventListener('click', () => {
+      // まだ見ていない「前の会話」があれば、会話を見てからバトルへ（途中のバトルの続きなら会話はとばす）。
+      // よそのステージの途中のバトルは、会話を見終えてバトルに入るときに消える（会話の途中で戻ればそのまま残る）
+      const before = sceneBeforeBattle(ctx.progress, stage.id, savedHere);
+      if (before) {
+        ctx.navigate({ name: 'story', sceneId: before, next: { name: 'battle', stageId: stage.id } });
+        return;
+      }
       if (!savedHere && ctx.progress.battle) ctx.setProgress({ ...ctx.progress, battle: null });
       ctx.navigate({ name: 'battle', stageId: stage.id });
     });
+    panel.querySelectorAll<HTMLButtonElement>('[data-scene]').forEach((b) =>
+      b.addEventListener('click', () => ctx.navigate({ name: 'story', sceneId: b.dataset.scene!, next: { name: 'quest', stageId: stage.id } })),
+    );
     panel.querySelector('.restart-stage')?.addEventListener('click', () => {
       ctx.setProgress({ ...ctx.progress, battle: null });
       ctx.navigate({ name: 'battle', stageId: stage.id });
