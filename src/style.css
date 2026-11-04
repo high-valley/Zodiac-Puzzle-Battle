@@ -1658,21 +1658,6 @@ html[data-speed='2'] .popup {
   border-color: var(--gold);
   background: #f1c0731a;
 }
-.hc-symbol {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid #f1c07388;
-  background: var(--sky);
-  color: var(--gold);
-  font-size: 20px;
-}
-.hc-symbol.role-healer {
-  border-color: #ef7fbf99;
-  color: #ffb3dc;
-}
 .hc-name {
   margin-top: 4px;
   font-weight: 700;
@@ -1709,32 +1694,6 @@ html[data-speed='2'] .popup {
   margin: 0 0 8px;
   font-size: 14px;
   color: var(--gold);
-}
-.stat-list {
-  margin: 0;
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-}
-.stat-list div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  border-bottom: 1px solid #ffffff12;
-  padding-bottom: 4px;
-}
-.stat-list div.none {
-  opacity: 0.5;
-}
-.stat-list dt {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ink-soft);
-}
-.stat-list dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
 }
 .dot {
   width: 12px;
@@ -1809,12 +1768,6 @@ html[data-speed='2'] .popup {
   gap: 14px;
   align-items: center;
   margin-top: 6px;
-}
-.hero-art {
-  border-radius: 18px;
-  background: radial-gradient(circle at 50% 45%, #2b2266, #0b0f2e);
-  border: 1px solid #f1c07344;
-  padding: 10px;
 }
 .hero-title h2 {
   margin: 4px 0 0;
@@ -2416,11 +2369,6 @@ html[data-speed='2'] .popup {
 }
 .hero-card.locked .hc-name {
   color: var(--ink-soft);
-}
-.hc-symbol.locked {
-  color: #ffffff55;
-  border-color: #ffffff2a;
-  background: #0b0f2e;
 }
 .hc-lock {
   margin-top: 2px;
@@ -3514,15 +3462,6 @@ html[data-route='result'] body::after {
 .heroes:has(> .hero:nth-child(4)) .hero-name {
   font-size: 12px;
 }
-.hero-role .short {
-  display: none;
-}
-.heroes:has(> .hero:nth-child(4)) .hero-role .long {
-  display: none;
-}
-.heroes:has(> .hero:nth-child(4)) .hero-role .short {
-  display: inline;
-}
 /* 1〜2人のときは名前の札を広げすぎない */
 .home-plates {
   grid-auto-columns: minmax(0, 200px);
@@ -3531,16 +3470,6 @@ html[data-route='result'] body::after {
 
 /* ───────── 仲間全員が同時に行動する（2026-11-03。仕様書 12.7） ───────── */
 /* カードは「だれの必殺の形を見ているか」と、動いた仲間を光らせる表示 */
-.hero-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 4px;
-  border-radius: 50%;
-  background: var(--orb);
-  box-shadow: 0 0 4px var(--orb-glow);
-  vertical-align: 0.05em;
-}
 .hero.acting {
   animation: hero-acting 0.6s ease-out;
 }

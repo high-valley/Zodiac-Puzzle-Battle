@@ -2,7 +2,7 @@
 import { assetUrl } from './assets';
 import { HERO_ART } from '../data/heroArt';
 import { HERO_JOIN, HEROES } from '../data/heroes';
-import { heroStats } from '../game/party';
+import { heroStats, statText } from '../game/party';
 import { findStage } from '../data/stages';
 import type { HeroId } from '../game/types';
 
@@ -49,5 +49,5 @@ export function heroCardInner(id: HeroId, level: number | null): string {
     ${heroPortrait(id)}
     <span class="hc-name">${h.name}</span>
     ${level === null ? '' : `<span class="hc-level">Lv.${level}</span>`}
-    <span class="hc-stats"><span>HP <b>${st.hp}</b></span><span>${h.role === 'healer' ? '回復' : '攻撃'} <b>${st.power}</b></span></span>`;
+    <span class="hc-stats"><span>HP <b>${st.hp}</b></span><span>${h.role === 'healer' ? '回復' : '攻撃'} <b>${statText(st.power)}</b></span></span>`;
 }

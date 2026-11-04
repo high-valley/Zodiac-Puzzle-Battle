@@ -52,7 +52,10 @@ export function memberLevel(party: readonly PartyMember[], id: HeroId): number {
   return party.find((m) => m.id === id)?.level ?? 1;
 }
 
-/** 画面に出すステータス（仕様書 12.3・12.4）。power は自分の色のオーブ1個あたりの攻撃力（回復役は回復力）、special は必殺の威力 */
+/**
+ * 画面に出すステータス（仕様書 12.3・12.4）。power は自分の色のオーブ1個あたりの攻撃力（回復役は回復力）。
+ * 戦闘では「係数×個数×倍率」をかけてから丸めるので、ここでは丸めない（3個消しなら power×3 を丸めた値になる。画面では小数1桁まで出す）。special は必殺の威力
+ */
 export interface HeroStats {
   hp: number;
   power: number;
@@ -61,6 +64,12 @@ export interface HeroStats {
 
 export function heroStats(id: HeroId, level: number): HeroStats {
   const h = HEROES[id];
-  const action = h.actions[h.special.color];
-  return { hp: heroMaxHp(id, level), power: scaled(action?.coef ?? 0, level), special: scaled(h.special.power, level) };
+  // 行動の色は1つだけ（仕様書 12.7）。必殺の色と同じだが、念のため行動の一覧から取る
+  const coef = Object.values(h.actions).reduce((m, a) => Math.max(m, a?.coef ?? 0), 0);
+  return { hp: heroMaxHp(id, level), power: (coef * levelPercent(level)) / 100, special: scaled(h.special.power, level) };
+}
+
+/** ステータスの数の出し方（整数ならそのまま、小数は1桁まで。例：12、12.6） */
+export function statText(v: number): string {
+  return Number.isInteger(v) ? String(v) : v.toFixed(1);
 }

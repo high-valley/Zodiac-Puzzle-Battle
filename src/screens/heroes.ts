@@ -8,7 +8,7 @@ import { specialOrbsHtml } from '../components/specialPreview';
 import { MAX_LEVEL, expToNext } from '../data/growth';
 import { HERO_ART } from '../data/heroArt';
 import { ALL_HEROES, HEROES, TRAIT_LABEL } from '../data/heroes';
-import { heroStats } from '../game/party';
+import { heroStats, statText } from '../game/party';
 import { SHAPE_LABEL } from '../game/specials';
 import type { HeroId } from '../game/types';
 import { heroGrowth } from '../storage/progress';
@@ -75,7 +75,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
         <p class="hero-role-text"><span class="hero-main-orb orb-${h.special.color}" aria-hidden="true"></span>${ROLE_SHORT[h.role]}</p>
         <dl class="hero-stats">
           <div><dt>HP</dt><dd>${st.hp}</dd></div>
-          <div><dt>${h.role === 'healer' ? '回復力' : '攻撃力'}</dt><dd>${st.power}</dd></div>
+          <div><dt>${h.role === 'healer' ? '回復力' : '攻撃力'}</dt><dd>${statText(st.power)}</dd></div>
           <div><dt>必殺の威力</dt><dd>${st.special}</dd></div>
         </dl>
       </div>
@@ -110,7 +110,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
         <div class="sp-shape">${specialOrbsHtml(heroId)}</div>
         <div>
           <p class="sp-name">${h.special.name}</p>
-          <p class="sp-text">左の形を盤面につくる（向きは自由）。${SHAPE_LABEL[h.special.shape]}</p>
+          <p class="sp-text">${SHAPE_LABEL[h.special.shape]}（左の形）を盤面につくる。向きは自由</p>
           <p class="sp-power">${h.role === 'healer' ? '回復' : 'ダメージ'} ${st.special}　形の作りやすさ：${DIFFICULTY_TEXT[h.special.difficulty]}</p>
         </div>
       </div>

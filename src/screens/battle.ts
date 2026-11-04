@@ -1,7 +1,7 @@
 // バトル画面。ゲームの判定はすべて src/game に任せ、ここは表示と入力だけ
 import type { AppContext } from '../app';
 import { cueForEvent, turnHasSpecial } from '../audio/cues';
-import { ORB_LABEL, createBoardView } from '../components/board';
+import { createBoardView } from '../components/board';
 import { assetUrl, BATTLE_IMAGES, preloadImages } from '../components/assets';
 import { createFx } from '../components/effects';
 import { enemySvg } from '../components/enemyArt';

@@ -109,5 +109,7 @@ export function constellationSvg(hero: HeroId, label: string): string {
     .map(([a, b]) => `<line x1="${f.stars[a][0]}" y1="${f.stars[a][1]}" x2="${f.stars[b][0]}" y2="${f.stars[b][1]}"/>`)
     .join('');
   const stars = f.stars.map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join('');
-  return `<svg class="constellation-art" viewBox="0 0 100 100" role="img" aria-label="${label}"><g class="c-lines">${lines}</g><g class="c-stars">${stars}</g></svg>`;
+  // label が空なら飾り（読み上げない）
+  const a11y = label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"';
+  return `<svg class="constellation-art" viewBox="0 0 100 100" ${a11y}><g class="c-lines">${lines}</g><g class="c-stars">${stars}</g></svg>`;
 }
