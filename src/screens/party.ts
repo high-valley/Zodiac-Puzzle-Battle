@@ -1,7 +1,7 @@
 // 編成：出撃する仲間を選ぶ。ルール（1〜4人・攻撃キャラ1人以上）に合えば、そのまま保存する（仕様書 11.7・12.5）
 import type { AppContext } from '../app';
 import { heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
-import { specialPreviewSvg } from '../components/specialPreview';
+import { specialOrbsHtml } from '../components/specialPreview';
 import { ALL_HEROES, HEROES, PARTY_MAX } from '../data/heroes';
 import { PARTY_PROBLEM_TEXT, partyMaxHp, partyProblem } from '../game/party';
 import type { HeroId } from '../game/types';
@@ -47,7 +47,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
         return `
           <button type="button" class="slot" data-remove="${id}" aria-label="${h.name}を外す">
             ${heroCardInner(id, level(id))}
-            <span class="slot-special">${specialPreviewSvg(id)}</span>
+            <span class="slot-special">${specialOrbsHtml(id)}</span>
           </button>`;
       })
       .join('');

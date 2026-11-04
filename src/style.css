@@ -3878,3 +3878,184 @@ html[data-route='result'] body::after {
     font-size: 13px;
   }
 }
+
+/* ───────── キャラのカードに立ち絵の上半身・メインオーブ・ステータス（2026-11-04） ───────── */
+/* メインオーブ（必殺の色）ごとの差し色 */
+.main-red {
+  --main: #ff5a4e;
+}
+.main-blue {
+  --main: #5aa8ff;
+}
+.main-green {
+  --main: #4fd18f;
+}
+.main-pink {
+  --main: #ff8fcf;
+}
+.hc-portrait {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--main, #f1c073) 40%, transparent), transparent 70%),
+    linear-gradient(180deg, #2b2266, #121845);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--main, #f1c073) 55%, transparent);
+}
+.hc-portrait img {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  /* 立ち絵の上から 45% ほど（頭から胸のあたり）が枠に入る大きさ */
+  height: 222%;
+  width: auto;
+  max-width: none;
+  translate: calc(var(--hx) * -100%) calc(var(--ht) * -100%);
+  user-select: none;
+  pointer-events: none;
+}
+.hc-portrait.locked img {
+  filter: brightness(0) opacity(0.55);
+}
+.hc-orb {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background:
+    var(--orb-img) center / calc(216 / 202 * 100%) no-repeat,
+    radial-gradient(circle closest-side, var(--orb, #888) 0 92%, transparent 100%);
+  filter: drop-shadow(0 0 4px #000a);
+}
+.hero-card {
+  padding: 6px 6px 8px;
+  gap: 2px;
+  border-color: #ffffff1f;
+}
+.hero-card .hc-name {
+  margin-top: 4px;
+}
+.hc-stats {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.hc-stats b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.hero-card.picked {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold), 0 0 14px #f1c07355;
+}
+.slot {
+  padding: 6px 5px 8px;
+  gap: 2px;
+}
+.slot .hc-portrait {
+  aspect-ratio: 4 / 5;
+}
+.slot .hc-portrait img {
+  height: 190%;
+}
+.slot-special .mini-shape {
+  --cell: 11px;
+  margin-top: 4px;
+}
+.party-slots .hc-stats {
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* 育成のくわしい画面：立ち絵を大きく */
+.hero-hero {
+  grid-template-columns: minmax(0, 46%) 1fr;
+  align-items: end;
+}
+.hero-stage {
+  position: relative;
+  height: min(58vh, 380px);
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--main) 35%, transparent), transparent 65%),
+    linear-gradient(180deg, #241c5c, #0b0f2e);
+  border: 1px solid color-mix(in srgb, var(--main) 50%, #f1c07344);
+}
+.hero-stage .constellation-art {
+  position: absolute;
+  inset: 6% 0 auto;
+  width: 100%;
+  height: auto;
+  opacity: 0.55;
+}
+.hero-full {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  height: 94%;
+  width: auto;
+  max-width: none;
+  translate: -50% 0;
+  filter: drop-shadow(0 6px 12px #000a);
+}
+.hero-main-orb {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: -4px;
+  border-radius: 50%;
+  background:
+    var(--orb-img) center / calc(216 / 202 * 100%) no-repeat,
+    radial-gradient(circle closest-side, var(--orb, #888) 0 92%, transparent 100%);
+}
+.hero-stats {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+.hero-stats div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #0b0f2ea6;
+  border: 1px solid #ffffff14;
+}
+.hero-stats dt {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.hero-stats dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.sp-shape .mini-shape {
+  --cell: 16px;
+}
+/* バトルの仲間カードの印もメインオーブの絵に */
+.hero-role .hero-main-orb {
+  width: 13px;
+  height: 13px;
+  margin-right: 4px;
+  vertical-align: -2px;
+}
+/* 4人のときは名前を1行に（「おひつじ座」などが折り返さないように） */
+.heroes:has(> :nth-child(4)) .hero-name {
+  white-space: nowrap;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}

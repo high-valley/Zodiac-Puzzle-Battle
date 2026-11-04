@@ -51,3 +51,16 @@ export function partyMaxHp(party: readonly PartyMember[]): number {
 export function memberLevel(party: readonly PartyMember[], id: HeroId): number {
   return party.find((m) => m.id === id)?.level ?? 1;
 }
+
+/** 画面に出すステータス（仕様書 12.3・12.4）。power は自分の色のオーブ1個あたりの攻撃力（回復役は回復力）、special は必殺の威力 */
+export interface HeroStats {
+  hp: number;
+  power: number;
+  special: number;
+}
+
+export function heroStats(id: HeroId, level: number): HeroStats {
+  const h = HEROES[id];
+  const action = h.actions[h.special.color];
+  return { hp: heroMaxHp(id, level), power: scaled(action?.coef ?? 0, level), special: scaled(h.special.power, level) };
+}
