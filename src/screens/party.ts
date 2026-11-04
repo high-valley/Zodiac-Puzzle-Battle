@@ -45,20 +45,72 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
     if (partyProblem(members) === null) ctx.setProgress({ ...ctx.progress, party: [...picked] });
   }
 
+  // 押すたびに全部を描き直すと、カードの絵が一瞬消えて画面がちらつく（2026-11-04 ユーザーの指摘）。
+  // カードと枠の要素は一度だけ作り、押したときは並びと印だけ変える
+  const slotEls = new Map<HeroId, HTMLButtonElement>();
+  function slotOf(id: HeroId): HTMLButtonElement {
+    let b = slotEls.get(id);
+    if (!b) {
+      const h = HEROES[id];
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'slot';
+      b.dataset.remove = id;
+      b.setAttribute('aria-label', `${h.name}を外す`);
+      b.innerHTML = `${heroCardInner(id, level(id))}<span class="slot-special">${specialOrbsHtml(id)}</span>`;
+      b.addEventListener('click', () => {
+        picked = picked.filter((x) => x !== id);
+        ctx.sound.play({ name: 'select' });
+        save();
+        render();
+      });
+      slotEls.set(id, b);
+    }
+    return b;
+  }
+  const emptyEls = [...Array(PARTY_MAX)].map((_, i) => {
+    const d = document.createElement('div');
+    d.className = i >= open ? 'slot empty locked' : 'slot empty';
+    d.innerHTML = `<span>${i >= open ? `仲間が${i + 1}人になると使える` : '空き'}</span>`;
+    return d;
+  });
+
+  roster.innerHTML = ALL_HEROES.map((id) =>
+    ctx.heroJoined(id)
+      ? `
+        <button type="button" role="listitem" class="hero-card" data-id="${id}" aria-pressed="false">
+          ${heroCardInner(id, level(id))}
+          <span class="hc-badge" hidden>出撃</span>
+        </button>`
+      : `
+        <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">
+          ${lockedCardInner(id)}
+        </div>`,
+  ).join('');
+  roster.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) =>
+    b.addEventListener('click', () => {
+      const id = b.dataset.id as HeroId;
+      if (picked.includes(id)) picked = picked.filter((x) => x !== id);
+      else if (picked.length < open) picked = [...picked, id];
+      else {
+        status.textContent = `${open}人そろっています。先に外すキャラを、上の枠かこの一覧で押してください`;
+        status.classList.add('bad');
+        return;
+      }
+      ctx.sound.play({ name: 'select' });
+      save();
+      render();
+    }),
+  );
+
   function render() {
-    slots.innerHTML = [...Array(PARTY_MAX)]
-      .map((_, i) => {
-        const id = picked[i];
-        if (i >= open) return `<div class="slot empty locked"><span>仲間が${i + 1}人になると使える</span></div>`;
-        if (!id) return `<div class="slot empty"><span>空き</span></div>`;
-        const h = HEROES[id];
-        return `
-          <button type="button" class="slot" data-remove="${id}" aria-label="${h.name}を外す">
-            ${heroCardInner(id, level(id))}
-            <span class="slot-special">${specialOrbsHtml(id)}</span>
-          </button>`;
-      })
-      .join('');
+    // 枠：選んだ順に、作っておいた要素を並べ直す（同じ要素を動かすだけなので、絵は消えない）
+    const want: HTMLElement[] = [...Array(PARTY_MAX)].map((_, i) => (picked[i] && i < open ? slotOf(picked[i]) : emptyEls[i]));
+    want.forEach((el, i) => {
+      if (slots.children[i] !== el) slots.insertBefore(el, slots.children[i] ?? null);
+    });
+    while (slots.children.length > PARTY_MAX) slots.lastElementChild?.remove();
+
     const members = picked.map((id) => ({ id, level: level(id) }));
     const problem = partyProblem(members);
     // 回復役がいない編成も組めるが、HPを回復できないことは知らせる（保存はする）
@@ -73,45 +125,13 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
         : picked.length === 0
           ? `出撃する仲間を選んでください（選ぶまでは、前の編成（${ctx.party().map((id) => HEROES[id].name).join('・')}）で出撃します）`
           : `${PARTY_PROBLEM_TEXT[problem]}（今の編成はまだ保存されていません）`;
-    roster.innerHTML = ALL_HEROES.map((id) => {
-      if (!ctx.heroJoined(id)) {
-        return `
-        <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">
-          ${lockedCardInner(id)}
-        </div>`;
-      }
-      const on = picked.includes(id);
-      return `
-        <button type="button" role="listitem" class="hero-card${on ? ' picked' : ''}" data-id="${id}" aria-pressed="${on}">
-          ${heroCardInner(id, level(id))}
-          ${on ? '<span class="hc-badge">出撃</span>' : ''}
-        </button>`;
-    }).join('');
-
-    slots.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((b) =>
-      b.addEventListener('click', () => {
-        picked = picked.filter((x) => x !== b.dataset.remove);
-        ctx.sound.play({ name: 'select' });
-        save();
-        render();
-      }),
-    );
-    roster.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) =>
-      b.addEventListener('click', () => {
-        const id = b.dataset.id as HeroId;
-        if (picked.includes(id)) picked = picked.filter((x) => x !== id);
-        else if (picked.length < open) picked = [...picked, id];
-        else {
-          status.textContent = `${open}人そろっています。先に外すキャラを、上の枠かこの一覧で押してください`;
-          status.classList.add('bad');
-          return;
-        }
-        ctx.sound.play({ name: 'select' });
-        save();
-        render();
-        (roster.querySelector(`.hero-card[data-id="${id}"]`) as HTMLElement | null)?.focus();
-      }),
-    );
+    // 一覧：出撃の印だけ変える
+    roster.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) => {
+      const on = picked.includes(b.dataset.id as HeroId);
+      b.classList.toggle('picked', on);
+      b.setAttribute('aria-pressed', String(on));
+      (b.querySelector('.hc-badge') as HTMLElement).hidden = !on;
+    });
   }
 
   container.querySelector('.back')?.addEventListener('click', () => ctx.navigate({ name: 'home' }));
