@@ -36,18 +36,22 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
   // 章の手前のストーリーだけのマス
   const storyNode = STORY_NODES.find((n) => n.chapter === chapter.number);
   // マップに並べるもの：ストーリーのマス → ステージ
+  // 1-1 をプロローグを見るまで待たせるか（開発者モードでは待たせない）
+  const waits = (id: string) => !ctx.settings.devUnlockAll && waitsForPrologue(ctx.progress, id);
   const items: { kind: 'story' | 'stage'; id: string }[] = [
     ...(storyNode ? [{ kind: 'story' as const, id: storyNode.id }] : []),
     ...stages.map((s) => ({ kind: 'stage' as const, id: s.id })),
   ];
   let selected =
-    initialStageId && ((ctx.stageOpen(initialStageId) && !waitsForPrologue(ctx.progress, initialStageId)) || findStoryNode(initialStageId))
+    initialStageId && ((ctx.stageOpen(initialStageId) && !waits(initialStageId)) || findStoryNode(initialStageId))
       ? initialStageId
       : // まだプロローグを見ていなければ、プロローグのマスを選んでおく
-        storyNode && waitsForPrologue(ctx.progress, stages[0].id)
+        storyNode && waits(stages[0].id)
         ? storyNode.id
         : nextStageId(ctx.progress);
 
+  // マスの数に位置が足りないときは、最後の位置から右へずらして置く（落ちないように）
+  while (NODE_POS.length < items.length) NODE_POS.push([Math.min(96, NODE_POS[NODE_POS.length - 1][0] + 8), 50]);
   const path = NODE_POS.slice(0, items.length).map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
 
   container.innerHTML = `
@@ -91,10 +95,10 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
         }
         const s = findStage(item.id)!;
         // 1-1 はプロローグを見てから（開発者モードでは待たせない）
-        const open = ctx.stageOpen(s.id) && (ctx.settings.devUnlockAll || !waitsForPrologue(ctx.progress, s.id));
+        const open = ctx.stageOpen(s.id) && !waits(s.id);
         const stars = ctx.progress.stages[s.id]?.stars ?? 0;
         const [x, y] = NODE_POS[i];
-        const label = open ? `${s.id} ${stageEnemyName(s)}、★${stars}` : `${s.id}、まだ遊べません`;
+        const label = open ? `${s.id} ${stageEnemyName(s)}、★${stars}` : waits(s.id) ? `${s.id}、プロローグを見ると開きます` : `${s.id}、まだ遊べません`;
         return `
           <div role="listitem" class="map-node-wrap" style="left:${x}%;top:${y}%">
             <button type="button" class="map-node${open ? '' : ' locked'}${s.id === selected ? ' selected' : ''}${
@@ -128,7 +132,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
         <span class="stage-id">${node.label}</span>
         <h3 class="stage-enemy">${scene.title}</h3>
       </div>
-      <p class="stage-record">バトルのない、ストーリーだけのマスです。${seen ? '' : '見終わると 1-1 が開きます。'}</p>
+      <p class="stage-record">バトルのない、ストーリーだけのマスです。${waits(stages[0].id) ? `見終わると ${stages[0].id} が開きます。` : ''}</p>
       <div class="stage-actions">
         <button type="button" class="primary-btn go">${seen ? 'もう一度見る' : 'ストーリーを見る'}</button>
       </div>`;
@@ -200,6 +204,8 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     });
   }
 
+  // 直接開いた URL と選んだマスが違えば、選んだマスに合わせる
+  if (initialStageId && initialStageId !== selected) history.replaceState(null, '', `#/quest/${selected}`);
   container.querySelector('.back')?.addEventListener('click', () => ctx.navigate({ name: 'home' }));
   renderNodes();
   renderPanel();

@@ -3,7 +3,7 @@ import { ALL_HEROES } from '../src/data/heroes';
 import { ALL_STAGES } from '../src/data/stages';
 import { EXPRESSIONS, SCENES, STAGE_SCENES, STORY_NAME, findStoryNode } from '../src/data/story';
 import { hashToRoute, routeToHash, type Route } from '../src/routes';
-import { canViewScene, emptyProgress, markSceneSeen, parseProgress, sceneAfterWin, sceneBeforeBattle, sceneSeen, scenesToReplay, waitsForPrologue } from '../src/storage/progress';
+import { canViewScene, emptyProgress, markSceneSeen, parseProgress, sceneAfterWin, sceneBeforeBattle, sceneSeen, sceneStage, scenesToReplay, waitsForPrologue } from '../src/storage/progress';
 
 describe('ストーリーの会話（docs/story.md）', () => {
   it('場面の id と中身がそろっていて、話す人・表情が正しい', () => {
@@ -115,9 +115,14 @@ describe('プロローグのマス（2026-11-05）', () => {
     expect(waitsForPrologue(markSceneSeen(emptyProgress(), 'ch1-prologue'), '1-1')).toBe(false);
     expect(waitsForPrologue({ ...emptyProgress(), stages: { '1-1': { stars: 1, bestTurns: 6 } } }, '1-1')).toBe(false);
     expect(waitsForPrologue(emptyProgress(), '1-2')).toBe(false);
+    // 途中のバトルだけある人も待たせない
+    const battle = { stageId: '1-1', state: {} as never, pending: [] };
+    expect(waitsForPrologue({ ...emptyProgress(), battle }, '1-1')).toBe(false);
   });
   it('プロローグはいつでも見られる', () => {
-    expect(canViewScene(emptyProgress(), 'ch1-prologue', () => false)).toBe(true);
+    expect(canViewScene(emptyProgress(), 'ch1-prologue', (id) => id === '1-1')).toBe(true);
+    expect(canViewScene(emptyProgress(), 'ch1-prologue', () => false)).toBe(false);
+    expect(sceneStage('ch1-prologue')).toEqual({ stageId: '1-1', when: 'node' });
     expect(hashToRoute('#/quest/prologue')).toEqual({ name: 'quest', stageId: 'prologue' });
   });
 });

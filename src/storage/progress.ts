@@ -66,8 +66,8 @@ export function sceneStage(sceneId: string): { stageId: string; when: 'before' |
 export function canViewScene(progress: Progress, sceneId: string, open: (stageId: string) => boolean, devAll = false): boolean {
   const at = sceneStage(sceneId);
   if (!at || !(sceneId in SCENES)) return false;
-  // ストーリーだけのマスは、いつでも見られる（章が遊べれば）
-  if (at.when === 'node') return true;
+  // ストーリーだけのマスは、その章が遊べれば（章の最初のステージが開いていれば）いつでも見られる
+  if (at.when === 'node') return open(at.stageId);
   if (!open(at.stageId)) return false;
   return at.when === 'before' || devAll || (progress.stages[at.stageId]?.stars ?? 0) > 0;
 }
