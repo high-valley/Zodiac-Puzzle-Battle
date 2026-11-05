@@ -9,6 +9,7 @@ import { mountHome } from './screens/home';
 import { mountQuest } from './screens/quest';
 import { mountResult } from './screens/result';
 import { mountStory } from './screens/story';
+import { findStoryNode } from './data/story';
 import { activeParty, clearAllData, isHeroJoined, isUnlocked, loadProgress, saveProgress, type Progress, canViewScene } from './storage/progress';
 import { DEV_TOOLS } from './data/devTools';
 import { CURRENT_BUILD, buildLabel, fetchLatestBuild, reloadToLatest } from './version';
@@ -149,7 +150,7 @@ export function mountApp(root: HTMLElement): void {
       if (!stage || !ctx.stageOpen(stage.id)) route = { name: 'quest' };
     }
     if (route.name === 'result' && !ctx.lastOutcome) route = { name: 'quest' };
-    if (route.name === 'quest' && route.stageId && !ctx.stageOpen(route.stageId)) route = { name: 'quest' };
+    if (route.name === 'quest' && route.stageId && !ctx.stageOpen(route.stageId) && !findStoryNode(route.stageId)) route = { name: 'quest' };
     // まだ仲間でないキャラの詳しい画面は開かない
     if (route.name === 'heroes' && route.heroId && !ctx.heroJoined(route.heroId)) route = { name: 'heroes' };
     if (route.name === 'dev' && !DEV_TOOLS) route = { name: 'home' };

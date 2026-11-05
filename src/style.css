@@ -4276,3 +4276,8 @@ html[data-route='story'] body::after {
 .popup.poison {
   color: #c9a2ff;
 }
+/* ストーリーだけのマス（プロローグ。2026-11-05） */
+.map-node.story {
+  border-style: dashed;
+  font-family: var(--font-display);
+}
