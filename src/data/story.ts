@@ -182,7 +182,7 @@ export const SCENES: Record<string, Scene> = {
 
 /** ステージの前後で見せる会話（前：出撃のあと、バトルの前。後：勝ったリザルトのあと） */
 export const STAGE_SCENES: Record<string, { before?: string; after?: string }> = {
-  '1-1': { before: 'ch1-prologue', after: 'ch1-1-after' },
+  '1-1': { after: 'ch1-1-after' },
   '1-2': { before: 'ch1-2-before', after: 'ch1-2-after' },
   '1-3': { before: 'ch1-3-before', after: 'ch1-3-after' },
   '1-4': { before: 'ch1-4-before', after: 'ch1-4-after' },
@@ -205,3 +205,22 @@ export const PORTRAIT_ART: Partial<Record<HeroId, Partial<Record<Expression, str
   aquarius: { normal: 'art/portraits/aquarius-normal.webp?v=2', smile: 'art/portraits/aquarius-smile.webp?v=1' },
   pisces: { normal: 'art/portraits/pisces-normal.webp?v=2', smile: 'art/portraits/pisces-smile.webp?v=1' },
 };
+
+/**
+ * ストーリーだけのマス（バトルなし。2026-11-05 ユーザーの要望：プロローグは 1-1 の手前に、それだけのマスを置く）。
+ * 章のマップで、その章の最初のステージの前に置く。見終わると次のステージが開く
+ */
+export interface StoryNode {
+  /** マップでの id（URL の #/quest/<id> にも使う） */
+  id: string;
+  chapter: number;
+  sceneId: string;
+  /** マスに出す短い名前 */
+  label: string;
+}
+
+export const STORY_NODES: StoryNode[] = [{ id: 'prologue', chapter: 1, sceneId: 'ch1-prologue', label: '序' }];
+
+export function findStoryNode(id: string | undefined): StoryNode | undefined {
+  return STORY_NODES.find((n) => n.id === id);
+}

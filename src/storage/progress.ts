@@ -10,7 +10,7 @@ import { ALL_STAGES, findStage, previousStage } from '../data/stages';
 import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
 import { isValidIntersection } from '../game/board';
 import { MAX_ROTATIONS_PER_TURN, TRAITS } from '../data/balance';
-import { SCENES, STAGE_SCENES } from '../data/story';
+import { SCENES, STAGE_SCENES, STORY_NODES } from '../data/story';
 
 export interface StageRecord {
   /** いちばん良かった★（0〜3） */
@@ -45,7 +45,13 @@ export function sceneSeen(progress: Progress, id: string): boolean {
 }
 
 /** その会話が、どのステージの前か後か（どこにも入っていなければ null） */
-export function sceneStage(sceneId: string): { stageId: string; when: 'before' | 'after' } | null {
+export function sceneStage(sceneId: string): { stageId: string; when: 'before' | 'after' | 'node' } | null {
+  // ストーリーだけのマス：その章の最初のステージの手前
+  const node = STORY_NODES.find((n) => n.sceneId === sceneId);
+  if (node) {
+    const first = ALL_STAGES.find((s) => s.chapter === node.chapter);
+    return first ? { stageId: first.id, when: 'node' } : null;
+  }
   for (const [stageId, sc] of Object.entries(STAGE_SCENES)) {
     if (sc.before === sceneId) return { stageId, when: 'before' };
     if (sc.after === sceneId) return { stageId, when: 'after' };
@@ -60,6 +66,8 @@ export function sceneStage(sceneId: string): { stageId: string; when: 'before' |
 export function canViewScene(progress: Progress, sceneId: string, open: (stageId: string) => boolean, devAll = false): boolean {
   const at = sceneStage(sceneId);
   if (!at || !(sceneId in SCENES)) return false;
+  // ストーリーだけのマスは、その章が遊べれば（章の最初のステージが開いていれば）いつでも見られる
+  if (at.when === 'node') return open(at.stageId);
   if (!open(at.stageId)) return false;
   return at.when === 'before' || devAll || (progress.stages[at.stageId]?.stars ?? 0) > 0;
 }
@@ -302,6 +310,18 @@ export function isUnlocked(progress: Progress, stageId: string): boolean {
   if (!findStage(stageId)) return false;
   const prev = previousStage(stageId);
   return prev === null || (progress.stages[prev.id]?.stars ?? 0) > 0;
+}
+
+/**
+ * 章の最初のステージを、手前のストーリーだけのマス（プロローグ）を見るまで待たせるか（クエスト選択の表示。2026-11-05）。
+ * ストーリーを入れる前から遊んでいた人（ステージの記録か途中のバトルがある）は待たせない
+ */
+export function waitsForPrologue(progress: Progress, stageId: string): boolean {
+  const stage = findStage(stageId);
+  if (!stage || previousStage(stageId) !== null) return false;
+  const node = STORY_NODES.find((n) => n.chapter === stage.chapter);
+  if (!node || sceneSeen(progress, node.sceneId)) return false;
+  return Object.keys(progress.stages).length === 0 && !progress.battle;
 }
 
 /** まだクリアしていない最初のステージ（全部クリア済みなら最後のステージ） */
