@@ -14,12 +14,23 @@ import { markSceneSeen } from '../storage/progress';
 const TYPE_MS = 28;
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-/** 会話の絵：表情ごとの絵があればそれ、無ければ仕上げの立ち絵の上半身を切り出す */
-function portraitImg(id: HeroId, face: Expression): string {
+/** 絵の読み込みを待つ最長（ms）。回線が遅くても、これを過ぎたら会話を始める */
+const PRELOAD_MAX_MS = 1500;
+
+/** 表情ごとの絵の場所。無ければ「ふつう」、それも無ければ null（立ち絵を切り出す） */
+function portraitSrc(id: HeroId, face: Expression): string | null {
   const art = PORTRAIT_ART[id]?.[face] ?? PORTRAIT_ART[id]?.normal;
-  if (art) return `<img class="sp-art bust" src="${assetUrl(art)}" alt="" draggable="false" />`;
+  return art ? assetUrl(art) : null;
+}
+
+/** 会話の絵：表情ごとの絵があればそれ、無ければ仕上げの立ち絵の上半身を切り出す */
+function portraitImg(id: HeroId, face: Expression, enter: boolean): string {
+  const art = portraitSrc(id, face);
+  // enter：新しく出てきた人だけ、下からふわっと出す（同じ人の表情替えでは動かさない）
+  const cls = enter ? ' enter' : '';
+  if (art) return `<img class="sp-art bust${cls}" src="${art}" alt="" draggable="false" decoding="sync" />`;
   const a = HERO_ART[id];
-  return `<img class="sp-art crop" src="${assetUrl(a.file)}" alt="" draggable="false" style="--hx:${a.headX};--ht:${a.headTop}" />`;
+  return `<img class="sp-art crop${cls}" src="${assetUrl(a.file)}" alt="" draggable="false" decoding="sync" style="--hx:${a.headX};--ht:${a.headTop}" />`;
 }
 
 export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: string, next: Route): () => void {
@@ -95,13 +106,8 @@ export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: str
       const cur = shown[side];
       if (!cur || cur.id !== line.who || cur.face !== face) {
         const el = sides[side];
-        el.innerHTML = portraitImg(line.who, face);
+        el.innerHTML = portraitImg(line.who, face, !cur || cur.id !== line.who);
         el.dataset.color = HEROES[line.who].special.color;
-        if (!cur || cur.id !== line.who) {
-          el.classList.remove('enter');
-          void el.offsetWidth;
-          el.classList.add('enter');
-        }
         shown[side] = { id: line.who, face };
       }
       // ほかの側に同じ人が残っていたら消す（左右を入れ替えたとき）
@@ -188,14 +194,32 @@ export function mountStory(container: HTMLElement, ctx: AppContext, sceneId: str
   // ログのダイアログが同じ Esc で閉じる前に判定したいので、捕捉の段階で受ける
   window.addEventListener('keydown', onKey, { capture: true });
 
-  // 絵を先に読み込んでから始める（最初の人の絵が遅れて出ないように）
-  const ids = [...new Set(scene.lines.flatMap((l) => (l.who ? [l.who] : [])))];
-  for (const id of ids) new Image().src = assetUrl(HERO_ART[id].file);
-  advance();
-  box.focus();
+  // 場面で使う絵を先に読み込み、描ける状態にしてから始める。
+  // 表情が変わるたびに読み込むと、iPhone では読み込み途中の絵が欠けたりずれたりして見える
+  const srcs = new Set<string>();
+  for (const l of scene.lines) {
+    if (!l.who) continue;
+    srcs.add(portraitSrc(l.who, l.face ?? 'normal') ?? assetUrl(HERO_ART[l.who].file));
+  }
+  // 読み込んだ絵は、場面のあいだ手放さない（キャッシュから消えないように）
+  const preloaded = [...srcs].map((src) => {
+    const img = new Image();
+    img.src = src;
+    return img;
+  });
+  const ready = Promise.all(preloaded.map((img) => img.decode().catch(() => undefined)));
+  const timeout = new Promise((resolve) => setTimeout(resolve, PRELOAD_MAX_MS));
+  box.disabled = true;
+  void Promise.race([ready, timeout]).then(() => {
+    if (disposed) return;
+    box.disabled = false;
+    advance();
+    box.focus();
+  });
 
   return () => {
     disposed = true;
+    preloaded.length = 0;
     if (typing !== null) clearInterval(typing);
     window.removeEventListener('keydown', onKey, { capture: true });
   };
