@@ -4104,13 +4104,15 @@ html[data-route='story'] body::after {
   width: 70%;
   aspect-ratio: 3 / 4;
   max-height: 100%;
-  overflow: hidden;
-  transition:
-    filter 0.2s,
-    transform 0.2s;
-  filter: brightness(0.55) saturate(0.85);
+  transition: transform 0.2s;
   transform: scale(0.96);
   transform-origin: bottom center;
+}
+/* iPhone の Safari で、切り抜き（overflow）と明るさのフィルターを同じ箱に重ねると、
+   絵の一部が四角く欠けたり、ずれて描かれたりすることがある（2026-11-05）。
+   暗くするのは絵そのものにかけ、切り抜きは立ち絵を切り出すときだけにする */
+.story-portrait:has(.sp-art.crop) {
+  overflow: hidden;
 }
 .story-portrait.left {
   left: -6%;
@@ -4119,28 +4121,31 @@ html[data-route='story'] body::after {
   right: -6%;
 }
 .story-portrait.speaking {
-  filter: none;
   transform: none;
   z-index: 1;
 }
-.story-portrait.enter {
+.sp-art.enter {
   animation: story-enter 0.32s ease-out;
 }
 @keyframes story-enter {
   from {
     opacity: 0;
-    translate: 0 16px;
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
-    translate: 0 0;
+    transform: none;
   }
 }
 .sp-art {
   position: absolute;
   user-select: none;
   pointer-events: none;
-  filter: drop-shadow(0 6px 14px #000a);
+  transition: filter 0.2s;
+  filter: drop-shadow(0 6px 14px #000a) brightness(0.55) saturate(0.85);
+}
+.story-portrait.speaking .sp-art {
+  filter: drop-shadow(0 6px 14px #000a) brightness(1) saturate(1);
 }
 .sp-art.bust {
   inset: 0;
