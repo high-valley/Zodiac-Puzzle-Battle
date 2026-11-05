@@ -190,20 +190,20 @@ export const STAGE_SCENES: Record<string, { before?: string; after?: string }> =
 };
 
 /** 会話用の上半身の絵（表情ごと）。届いた分だけ入れる。無い表情・キャラは、立ち絵の上半身を切り出して使う */
-// 2026-11-05：12人の「ふつう」「笑顔」「真剣」を入れた（ほかの表情はまだ。無い表情は「ふつう」を使う）
+// 2026-11-05：12人の「ふつう」「笑顔」「真剣」「驚き」を入れた（ほかの表情はまだ。無い表情は「ふつう」を使う）
 export const PORTRAIT_ART: Partial<Record<HeroId, Partial<Record<Expression, string>>>> = {
-  aries: { normal: 'art/portraits/aries-normal.webp?v=2', smile: 'art/portraits/aries-smile.webp?v=1', serious: 'art/portraits/aries-serious.webp?v=1' },
-  taurus: { normal: 'art/portraits/taurus-normal.webp?v=2', smile: 'art/portraits/taurus-smile.webp?v=1', serious: 'art/portraits/taurus-serious.webp?v=1' },
-  gemini: { normal: 'art/portraits/gemini-normal.webp?v=2', smile: 'art/portraits/gemini-smile.webp?v=1', serious: 'art/portraits/gemini-serious.webp?v=1' },
-  cancer: { normal: 'art/portraits/cancer-normal.webp?v=2', smile: 'art/portraits/cancer-smile.webp?v=1', serious: 'art/portraits/cancer-serious.webp?v=1' },
-  leo: { normal: 'art/portraits/leo-normal.webp?v=2', smile: 'art/portraits/leo-smile.webp?v=1', serious: 'art/portraits/leo-serious.webp?v=1' },
-  virgo: { normal: 'art/portraits/virgo-normal.webp?v=2', smile: 'art/portraits/virgo-smile.webp?v=1', serious: 'art/portraits/virgo-serious.webp?v=1' },
-  libra: { normal: 'art/portraits/libra-normal.webp?v=2', smile: 'art/portraits/libra-smile.webp?v=1', serious: 'art/portraits/libra-serious.webp?v=1' },
-  scorpio: { normal: 'art/portraits/scorpio-normal.webp?v=2', smile: 'art/portraits/scorpio-smile.webp?v=1', serious: 'art/portraits/scorpio-serious.webp?v=1' },
-  sagittarius: { normal: 'art/portraits/sagittarius-normal.webp?v=2', smile: 'art/portraits/sagittarius-smile.webp?v=1', serious: 'art/portraits/sagittarius-serious.webp?v=1' },
-  capricorn: { normal: 'art/portraits/capricorn-normal.webp?v=2', smile: 'art/portraits/capricorn-smile.webp?v=1', serious: 'art/portraits/capricorn-serious.webp?v=1' },
-  aquarius: { normal: 'art/portraits/aquarius-normal.webp?v=2', smile: 'art/portraits/aquarius-smile.webp?v=1', serious: 'art/portraits/aquarius-serious.webp?v=1' },
-  pisces: { normal: 'art/portraits/pisces-normal.webp?v=2', smile: 'art/portraits/pisces-smile.webp?v=1', serious: 'art/portraits/pisces-serious.webp?v=1' },
+  aries: { normal: 'art/portraits/aries-normal.webp?v=2', smile: 'art/portraits/aries-smile.webp?v=1', serious: 'art/portraits/aries-serious.webp?v=1', surprised: 'art/portraits/aries-surprised.webp?v=1' },
+  taurus: { normal: 'art/portraits/taurus-normal.webp?v=2', smile: 'art/portraits/taurus-smile.webp?v=1', serious: 'art/portraits/taurus-serious.webp?v=1', surprised: 'art/portraits/taurus-surprised.webp?v=1' },
+  gemini: { normal: 'art/portraits/gemini-normal.webp?v=2', smile: 'art/portraits/gemini-smile.webp?v=1', serious: 'art/portraits/gemini-serious.webp?v=1', surprised: 'art/portraits/gemini-surprised.webp?v=1' },
+  cancer: { normal: 'art/portraits/cancer-normal.webp?v=2', smile: 'art/portraits/cancer-smile.webp?v=1', serious: 'art/portraits/cancer-serious.webp?v=1', surprised: 'art/portraits/cancer-surprised.webp?v=1' },
+  leo: { normal: 'art/portraits/leo-normal.webp?v=2', smile: 'art/portraits/leo-smile.webp?v=1', serious: 'art/portraits/leo-serious.webp?v=1', surprised: 'art/portraits/leo-surprised.webp?v=1' },
+  virgo: { normal: 'art/portraits/virgo-normal.webp?v=2', smile: 'art/portraits/virgo-smile.webp?v=1', serious: 'art/portraits/virgo-serious.webp?v=1', surprised: 'art/portraits/virgo-surprised.webp?v=1' },
+  libra: { normal: 'art/portraits/libra-normal.webp?v=2', smile: 'art/portraits/libra-smile.webp?v=1', serious: 'art/portraits/libra-serious.webp?v=1', surprised: 'art/portraits/libra-surprised.webp?v=1' },
+  scorpio: { normal: 'art/portraits/scorpio-normal.webp?v=2', smile: 'art/portraits/scorpio-smile.webp?v=1', serious: 'art/portraits/scorpio-serious.webp?v=1', surprised: 'art/portraits/scorpio-surprised.webp?v=1' },
+  sagittarius: { normal: 'art/portraits/sagittarius-normal.webp?v=2', smile: 'art/portraits/sagittarius-smile.webp?v=1', serious: 'art/portraits/sagittarius-serious.webp?v=1', surprised: 'art/portraits/sagittarius-surprised.webp?v=1' },
+  capricorn: { normal: 'art/portraits/capricorn-normal.webp?v=2', smile: 'art/portraits/capricorn-smile.webp?v=1', serious: 'art/portraits/capricorn-serious.webp?v=1', surprised: 'art/portraits/capricorn-surprised.webp?v=1' },
+  aquarius: { normal: 'art/portraits/aquarius-normal.webp?v=2', smile: 'art/portraits/aquarius-smile.webp?v=1', serious: 'art/portraits/aquarius-serious.webp?v=1', surprised: 'art/portraits/aquarius-surprised.webp?v=1' },
+  pisces: { normal: 'art/portraits/pisces-normal.webp?v=2', smile: 'art/portraits/pisces-smile.webp?v=1', serious: 'art/portraits/pisces-serious.webp?v=1', surprised: 'art/portraits/pisces-surprised.webp?v=1' },
 };
 
 /**
