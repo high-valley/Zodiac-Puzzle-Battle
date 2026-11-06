@@ -206,7 +206,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       return;
     }
     el.classList.toggle('imminent', junkIn === 1);
-    el.textContent = junkIn === 1 ? `このターンの終わりに星屑を${enemy.junk.count}個まぜる` : `星屑まで あと${junkIn}ターン`;
+    // まぜる数は盤面の星屑の上限（max）まで。「攻撃」で消えれば余裕ができるので、上限も添えて出す
+    el.textContent = junkIn === 1 ? `このターンの終わりに星屑を${enemy.junk.count}個まぜる（盤面に${enemy.junk.max}個まで）` : `星屑まで あと${junkIn}ターン`;
   }
 
   function renderCharge(chargeIn: number | null) {
