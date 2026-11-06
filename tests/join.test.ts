@@ -60,7 +60,8 @@ describe('仲間の加入（仕様書 12.6）', () => {
   it('仲間になる条件の文', () => {
     expect(joinText('aries')).toBe('最初から仲間');
     expect(joinText('pisces')).toBe('ストーリーを進めると加入');
-    expect(joinText('libra')).toBe('第2章で加入');
+    // 第2章ができたので、てんびん座はステージ名で出る（まだ無い章なら「第N章で加入」）
+    expect(joinText('libra')).toBe('2-5 クリアで加入');
   });
 
   it('ステージをクリアすると、そのステージの仲間が加わる（負けでは加わらない）', () => {

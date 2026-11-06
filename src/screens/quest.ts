@@ -9,8 +9,8 @@ import { CHAPTERS, STAR3_HP_RATIO, findStage, stageEnemyName } from '../data/sta
 import { nextStageId } from '../storage/progress';
 import { HEROES, joinersOf } from '../data/heroes';
 
-// マップ上の点の位置（％）。最初はストーリーだけのマス（プロローグ）、そのあとステージ。ステージが増えたら章ごとに持たせる
-const NODE_POS: [number, number][] = [
+// マップ上の点の位置（％）。ストーリーだけのマス（プロローグ）がある章は6つ、無い章はステージの5つを広めに置く
+const NODE_POS_WITH_STORY: [number, number][] = [
   [8, 76],
   [24, 44],
   [41, 72],
@@ -18,6 +18,18 @@ const NODE_POS: [number, number][] = [
   [75, 66],
   [91, 36],
 ];
+const NODE_POS_STAGES: [number, number][] = [
+  [10, 70],
+  [30, 40],
+  [50, 70],
+  [70, 38],
+  [90, 64],
+];
+
+/** そのマス（ステージかストーリーのマス）がある章の番号 */
+function chapterNumberOf(id: string): number {
+  return findStage(id)?.chapter ?? findStoryNode(id)?.chapter ?? CHAPTERS[0].number;
+}
 
 const starsText = (n: number) => '★★★'.slice(0, n) + '☆☆☆'.slice(0, 3 - n);
 
@@ -31,28 +43,26 @@ function storyLinksFor(ctx: AppContext, stageId: string): string {
 }
 
 export function mountQuest(container: HTMLElement, ctx: AppContext, initialStageId?: string): () => void {
-  const chapter = CHAPTERS[0];
-  const stages = chapter.stages;
-  // 章の手前のストーリーだけのマス
-  const storyNode = STORY_NODES.find((n) => n.chapter === chapter.number);
-  // マップに並べるもの：ストーリーのマス → ステージ
   // 1-1 をプロローグを見るまで待たせるか（開発者モードでは待たせない）
   const waits = (id: string) => !ctx.settings.devUnlockAll && waitsForPrologue(ctx.progress, id);
-  const items: { kind: 'story' | 'stage'; id: string }[] = [
-    ...(storyNode ? [{ kind: 'story' as const, id: storyNode.id }] : []),
-    ...stages.map((s) => ({ kind: 'stage' as const, id: s.id })),
-  ];
+  const firstStory = STORY_NODES[0];
   let selected =
     initialStageId && ((ctx.stageOpen(initialStageId) && !waits(initialStageId)) || findStoryNode(initialStageId))
       ? initialStageId
       : // まだプロローグを見ていなければ、プロローグのマスを選んでおく
-        storyNode && waits(stages[0].id)
-        ? storyNode.id
+        firstStory && waits(CHAPTERS[0].stages[0].id)
+        ? firstStory.id
         : nextStageId(ctx.progress);
 
-  // マスの数に位置が足りないときは、最後の位置から右へずらして置く（落ちないように）
-  while (NODE_POS.length < items.length) NODE_POS.push([Math.min(96, NODE_POS[NODE_POS.length - 1][0] + 8), 50]);
-  const path = NODE_POS.slice(0, items.length).map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
+  // 選んでいるマスの章（章を切り替えると、その章のマスを選び直す）
+  let chapter = CHAPTERS.find((c) => c.number === chapterNumberOf(selected)) ?? CHAPTERS[0];
+  let stages = chapter.stages;
+  let storyNode = STORY_NODES.find((n) => n.chapter === chapter.number);
+  let items: { kind: 'story' | 'stage'; id: string }[] = [];
+  let pos: [number, number][] = [];
+
+  /** その章を開けるか：最初の章か、章の最初のステージが遊べる（前の章をクリアした） */
+  const chapterOpen = (i: number) => i === 0 || ctx.stageOpen(CHAPTERS[i].stages[0].id);
 
   container.innerHTML = `
   <main class="quest">
@@ -62,13 +72,17 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     </header>
 
     <section class="chapter" aria-labelledby="chapter-name">
-      <p class="chapter-no">第${chapter.number}章</p>
-      <h2 id="chapter-name" class="chapter-name">${chapter.name}</h2>
-      <p class="chapter-tagline">${chapter.tagline}</p>
+      <button type="button" class="chapter-nav prev" aria-label="前の章">‹</button>
+      <div class="chapter-text">
+        <p class="chapter-no"></p>
+        <h2 id="chapter-name" class="chapter-name"></h2>
+        <p class="chapter-tagline"></p>
+      </div>
+      <button type="button" class="chapter-nav next" aria-label="次の章">›</button>
     </section>
 
     <div class="map">
-      <svg class="map-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${path}"/></svg>
+      <svg class="map-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d=""/></svg>
       <div class="map-nodes" role="list" aria-label="ステージ"></div>
     </div>
 
@@ -77,6 +91,45 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
 
   const nodes = container.querySelector('.map-nodes') as HTMLElement;
   const panel = container.querySelector('.stage-panel') as HTMLElement;
+  const prevBtn = container.querySelector('.chapter-nav.prev') as HTMLButtonElement;
+  const nextBtn = container.querySelector('.chapter-nav.next') as HTMLButtonElement;
+
+  /** 章の見出しとマップの道を、いまの章に合わせる */
+  function renderChapter() {
+    stages = chapter.stages;
+    storyNode = STORY_NODES.find((n) => n.chapter === chapter.number);
+    // マップに並べるもの：ストーリーのマス → ステージ
+    items = [...(storyNode ? [{ kind: 'story' as const, id: storyNode.id }] : []), ...stages.map((s) => ({ kind: 'stage' as const, id: s.id }))];
+    pos = (storyNode ? NODE_POS_WITH_STORY : NODE_POS_STAGES).slice();
+    // マスの数に位置が足りないときは、最後の位置から右へずらして置く（落ちないように）
+    while (pos.length < items.length) pos.push([Math.min(96, pos[pos.length - 1][0] + 8), 50]);
+    const path = pos.slice(0, items.length).map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
+    container.querySelector('.map-path path')!.setAttribute('d', path);
+    container.querySelector('.chapter-no')!.textContent = `第${chapter.number}章`;
+    container.querySelector('.chapter-name')!.textContent = chapter.name;
+    container.querySelector('.chapter-tagline')!.textContent = chapter.tagline;
+    const i = CHAPTERS.indexOf(chapter);
+    // 章が1つしかなければ矢印は出さない。次の章は、前の章をクリアするまで押せない
+    prevBtn.hidden = nextBtn.hidden = CHAPTERS.length < 2;
+    prevBtn.disabled = i <= 0;
+    nextBtn.disabled = i >= CHAPTERS.length - 1 || !chapterOpen(i + 1);
+    nextBtn.setAttribute('aria-label', nextBtn.disabled && i < CHAPTERS.length - 1 ? '次の章（この章をクリアすると開きます）' : '次の章');
+  }
+
+  function switchChapter(step: number) {
+    const i = CHAPTERS.indexOf(chapter) + step;
+    if (i < 0 || i >= CHAPTERS.length || !chapterOpen(i)) return;
+    chapter = CHAPTERS[i];
+    // その章の、まだクリアしていない最初の遊べるステージ（全部クリア済みなら最後のステージ）を選ぶ
+    const open = chapter.stages.filter((s) => ctx.stageOpen(s.id) && !waits(s.id));
+    const node = STORY_NODES.find((n) => n.chapter === chapter.number);
+    selected = open.find((s) => !(ctx.progress.stages[s.id]?.stars > 0))?.id ?? open[open.length - 1]?.id ?? node?.id ?? chapter.stages[0].id;
+    ctx.sound.play({ name: 'select' });
+    history.replaceState(null, '', `#/quest/${selected}`);
+    renderChapter();
+    renderNodes();
+    renderPanel();
+  }
 
   function renderNodes() {
     nodes.innerHTML = items
@@ -84,7 +137,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
         if (item.kind === 'story') {
           const node = findStoryNode(item.id)!;
           const seen = sceneSeen(ctx.progress, node.sceneId);
-          const [x, y] = NODE_POS[i];
+          const [x, y] = pos[i];
           return `
           <div role="listitem" class="map-node-wrap" style="left:${x}%;top:${y}%">
             <button type="button" class="map-node story${item.id === selected ? ' selected' : ''}${seen ? ' cleared' : ''}" data-stage="${item.id}" aria-label="${SCENES[node.sceneId].title}${seen ? '（見た）' : ''}" aria-pressed="${item.id === selected}">
@@ -97,7 +150,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
         // 1-1 はプロローグを見てから（開発者モードでは待たせない）
         const open = ctx.stageOpen(s.id) && !waits(s.id);
         const stars = ctx.progress.stages[s.id]?.stars ?? 0;
-        const [x, y] = NODE_POS[i];
+        const [x, y] = pos[i];
         const label = open ? `${s.id} ${stageEnemyName(s)}、★${stars}` : waits(s.id) ? `${s.id}、プロローグを見ると開きます` : `${s.id}、まだ遊べません`;
         return `
           <div role="listitem" class="map-node-wrap" style="left:${x}%;top:${y}%">
@@ -160,6 +213,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
           <div><dt>HP</dt><dd>${enemy.maxHp.toLocaleString('ja-JP')}</dd></div>
           <div><dt>攻撃</dt><dd>${enemy.attack}</dd></div>
           <div><dt>強攻撃</dt><dd>${enemy.heavy ? `${enemy.heavy.every}ターンごとに ${enemy.heavy.attack}` : 'なし'}</dd></div>
+          ${enemy.junk ? `<div><dt>星屑</dt><dd>${enemy.junk.every}ターンごとに${enemy.junk.count}個（最大${enemy.junk.max}個）</dd></div>` : ''}
           <div><dt>色</dt><dd class="aff-row">${affinityHtml(enemy)}</dd></div>
         </dl>
       </div>
@@ -207,6 +261,9 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
   // 直接開いた URL と選んだマスが違えば、選んだマスに合わせる
   if (initialStageId && initialStageId !== selected) history.replaceState(null, '', `#/quest/${selected}`);
   container.querySelector('.back')?.addEventListener('click', () => ctx.navigate({ name: 'home' }));
+  prevBtn.addEventListener('click', () => switchChapter(-1));
+  nextBtn.addEventListener('click', () => switchChapter(1));
+  renderChapter();
   renderNodes();
   renderPanel();
   return () => undefined;

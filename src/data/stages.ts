@@ -1,4 +1,4 @@
-// ステージ構成（第1章）と、★の条件
+// ステージ構成（第1章・第2章）と、★の条件
 import { ENEMIES } from './enemies';
 
 export interface StageDef {
@@ -33,6 +33,19 @@ export const CHAPTERS: ChapterDef[] = [
       { id: '1-3', chapter: 1, enemyId: 'moonwarden', targetTurns: 9, exp: 50 },
       { id: '1-4', chapter: 1, enemyId: 'hunter', targetTurns: 12, exp: 60 },
       { id: '1-5', chapter: 1, enemyId: 'shadow', targetTurns: 14, exp: 80 },
+    ],
+  },
+  {
+    // 2026-11-07。どの敵もお邪魔の星屑をまぜる（仕様書 12.12）。2-5 の初クリアでてんびん座が加わる（12.6）
+    number: 2,
+    name: '天秤の審判',
+    tagline: '傾いた天秤を、星の並びで正す',
+    stages: [
+      { id: '2-1', chapter: 2, enemyId: 'falsescale', targetTurns: 13, exp: 90 },
+      { id: '2-2', chapter: 2, enemyId: 'brokenverdict', targetTurns: 14, exp: 100 },
+      { id: '2-3', chapter: 2, enemyId: 'chainwarden', targetTurns: 17, exp: 110 },
+      { id: '2-4', chapter: 2, enemyId: 'irongiant', targetTurns: 16, exp: 120 },
+      { id: '2-5', chapter: 2, enemyId: 'scaleeater', targetTurns: 17, exp: 150 },
     ],
   },
 ];

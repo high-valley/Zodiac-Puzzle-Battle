@@ -9,7 +9,7 @@ import { artHeightRatio, HERO_ART } from '../data/heroArt';
 import { HEROES } from '../data/heroes';
 import type { HeroId } from '../game/types';
 import { CHAPTERS, findStage, stageEnemyName } from '../data/stages';
-import { heroGrowth } from '../storage/progress';
+import { heroGrowth, nextStageId } from '../storage/progress';
 import { FEATURE_ICON, featureShortName } from './comingSoon';
 import type { FeatureId } from '../routes';
 
@@ -60,7 +60,8 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
   // 前に幅の広い絵が来ると、後ろの2人がほとんど隠れるため。札は左からの並びで出すので、どの位置でも名前と合う
   const placed = party.length === 4 ? [...party].sort((p, q) => artWidth(p) - artWidth(q)) : party;
   const savedStage = saved ? findStage(saved.stageId) : undefined;
-  const chapter = CHAPTERS[0];
+  // 「冒険へ」に出す章：次に遊ぶステージの章（全部クリアしたら最後の章）
+  const chapter = CHAPTERS.find((c) => c.number === findStage(nextStageId(ctx.progress))?.chapter) ?? CHAPTERS[0];
   const stars = chapter.stages.reduce((sum, s) => sum + (ctx.progress.stages[s.id]?.stars ?? 0), 0);
 
   container.innerHTML = `

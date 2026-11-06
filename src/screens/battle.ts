@@ -19,7 +19,7 @@ import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { rotate2x2 } from '../game/board';
 import { createBattle, enemyOf, resolveTurn } from '../game/combat';
-import { findMatches, matchedMask, maskToCells } from '../game/matching';
+import { findMatches, matchedMask, maskToCells, junkBeside } from '../game/matching';
 import { detectHeroSpecial } from '../game/specials';
 import type { BattleEvent, BattleState, BattleStats, Direction, HeroId, Pos, Rotation } from '../game/types';
 import { applyBattleExp, heroesJoinedBy, partyMembers, recordResult, type GrowthChange } from '../storage/progress';
@@ -97,7 +97,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         <div class="bar enemy-bar" role="meter" aria-label="敵のHP" aria-valuemin="0" aria-valuemax="${state.enemyMaxHp}">
           <span class="fill"></span>
         </div>
-        <span class="enemy-meta"><span class="bar-value enemy-hp"></span><span class="enemy-charge" aria-live="polite"></span></span>
+        <span class="enemy-meta"><span class="bar-value enemy-hp"></span><span class="enemy-charge" aria-live="polite"></span><span class="enemy-junk" aria-live="polite"></span></span>
       </div>
       <div class="popups enemy-popups" aria-live="polite"></div>
     </section>
@@ -198,6 +198,17 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     bar.classList.toggle('low', value / max <= 0.3);
   }
 
+  /** お邪魔の星屑をまぜるまでの予告（仕様書 12.12） */
+  function renderJunk(junkIn: number | undefined) {
+    const el = $<HTMLElement>('.enemy-junk');
+    if (!enemy.junk || junkIn === undefined) {
+      el.textContent = '';
+      return;
+    }
+    el.classList.toggle('imminent', junkIn === 1);
+    el.textContent = junkIn === 1 ? `このターンの終わりに星屑を${enemy.junk.count}個まぜる` : `星屑まで あと${junkIn}ターン`;
+  }
+
   function renderCharge(chargeIn: number | null) {
     const el = $<HTMLElement>('.enemy-charge');
     if (!enemy.heavy || chargeIn === null) {
@@ -217,8 +228,12 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   /** 「攻撃」で消える3個並びと、仲間全員の必殺の形に印をつける */
   function renderMarks() {
     const b = previewBoard();
-    const clear = maskToCells(matchedMask(findMatches(b)));
+    const mask = matchedMask(findMatches(b));
     const special = state.party.flatMap((m) => detectHeroSpecial(b, m.id)?.cells ?? []);
+    // 最初の消去で一緒に消える星屑（消えるマスと必殺の形の、上下左右）にも白い輪をつける
+    const both = mask.map((line) => line.slice());
+    for (const p of special) both[p.row][p.col] = true;
+    const clear = [...maskToCells(mask), ...junkBeside(b, both)];
     board.mark(clear, special);
   }
 
@@ -441,6 +456,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         $('.party').classList.remove('shake');
         battleEl.classList.remove('heavy-hit');
         break;
+      case 'junk':
+        // 敵がお邪魔の星屑をまぜる（隣でそろえると一緒に消える）
+        popup('.enemy-popups', '星屑', 'chain');
+        await board.animateJunk(ev.board, ev.cells, puzzleMs(500));
+        break;
       case 'end':
         break;
     }
@@ -586,6 +606,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         board.render(state.board);
         renderStatus();
         renderCharge(state.enemyChargeIn);
+        renderJunk(state.enemyJunkIn);
         // 勝敗が決まったら操作を止めたままにする（リザルトへ移るまでにメニューを開いたりリタイアしたりできないように）
         if (state.status === 'playing') setBusy(false);
         renderTurnBar();
@@ -685,6 +706,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   board.render(previewBoard());
   renderStatus();
   renderCharge(state.enemyChargeIn);
+  renderJunk(state.enemyJunkIn);
   renderSettings();
   renderTurnBar();
   renderMarks();

@@ -1,9 +1,9 @@
-import type { BattleState, Board, OrbColor } from '../src/game/types';
+import type { BattleState, Board, Cell } from '../src/game/types';
 
-const FROM_CHAR: Record<string, OrbColor> = { R: 'red', B: 'blue', G: 'green', P: 'pink' };
-const TO_CHAR: Record<OrbColor, string> = { red: 'R', blue: 'B', green: 'G', pink: 'P' };
+const FROM_CHAR: Record<string, Cell> = { R: 'red', B: 'blue', G: 'green', P: 'pink', X: 'junk' };
+const TO_CHAR: Record<Cell, string> = { red: 'R', blue: 'B', green: 'G', pink: 'P', junk: 'X' };
 
-/** ['RBGPR', ...] の形で盤面を書く */
+/** ['RBGPR', ...] の形で盤面を書く（X はお邪魔の星屑） */
 export function parseBoard(rows: string[]): Board {
   return rows.map((line) =>
     line.split('').map((ch) => {
