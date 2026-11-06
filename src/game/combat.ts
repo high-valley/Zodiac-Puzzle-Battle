@@ -6,10 +6,11 @@ import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
 import { DEFAULT_PARTY, HEROES } from '../data/heroes';
 import { levelPercent } from '../data/growth';
 import { partyDefense, partyMaxHp, partyProblem, scaled } from './party';
-import { collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
-import { findMatches, matchedMask, maskToCells } from './matching';
+import { cloneBoard, collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
+import { nextInt } from './rng';
+import { countJunk, findMatches, junkBeside, matchedMask, maskToCells } from './matching';
 import { detectHeroSpecial } from './specials';
-import type { Actor, BattleEvent, BattleState, HeroId, OrbColor, PartyMember, SpecialResult, TraitState, TurnAction, TurnResult } from './types';
+import type { Actor, BattleEvent, Board, BattleState, HeroId, OrbColor, PartyMember, Pos, SpecialResult, TraitState, TurnAction, TurnResult } from './types';
 
 export { partyMaxHp } from './party';
 
@@ -57,10 +58,32 @@ export function createBattle(
     enemyHp: enemy.maxHp,
     enemyMaxHp: enemy.maxHp,
     enemyChargeIn: enemy.heavy ? enemy.heavy.every : null,
+    ...(enemy.junk ? { enemyJunkIn: enemy.junk.every } : {}),
     rngSeed: initial.seed,
     status: 'playing',
     stats: { maxChain: 0, specials: 0, damageDealt: 0, healed: 0 },
   };
+}
+
+/**
+ * 星屑でないマスから count 個を乱数で選び、星屑に変える（仕様書 12.12）。
+ * 星屑はそろわないので、まぜても新しいマッチはできない。選んだマスは上の行から順に返す
+ */
+export function mixJunk(board: Board, count: number, seed: number): { board: Board; cells: Pos[]; seed: number } {
+  let s = seed;
+  const free: Pos[] = [];
+  board.forEach((line, row) => line.forEach((x, col) => x !== 'junk' && free.push({ row, col })));
+  const picked: Pos[] = [];
+  for (let i = 0; i < count && free.length > 0; i++) {
+    const pick = nextInt(s, free.length);
+    s = pick.seed;
+    picked.push(free.splice(pick.value, 1)[0]);
+  }
+  if (picked.length === 0) return { board, cells: [], seed: s };
+  const next = cloneBoard(board);
+  for (const p of picked) next[p.row][p.col] = 'junk';
+  picked.sort((a, b) => a.row - b.row || a.col - b.col);
+  return { board: next, cells: picked, seed: s };
 }
 
 function emptyCounts(): Record<OrbColor, number> {
@@ -180,8 +203,10 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const counts = emptyCounts();
     const top = emptyCounts();
     for (const p of maskToCells(matched)) {
-      counts[board[p.row][p.col]]++;
-      if (p.row < TRAITS.farRows) top[board[p.row][p.col]]++;
+      // 通常マッチのマスは星屑ではない（星屑はそろわない）
+      const color = board[p.row][p.col] as OrbColor;
+      counts[color]++;
+      if (p.row < TRAITS.farRows) top[color]++;
     }
     const colors = (Object.values(counts) as number[]).filter((n) => n > 0).length;
     // 仲間全員が同時に行動する。自分の色が消えたキャラだけ動く
@@ -210,6 +235,9 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     const mask = matched.map((line) => line.slice());
     for (const p of specialCells) mask[p.row][p.col] = true;
     specialCells = [];
+    // 消えるマスの上下左右にある星屑は、一緒に消える（効果は出さない。仕様書 12.12）
+    const junk = junkBeside(board, mask);
+    for (const p of junk) mask[p.row][p.col] = true;
     const refilled = collapseAndRefill(board, mask, seed);
     board = refilled.board;
     seed = refilled.seed;
@@ -222,6 +250,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       damage: stepDamage,
       heal: stepHeal,
       board,
+      ...(junk.length > 0 ? { junk } : {}),
     });
   }
 
@@ -271,6 +300,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
   // 敵の行動：強攻撃のある敵は、残りターンが 0 になったら強攻撃して数え直す
   let status: BattleState['status'] = 'playing';
   let chargeIn = state.enemyChargeIn;
+  let junkIn = state.enemyJunkIn;
   if (enemyHp === 0) {
     status = 'victory';
   } else {
@@ -292,6 +322,19 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     partyHp = Math.max(0, partyHp - amount);
     events.push({ type: 'enemyAttack', amount, partyHp, heavy, ...(shielded ? { shield: true } : {}) });
     if (partyHp === 0) status = 'defeat';
+    // お邪魔の星屑：残りターンが 0 になったら、盤面のオーブを星屑に変えて数え直す
+    if (status === 'playing' && enemy.junk && junkIn !== undefined) {
+      junkIn -= 1;
+      if (junkIn <= 0) {
+        junkIn = enemy.junk.every;
+        const mixed = mixJunk(board, Math.min(enemy.junk.count, enemy.junk.max - countJunk(board)), seed);
+        seed = mixed.seed;
+        if (mixed.cells.length > 0) {
+          board = mixed.board;
+          events.push({ type: 'junk', cells: mixed.cells, board });
+        }
+      }
+    }
   }
   if (status !== 'playing') events.push({ type: 'end', status });
 
@@ -309,6 +352,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       partyHp,
       enemyHp,
       enemyChargeIn: chargeIn,
+      ...(junkIn !== undefined ? { enemyJunkIn: junkIn } : {}),
       rngSeed: seed,
       status,
       traits,

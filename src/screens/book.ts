@@ -42,7 +42,7 @@ export function mountBook(container: HTMLElement, ctx: AppContext): () => void {
               <p class="ee-name">${known ? enemy.name : '？？？'}</p>
               <p class="ee-meta">${stage.id}　${
                 known
-                  ? `HP ${enemy.maxHp.toLocaleString('ja-JP')}・攻撃 ${enemy.attack}${enemy.heavy ? `・${enemy.heavy.every}ターンごとに強攻撃 ${enemy.heavy.attack}` : ''}`
+                  ? `HP ${enemy.maxHp.toLocaleString('ja-JP')}・攻撃 ${enemy.attack}${enemy.heavy ? `・${enemy.heavy.every}ターンごとに強攻撃 ${enemy.heavy.attack}` : ''}${enemy.junk ? `・${enemy.junk.every}ターンごとに星屑${enemy.junk.count}個（最大${enemy.junk.max}個）` : ''}`
                   : 'まだ倒していない'
               }</p>
               ${known ? `<p class="ee-aff aff-row">${affinityHtml(enemy)}</p>` : ''}

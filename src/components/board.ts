@@ -1,22 +1,26 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
-import type { Board, Direction, OrbColor, Pos } from '../game/types';
+import type { Board, Cell, Direction, OrbColor, Pos } from '../game/types';
 import { advanceDial, angleAround, pickIntersection, releaseSteps } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
 export const ORB_GLYPH: Record<OrbColor, string> = { red: '▲', blue: '◆', green: '■', pink: '♥' };
 export const ORB_LABEL: Record<OrbColor, string> = { red: '赤', blue: '青', green: '緑', pink: 'ピンク' };
+/** 盤面のマスの読み上げ（お邪魔の星屑を含む。仕様書 12.12） */
+const CELL_LABEL: Record<Cell, string> = { ...ORB_LABEL, junk: 'お邪魔の星屑' };
 
 /** オーブの中の白い記号（目指す見た目 11-target-orbs：中が透ける線の三角・ひし形・四角、塗りのハート） */
-const ORB_SYMBOL: Record<OrbColor, string> = {
+const ORB_SYMBOL: Record<Cell, string> = {
+  // お邪魔の星屑：くすんだ四つ角の星（どの色の記号とも形が違う）
+  junk: '<path d="M12 2.8 14 10 21.2 12 14 14 12 21.2 10 14 2.8 12 10 10Z" class="fill"/>',
   red: '<path d="M12 4.2 20.6 19H3.4Z" class="line"/>',
   blue: '<path d="M12 3.2 20.8 12 12 20.8 3.2 12Z" class="line"/>',
   green: '<path d="M5 5h14v14H5Z" class="line"/>',
   pink: '<path d="M12 20.4C6 16.3 3 13 3 9.3 3 6.6 5.1 4.6 7.6 4.6c1.8 0 3.3 1 4.4 2.6 1.1-1.6 2.6-2.6 4.4-2.6 2.5 0 4.6 2 4.6 4.7 0 3.7-3 7-9 11.1Z" class="fill"/>',
 };
 
-export function orbSymbolSvg(color: OrbColor): string {
+export function orbSymbolSvg(color: Cell): string {
   return `<svg class="orb-symbol" viewBox="0 0 24 24" aria-hidden="true">${ORB_SYMBOL[color]}</svg>`;
 }
 
@@ -38,6 +42,8 @@ export interface BoardView {
   mark(clear: Pos[], special: Pos[]): void;
   /** 必殺の形を星座の線で結んで光らせる */
   drawConstellation(cells: Pos[], ms: number): Promise<void>;
+  /** 盤面を描き直し、敵がまぜたお邪魔の星屑（cells）を現れさせる（仕様書 12.12） */
+  animateJunk(board: Board, cells: Pos[], ms: number): Promise<void>;
 }
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -135,7 +141,7 @@ export function createBoardView(
         o.style.setProperty('--r', String(r));
         o.style.setProperty('--c', String(c));
         o.setAttribute('role', 'gridcell');
-        o.setAttribute('aria-label', ORB_LABEL[color]);
+        o.setAttribute('aria-label', CELL_LABEL[color]);
         o.innerHTML = orbSymbolSvg(color);
         orbLayer.append(o);
         return o;
@@ -391,6 +397,12 @@ export function createBoardView(
       running = [];
       el.classList.remove('rotating');
       render(board);
+    },
+    async animateJunk(next, cells, ms) {
+      render(next);
+      for (const p of cells) orbAt(p).classList.add('junk-in');
+      await wait(ms);
+      for (const p of cells) orbAt(p).classList.remove('junk-in');
     },
     async animateClear(cells, ms) {
       for (const p of cells) orbAt(p).classList.add('clearing');

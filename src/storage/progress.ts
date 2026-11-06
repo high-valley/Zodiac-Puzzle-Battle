@@ -161,7 +161,8 @@ export function isBattleState(v: unknown): v is BattleState {
   if (!Array.isArray(board) || board.length !== BOARD_SIZE) return false;
   for (const row of board) {
     if (!Array.isArray(row) || row.length !== BOARD_SIZE) return false;
-    if (!row.every((c) => (ORB_COLORS as readonly unknown[]).includes(c))) return false;
+    // お邪魔の星屑（2026-11-07〜）も盤面のマスとして読む
+    if (!row.every((c) => c === 'junk' || (ORB_COLORS as readonly unknown[]).includes(c))) return false;
   }
   // 出撃した仲間が編成のルールに合うこと（前の版の selectedHero は使わない。仕様書 12.7）
   if (!Array.isArray(s.party) || s.party.some((m) => typeof m !== 'object' || m === null)) return false;
@@ -176,6 +177,9 @@ export function isBattleState(v: unknown): v is BattleState {
   if (!isInt(s.partyHp, 1, s.partyMaxHp as number) || !isInt(s.enemyHp, 1, s.enemyMaxHp as number)) return false;
   // 強攻撃の残りターンは、その敵の強攻撃の間隔の中に収まっていること
   if (enemy.heavy ? !isInt(s.enemyChargeIn, 1, enemy.heavy.every) : s.enemyChargeIn !== null) return false;
+  // 星屑をまぜるまでの残りターンも同じ。まぜない敵の盤面に星屑があるのはおかしい
+  if (enemy.junk ? !isInt(s.enemyJunkIn, 1, enemy.junk.every) : s.enemyJunkIn !== undefined) return false;
+  if (!enemy.junk && board.some((row: unknown[]) => row.includes('junk'))) return false;
   if (!isInt(s.rngSeed, 0, 0xffffffff)) return false;
   if (s.status !== 'playing') return false;
   // 特性で続くもの（2026-11-05〜。無くてもよい）

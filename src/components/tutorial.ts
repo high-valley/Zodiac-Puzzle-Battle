@@ -76,6 +76,16 @@ const STEPS: Step[] = [
         <span class="t-star-row"><span class="on">★</span><span class="on">★</span><span>★</span></span>
       </div>`,
   },
+  {
+    tab: 'battle',
+    title: 'お邪魔の星屑',
+    body: '第2章の敵は、何ターンかごとに盤面のオーブを黒い「星屑」に変えます。星屑はそろえても消えませんが、上下左右のマスでオーブがそろって消えると、一緒に消えます。敵の名前の下に「星屑まで あと○ターン」と出ます。',
+    figure: `
+      <div class="t-junk" aria-hidden="true">
+        ${orb('red')}${orb('red')}${orb('red')}
+        <span class="t-orb orb-junk">✦</span>${orb('blue')}${orb('pink')}
+      </div>`,
+  },
 ];
 
 /** 遊び方を開く。すでに何か開いていれば何もしない */

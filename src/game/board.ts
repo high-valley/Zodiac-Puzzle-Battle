@@ -1,7 +1,7 @@
 // 盤面の生成・2×2回転・落下と補充
 import { BOARD_SIZE, MIN_MATCH, ORB_COLORS } from '../data/balance';
 import { nextInt } from './rng';
-import type { Board, Direction, OrbColor } from './types';
+import type { Board, Cell, Direction, OrbColor } from './types';
 
 /** 回転できる交点は 0..(BOARD_SIZE - 2) */
 export const MAX_INTERSECTION = BOARD_SIZE - 2;
@@ -66,7 +66,7 @@ export function createInitialBoard(seed: number): { board: Board; seed: number }
       }
       if (r >= MIN_MATCH - 1) {
         const above = board.slice(r - (MIN_MATCH - 1), r).map((line) => line[c]);
-        if (above.every((x) => x === above[0])) banned.add(above[0]);
+        if (above.every((x) => x === above[0])) banned.add(above[0] as OrbColor);
       }
       const choices = ORB_COLORS.filter((color) => !banned.has(color));
       const pick = nextInt(s, choices.length);
@@ -89,7 +89,8 @@ export function collapseAndRefill(
   let s = seed;
   const next = cloneBoard(board);
   for (let c = 0; c < BOARD_SIZE; c++) {
-    const kept: OrbColor[] = [];
+    // 星屑も残って落ちる。補充では星屑は出ない
+    const kept: Cell[] = [];
     for (let r = BOARD_SIZE - 1; r >= 0; r--) {
       if (!cleared[r][c]) kept.push(board[r][c]);
     }

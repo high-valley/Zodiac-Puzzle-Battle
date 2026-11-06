@@ -630,6 +630,33 @@ button:focus-visible {
   border: 1px solid #f1c07355;
   background: linear-gradient(90deg, #2b2266cc, #151b45cc);
   text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.chapter-text {
+  flex: 1;
+  min-width: 0;
+}
+/* 章の切り替え（第2章から。2026-11-07） */
+.chapter-nav {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #f1c07355;
+  background: #0b0f2e88;
+  color: var(--gold);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+.chapter-nav[hidden] {
+  display: none;
+}
+.chapter-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 .chapter-no {
   margin: 0;
@@ -4285,4 +4312,93 @@ html[data-route='story'] body::after {
 .map-node.story {
   border-style: dashed;
   font-family: var(--font-display);
+}
+
+/* お邪魔の星屑（仕様書 12.12。2026-11-07）。絵が届くまでは、くすんだ灰色の玉に四つ角の星をアプリで描く。
+   色のオーブとまちがえないよう、光らせず、記号は形の違う星にする */
+.orb-junk {
+  --orb: #4a4658;
+  --orb-deep: #16141f;
+  --orb-light: #8a8499;
+  --orb-glow: #00000000;
+  --orb-img: none;
+}
+.orb.orb-junk::before {
+  background:
+    radial-gradient(circle at 34% 30%, #ffffff2e 0 7%, transparent 28%),
+    radial-gradient(circle at 62% 70%, #00000055 0 20%, transparent 55%),
+    radial-gradient(circle closest-side, var(--orb) 0 80%, var(--orb-deep) 96%, transparent 100%);
+  box-shadow: inset 0 0 0 1px #ffffff1f;
+}
+.orb.orb-junk .orb-symbol {
+  display: block;
+  filter: none;
+}
+.orb.orb-junk .orb-symbol .fill {
+  fill: #b9b3c9b0;
+  stroke: none;
+}
+/* 敵がまぜた直後：黒い煙から現れる */
+.orb.junk-in {
+  animation: junk-in 0.5s ease-out;
+}
+@keyframes junk-in {
+  0% {
+    filter: brightness(2.4) saturate(0);
+    scale: 1.35;
+  }
+  100% {
+    filter: none;
+    scale: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .orb.junk-in {
+    animation: none;
+  }
+}
+/* 敵の次の行動（強攻撃・星屑）を2行で出す */
+.enemy-junk {
+  display: block;
+  font-size: 11px;
+  color: #c9c2dc;
+}
+.enemy-junk.imminent {
+  color: var(--gold);
+}
+/* 遊び方：星屑の図（上の赤3個がそろうと、下の星屑も一緒に消える） */
+.t-junk {
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+}
+.t-junk .orb-junk {
+  color: #b9b3c9;
+  text-shadow: none;
+}
+.t-junk .orb-red {
+  animation: t-junk-clear 2.4s ease-in-out infinite;
+}
+.t-junk .orb-junk {
+  animation: t-junk-clear 2.4s ease-in-out infinite;
+}
+@keyframes t-junk-clear {
+  0%,
+  45% {
+    opacity: 1;
+    scale: 1;
+  }
+  60%,
+  85% {
+    opacity: 0;
+    scale: 0.3;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-junk .t-orb {
+    animation: none;
+  }
 }

@@ -1,6 +1,11 @@
 // ゲームエンジンの型。画面やブラウザ固有 API には依存しない
 
 export type OrbColor = 'red' | 'blue' | 'green' | 'pink';
+/**
+ * 盤面の1マス。'junk' は敵がまぜるお邪魔の星屑（2026-11-07。仕様書 12.12）。
+ * 星屑どうしはそろわず、隣のマスで通常マッチか必殺が消えたときに一緒に消える。補充では出ない
+ */
+export type Cell = OrbColor | 'junk';
 /** 12星座（仕様書 12.1） */
 export type HeroId =
   | 'aries'
@@ -24,7 +29,7 @@ export interface PartyMember {
 export type Direction = 'clockwise' | 'counterclockwise';
 
 /** 5×5。board[row][col]、row 0 が一番上 */
-export type Board = OrbColor[][];
+export type Board = Cell[][];
 
 export interface Pos {
   row: number;
@@ -58,6 +63,8 @@ export interface BattleState {
   enemyMaxHp: number;
   /** 強攻撃まであと何ターンか。強攻撃のない敵は null */
   enemyChargeIn: number | null;
+  /** お邪魔の星屑をまぜるまであと何ターンか。まぜない敵は省く（2026-11-07〜） */
+  enemyJunkIn?: number;
   /** 乱数の内部状態。補充のたびに進む */
   rngSeed: number;
   status: BattleStatus;
@@ -138,8 +145,10 @@ export type BattleEvent =
       type: 'clear';
       /** 通常マッチの連鎖段数（1〜）。必殺に使ったオーブだけを消した段は 0 */
       chain: number;
-      /** この段で消したマス（通常マッチ＋必殺に使ったオーブ） */
+      /** この段で消したマス（通常マッチ＋必殺に使ったオーブ＋隣で一緒に消えた星屑） */
       cells: Pos[];
+      /** そのうち、一緒に消えた星屑のマス（無ければ省く） */
+      junk?: Pos[];
       /** 通常マッチで消した色ごとの個数（通常効果の計算に使う。必殺だけで消えた分は含めない） */
       counts: Record<OrbColor, number>;
       /** この段で動いたキャラ（自分の色が消えたキャラ） */
@@ -154,6 +163,8 @@ export type BattleEvent =
   | { type: 'damage'; amount: number; enemyHp: number }
   /** heavy は強攻撃のとき true */
   | { type: 'enemyAttack'; amount: number; partyHp: number; heavy: boolean; shield?: boolean }
+  /** 敵がお邪魔の星屑をまぜた。cells は星屑になったマス、board はまぜた後の盤面 */
+  | { type: 'junk'; cells: Pos[]; board: Board }
   /** 毒（さそり座）のターンの終わりのダメージ */
   | { type: 'poison'; amount: number; enemyHp: number }
   /** 恵みの雨（みずがめ座）の続く回復。amount は実際に増えた量 */

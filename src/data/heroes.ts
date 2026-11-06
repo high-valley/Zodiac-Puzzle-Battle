@@ -270,7 +270,7 @@ export const HERO_JOIN: Record<HeroId, HeroJoin> = {
   taurus: 'later',
   gemini: 'later',
   cancer: 'later',
-  // 最初の新しい仲間は第2章の最後（第2章のステージ数は未定。5つなら 2-5）。緑のキャラが入り、4人目の枠が使えるようになる（2026-11-03）
+  // 最初の新しい仲間は第2章の最後（2-5。2026-11-07 に第2章を5ステージで作った）。緑のキャラが入り、4人目の枠が使えるようになる（2026-11-03）
   libra: { stageId: '2-5' },
   scorpio: 'later',
   capricorn: 'later',

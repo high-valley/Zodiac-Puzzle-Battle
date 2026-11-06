@@ -47,7 +47,7 @@ export function estimate(
   enemy?: Pick<EnemyDef, 'weak' | 'resist'>,
 ): { damage: number; heal: number; special: boolean } {
   const counts: Record<OrbColor, number> = { red: 0, blue: 0, green: 0, pink: 0 };
-  for (const p of maskToCells(matchedMask(findMatches(board)))) counts[board[p.row][p.col]]++;
+  for (const p of maskToCells(matchedMask(findMatches(board)))) counts[board[p.row][p.col] as OrbColor]++;
   let damage = 0;
   let heal = 0;
   let special = false;
