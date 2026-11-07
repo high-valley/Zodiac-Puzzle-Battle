@@ -34,17 +34,17 @@ describe('防御力と色の弱点（仕様書 12.11）', () => {
     }
   });
 
-  it('防御もレベルで伸びる（Lv11 で 1.5倍）。仲間の合計で効く', () => {
-    expect(heroDefense('taurus', 11)).toBe(36);
+  it('防御もレベルで伸びる（Lv6 で 1.5倍）。仲間の合計で効く', () => {
+    expect(heroDefense('taurus', 6)).toBe(36);
     expect(partyDefense([{ id: 'taurus', level: 1 }, { id: 'leo', level: 1 }])).toBe(30);
     expect(damageTaken(100, 30)).toBe(77);
   });
 
   it('必殺の耐性（×0.7）は、レベルをかけてから最後に1回だけ丸める（.5 は切り上げ）', () => {
-    // 威力160（さそり座）Lv11 → 240 × 0.7 = 168
-    expect(specialEffect('scorpio', 11, { resist: 'blue' }).damage).toBe(168);
-    // 威力110 Lv11 → 165 × 0.7 = 115.5 → 116
-    expect(specialEffect('gemini', 11, { resist: 'blue' }).damage).toBe(116);
+    // 威力160（さそり座）Lv6 → 240 × 0.7 = 168
+    expect(specialEffect('scorpio', 6, { resist: 'blue' }).damage).toBe(168);
+    // 威力110 Lv6 → 165 × 0.7 = 115.5 → 116
+    expect(specialEffect('gemini', 6, { resist: 'blue' }).damage).toBe(116);
     // 回復役の必殺には弱点がかからない
     expect(specialEffect('virgo', 1, { weak: 'pink' }).heal).toBe(HEROES.virgo.special.power);
   });

@@ -3,8 +3,8 @@
 /** 最大レベル（2026-11-07 ユーザーの決定で 20 → 40） */
 export const MAX_LEVEL = 40;
 
-/** レベルが1上がるごとに増える強さ（レベル1の何%か） */
-export const LEVEL_STEP_PERCENT = 5;
+/** レベルが1上がるごとに増える強さ（レベル1の何%か）。2026-11-07 ユーザーの決定で 5 → 10 */
+export const LEVEL_STEP_PERCENT = 10;
 
 /** レベルによる強さ（レベル1を100とした整数）。小数の誤差を出さないよう、丸める計算はこちらを使う */
 export function levelPercent(level: number): number {
