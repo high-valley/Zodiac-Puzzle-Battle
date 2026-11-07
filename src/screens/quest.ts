@@ -217,7 +217,9 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
         ctx.navigate({ name: 'story', sceneId: b.dataset.scene!, next: { name: 'quest', stageId: stage.id } });
       }),
     );
-    (modal.overlay.querySelector('.close') as HTMLElement).focus();
+    // 下の「とじる」まで送らず、シートの上（敵の名前）から見せる
+    (modal.overlay.querySelector('.close') as HTMLElement).focus({ preventScroll: true });
+    (modal.overlay.querySelector('.stage-sheet-card') as HTMLElement).scrollTop = 0;
   }
 
   function renderPanel() {

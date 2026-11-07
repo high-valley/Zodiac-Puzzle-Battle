@@ -4536,3 +4536,10 @@ html[data-route='story'] body::after {
     padding: 12px 14px;
   }
 }
+/* シートの敵の名前は、欄と同じ見た目にする（.sheet-card h2 を上書き） */
+.stage-sheet-card .stage-head .stage-enemy {
+  margin: 0;
+  color: var(--ink);
+  font-size: 20px;
+  text-align: left;
+}
