@@ -414,7 +414,7 @@ describe('キャラ特性（仕様書 12.8）', () => {
   });
 
   it('特性はレベルの倍率と重なる', () => {
-    expect(normalEffect('leo', red(3), 3, 11).damage).toBe(Math.round(coef('leo') * 3 * (1 + TRAITS.chainStep * 2) * 1.5));
+    expect(normalEffect('leo', red(3), 3, 6).damage).toBe(Math.round(coef('leo') * 3 * (1 + TRAITS.chainStep * 2) * 1.5));
   });
 
   it('量（おうし座）：一度に多く消すほど伸びる（3個までは同じ）', () => {

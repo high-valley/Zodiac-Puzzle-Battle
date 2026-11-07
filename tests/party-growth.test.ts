@@ -93,33 +93,33 @@ describe('編成のルール', () => {
 });
 
 describe('レベルによる強さ', () => {
-  it('レベル1で倍率1、1上がるごとに5%', () => {
+  it('レベル1で倍率1、1上がるごとに10%（2026-11-07〜）', () => {
     expect(levelMultiplier(1)).toBe(1);
-    expect(levelMultiplier(11)).toBe(1.5);
+    expect(levelMultiplier(6)).toBe(1.5);
     expect(MAX_LEVEL).toBe(40);
-    expect(levelMultiplier(20)).toBe(1.95);
-    expect(levelMultiplier(MAX_LEVEL)).toBe(2.95);
+    expect(levelMultiplier(20)).toBe(2.9);
+    expect(levelMultiplier(MAX_LEVEL)).toBe(4.9);
   });
 
   it('ちょうど .5 になる値はどのレベルでも切り上げる（小数の誤差で切り捨てない）', () => {
-    expect(scaled(90, 2)).toBe(95); // 94.5
-    expect(scaled(90, 4)).toBe(104); // 103.5
-    expect(scaled(110, 4)).toBe(127); // 126.5
-    expect(heroMaxHp('gemini', 4)).toBe(104);
+    expect(scaled(95, 2)).toBe(105); // 104.5
+    expect(scaled(105, 4)).toBe(137); // 136.5
+    expect(scaled(115, 2)).toBe(127); // 126.5
+    expect(scaled(135, 2)).toBe(149); // 148.5
   });
 
   it('パーティー最大HPは3人のレベル込みの寄与値の合計', () => {
-    const party = [m('aries', 11), m('sagittarius'), m('virgo', 3)];
-    expect(heroMaxHp('aries', 11)).toBe(150);
-    expect(partyMaxHp(party)).toBe(150 + 90 + Math.round(110 * 1.1));
+    const party = [m('aries', 6), m('sagittarius'), m('virgo', 3)];
+    expect(heroMaxHp('aries', 6)).toBe(150);
+    expect(partyMaxHp(party)).toBe(150 + 90 + Math.round(110 * 1.2));
     expect(createBattle(1, 'stardust', party).partyMaxHp).toBe(partyMaxHp(party));
   });
 
   it('通常効果と必殺の威力はレベルで伸びる', () => {
     // 特性のないさそり座で確かめる
     const counts = { red: 0, blue: 3, green: 0, pink: 0 };
-    expect(normalEffect('scorpio', counts, 1, 11).damage).toBe(Math.round(HEROES.scorpio.actions.blue!.coef * 3 * 1.5));
-    // 赤L字の盤面で、レベル1とレベル11の必殺のダメージをくらべる
+    expect(normalEffect('scorpio', counts, 1, 6).damage).toBe(Math.round(HEROES.scorpio.actions.blue!.coef * 3 * 1.5));
+    // 赤L字の盤面で、レベル1とレベル6（×1.5）の必殺のダメージをくらべる
     const redL = ['RRRPB', 'RPGBG', 'RBGPR', 'GPRBG', 'BBGPR'];
     const action = { rotations: [{ row: 3, col: 3, direction: 'clockwise' as const }] };
     const special = (level: number) => {
@@ -130,7 +130,7 @@ describe('レベルによる強さ', () => {
     // 星喰いの影は赤が弱点（×1.5。仕様書 12.11）
     const weak = colorMultiplier(ENEMIES.shadow, 'red');
     expect(special(1)).toBe(Math.round(HEROES.aries.special.power * weak));
-    expect(special(11)).toBe(Math.round(Math.round(HEROES.aries.special.power * 1.5) * weak));
+    expect(special(6)).toBe(Math.round(Math.round(HEROES.aries.special.power * 1.5) * weak));
   });
 });
 
