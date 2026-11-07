@@ -73,7 +73,7 @@ export function mountDev(container: HTMLElement, ctx: AppContext): () => void {
         <h2 class="panel-title">キャラのレベル</h2>
         <p class="dev-note">12人全員のレベルを変えます（保存した進行を書き換えます）。</p>
         <div class="dev-row">
-          ${[1, 10, MAX_LEVEL].map((lv) => `<button type="button" class="text-btn set-level" data-level="${lv}">全員 Lv.${lv}</button>`).join('')}
+          ${[1, 10, 20, MAX_LEVEL].map((lv) => `<button type="button" class="text-btn set-level" data-level="${lv}">全員 Lv.${lv}</button>`).join('')}
         </div>
       </section>
 

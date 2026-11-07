@@ -96,8 +96,9 @@ describe('レベルによる強さ', () => {
   it('レベル1で倍率1、1上がるごとに5%', () => {
     expect(levelMultiplier(1)).toBe(1);
     expect(levelMultiplier(11)).toBe(1.5);
-    expect(MAX_LEVEL).toBe(20);
-    expect(levelMultiplier(MAX_LEVEL)).toBe(1.95);
+    expect(MAX_LEVEL).toBe(40);
+    expect(levelMultiplier(20)).toBe(1.95);
+    expect(levelMultiplier(MAX_LEVEL)).toBe(2.95);
   });
 
   it('ちょうど .5 になる値はどのレベルでも切り上げる（小数の誤差で切り捨てない）', () => {
