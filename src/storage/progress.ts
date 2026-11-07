@@ -354,6 +354,7 @@ export function clearAllData(): void {
   try {
     window.localStorage.removeItem(KEY);
     window.localStorage.removeItem('zodiac-puzzle-battle:settings');
+    window.localStorage.removeItem('zodiac-puzzle-battle:heroSort');
   } catch {
     // 消せなくても続ける
   }

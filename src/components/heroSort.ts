@@ -23,7 +23,7 @@ const STORE_KEY = 'zodiac-puzzle-battle:heroSort';
 function loadKey(): HeroSortKey {
   try {
     const v = localStorage.getItem(STORE_KEY);
-    if (v && v in SORT_LABEL) return v as HeroSortKey;
+    if (v && Object.prototype.hasOwnProperty.call(SORT_LABEL, v)) return v as HeroSortKey;
   } catch {
     // 読めない環境（プライベートブラウズなど）は星座順
   }

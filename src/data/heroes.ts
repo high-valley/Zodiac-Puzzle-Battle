@@ -66,7 +66,8 @@ export interface HeroDef {
 
 /**
  * ステータスのタイプ（仕様書 12.13。2026-11-07 ユーザーの決定）。同じ色の3人が同じような数値にならないよう、得意なものを分ける。
- * 数値はレベル1のとき。2026-11-07 に全体を10倍にした（強さのつり合いは変えない）
+ * 数値はレベル1のとき。2026-11-07 に全体を10倍にした（強さのつり合いは変えない）。
+ * 係数は10の倍数にする（レベルの倍率が10%きざみなので、画面の攻撃力・回復力が小数にならない）
  */
 export type StatType = 'balanced' | 'attack' | 'stamina' | 'guard' | 'heal';
 export const STAT_TYPE_LABEL: Record<StatType, string> = { balanced: '均整型', attack: '攻撃型', stamina: '体力型', guard: '防御型', heal: '回復型' };
@@ -76,13 +77,13 @@ export const ATTACKER_TYPES = {
   balanced: { hp: 1000, defense: 120, coef: 120 },
   attack: { hp: 850, defense: 60, coef: 140 },
   stamina: { hp: 1300, defense: 100, coef: 110 },
-  guard: { hp: 1050, defense: 240, coef: 105 },
+  guard: { hp: 1050, defense: 240, coef: 100 },
 } satisfies Partial<Record<StatType, { hp: number; defense: number; coef: number }>>;
 
 /** 回復役のタイプ。coef＝ピンクを1個消すごとの回復 */
 export const HEALER_TYPES = {
-  heal: { hp: 1000, defense: 100, coef: 105 },
-  stamina: { hp: 1400, defense: 90, coef: 85 },
+  heal: { hp: 1000, defense: 100, coef: 100 },
+  stamina: { hp: 1400, defense: 90, coef: 90 },
   guard: { hp: 1150, defense: 240, coef: 80 },
 } satisfies Partial<Record<StatType, { hp: number; defense: number; coef: number }>>;
 

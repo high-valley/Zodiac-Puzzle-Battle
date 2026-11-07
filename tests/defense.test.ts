@@ -9,19 +9,19 @@ import { estimate, nextEnemyAttack } from '../tools/bot';
 import { createBattle } from '../src/game/combat';
 import { parseBoard } from './helpers';
 
-// 仕様書 12.11 の表（防御と係数）
+// 防御と係数（2026-11-07〜 仕様書 12.13 のタイプの値。12.11 の表は10倍前の値）
 const TABLE: Record<HeroId, [number, number]> = {
   aries: [120, 120],
   taurus: [100, 110],
   gemini: [100, 110],
   cancer: [240, 80],
   leo: [60, 140],
-  virgo: [100, 105],
+  virgo: [100, 100],
   libra: [120, 120],
   scorpio: [60, 140],
   sagittarius: [120, 120],
-  capricorn: [240, 105],
-  aquarius: [90, 85],
+  capricorn: [240, 100],
+  aquarius: [90, 90],
   pisces: [100, 110],
 };
 
@@ -43,7 +43,8 @@ describe('防御力と色の弱点（仕様書 12.11）', () => {
   it('必殺の耐性（×0.7）は、レベルをかけてから最後に1回だけ丸める（.5 は切り上げ）', () => {
     // 威力1600（さそり座）Lv6 → 2400 × 0.7 = 1680
     expect(specialEffect('scorpio', 6, { resist: 'blue' }).damage).toBe(1680);
-    // 威力1100 Lv6 → 1650 × 0.7 = 1155（レベルで丸めてから耐性をかけても同じだが、丸めは最後の1回だけ）
+    // 威力1100 Lv6 → 1650 × 0.7 = 1155。必殺の威力が100の倍数なので、今のデータでは .5 は出ない。
+    // .5 の切り上げは scaled（party-growth の「ちょうど .5 になる値」）と、下の通常の攻撃で確かめる
     expect(specialEffect('gemini', 6, { resist: 'blue' }).damage).toBe(1155);
     // 回復役の必殺には弱点がかからない
     expect(specialEffect('virgo', 1, { weak: 'pink' }).heal).toBe(HEROES.virgo.special.power);
