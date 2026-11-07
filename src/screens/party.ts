@@ -1,6 +1,7 @@
 // 編成：出撃する仲間を選ぶ。ルール（1〜4人・攻撃キャラ1人以上）に合えば、そのまま保存する（仕様書 11.7・12.5）
 import type { AppContext } from '../app';
 import { heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
+import { mountHeroSort } from '../components/heroSort';
 import { specialOrbsHtml } from '../components/specialPreview';
 import { ALL_HEROES, HEROES, PARTY_MAX } from '../data/heroes';
 import { DEFENSE } from '../data/balance';
@@ -26,6 +27,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
     <p class="party-status" aria-live="polite"></p>
     <h2 class="section-title">キャラ一覧</h2>
     <p class="section-note">押すと編成に入れる／外す</p>
+    <div class="sort-host"></div>
     <div class="roster" role="list"></div>
   </main>`;
 
@@ -87,10 +89,11 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
           <span class="hc-badge" hidden>出撃</span>
         </button>`
       : `
-        <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">
+        <div role="listitem" class="hero-card locked" data-id="${id}" aria-label="${HEROES[id].name}（${joinText(id)}）">
           ${lockedCardInner(id)}
         </div>`,
   ).join('');
+  mountHeroSort(container.querySelector('.sort-host') as HTMLElement, roster, (id) => ctx.heroJoined(id), level);
   roster.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) =>
     b.addEventListener('click', () => {
       const id = b.dataset.id as HeroId;

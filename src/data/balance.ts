@@ -135,7 +135,8 @@ export const TRAITS = {
  * 防御力（仕様書 12.11。2026-11-04 ユーザーの決定：割合で減らす）。
  * 受けるダメージ = 敵の攻撃 × base ÷（base ＋ 仲間の防御力の合計）。四捨五入して最低 1
  */
-export const DEFENSE = { base: 100 };
+// 2026-11-07 キャラの防御力を10倍にしたので、base も10倍（減り方は変わらない）
+export const DEFENSE = { base: 1000 };
 
 export function damageTaken(attack: number, partyDefense: number): number {
   return Math.max(1, Math.round((attack * DEFENSE.base) / (DEFENSE.base + Math.max(0, partyDefense))));

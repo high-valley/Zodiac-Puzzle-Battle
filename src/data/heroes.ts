@@ -38,6 +38,8 @@ export interface HeroDef {
   /** 星座記号（テキスト表示） */
   symbol: string;
   role: 'attacker' | 'healer';
+  /** ステータスのタイプ（攻撃型・体力型など。仕様書 12.13） */
+  statType: StatType;
   /** パーティー最大HPへの寄与値（レベル1のとき） */
   maxHpContribution: number;
   /** 防御力（レベル1のとき）。仲間の合計で、敵の攻撃で減るHPを割合で減らす（仕様書 12.11。式は data/balance の DEFENSE） */
@@ -62,13 +64,34 @@ export interface HeroDef {
   description: string;
 }
 
-/** 攻撃キャラの係数（自分の色を1個消すごと、レベル1のとき）。2026-11-03 自分の色だけで攻撃するように変えた（仕様書 12.7） */
-export const ATTACK_COEF = 12;
-/** 回復役の係数（ピンクを1個消すごと、レベル1のとき） */
-export const HEAL_COEF = 9;
+/**
+ * ステータスのタイプ（仕様書 12.13。2026-11-07 ユーザーの決定）。同じ色の3人が同じような数値にならないよう、得意なものを分ける。
+ * 数値はレベル1のとき。2026-11-07 に全体を10倍にした（強さのつり合いは変えない）
+ */
+export type StatType = 'balanced' | 'attack' | 'stamina' | 'guard' | 'heal';
+export const STAT_TYPE_LABEL: Record<StatType, string> = { balanced: '均整型', attack: '攻撃型', stamina: '体力型', guard: '防御型', heal: '回復型' };
 
-// 攻撃キャラ：自分の色（必殺の色）のオーブが消えたときだけ攻撃する
-// 2026-11-04：防御力の高いキャラは係数を少し下げ、低いキャラは少し上げる（ユーザーの決定。仕様書 12.11）。coef を省けば標準
+/** 攻撃キャラのタイプ。hp＝パーティー最大HPへの寄与、defense＝防御力、coef＝自分の色を1個消すごとのダメージ */
+export const ATTACKER_TYPES = {
+  balanced: { hp: 1000, defense: 120, coef: 120 },
+  attack: { hp: 850, defense: 60, coef: 140 },
+  stamina: { hp: 1300, defense: 100, coef: 110 },
+  guard: { hp: 1050, defense: 240, coef: 105 },
+} satisfies Partial<Record<StatType, { hp: number; defense: number; coef: number }>>;
+
+/** 回復役のタイプ。coef＝ピンクを1個消すごとの回復 */
+export const HEALER_TYPES = {
+  heal: { hp: 1000, defense: 100, coef: 105 },
+  stamina: { hp: 1400, defense: 90, coef: 85 },
+  guard: { hp: 1150, defense: 240, coef: 80 },
+} satisfies Partial<Record<StatType, { hp: number; defense: number; coef: number }>>;
+
+/** 攻撃キャラの標準の係数（均整型）。2026-11-03 自分の色だけで攻撃するように変えた（仕様書 12.7） */
+export const ATTACK_COEF = ATTACKER_TYPES.balanced.coef;
+/** 回復役の標準の係数（回復型） */
+export const HEAL_COEF = HEALER_TYPES.heal.coef;
+
+// 攻撃キャラ：自分の色（必殺の色）のオーブが消えたときだけ攻撃する。係数はタイプで決める
 const attack = (color: OrbColor, name: string, coef = ATTACK_COEF): Partial<Record<OrbColor, ColorAction>> => ({ [color]: { name, coef } });
 const heal = (name: string, coef = HEAL_COEF): Partial<Record<OrbColor, ColorAction>> => ({ pink: { name, coef } });
 
@@ -79,11 +102,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Aries',
     symbol: '♈︎',
     role: 'attacker',
-    maxHpContribution: 100,
-    defense: 12,
-    actions: attack('red', '紅蓮の一撃'),
+    statType: 'balanced',
+    maxHpContribution: ATTACKER_TYPES.balanced.hp,
+    defense: ATTACKER_TYPES.balanced.defense,
+    actions: attack('red', '紅蓮の一撃', ATTACKER_TYPES.balanced.coef),
     trait: 'vanguard',
-    special: { name: '炎角・紅蓮衝', color: 'red', shape: 'L', power: 140, difficulty: 'normal' },
+    special: { name: '炎角・紅蓮衝', color: 'red', shape: 'L', power: 1400, difficulty: 'normal' },
     description: '燃える角で道を切り開く、まっすぐな剣士。',
   },
   taurus: {
@@ -92,12 +116,13 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Taurus',
     symbol: '♉︎',
     role: 'attacker',
-    maxHpContribution: 110,
+    statType: 'stamina',
+    maxHpContribution: ATTACKER_TYPES.stamina.hp,
     // 2026-11-03 緑から赤に（赤・青・緑・ピンクを3人ずつにそろえる）
-    defense: 24,
-    actions: attack('red', '猛進', 11),
+    defense: ATTACKER_TYPES.stamina.defense,
+    actions: attack('red', '猛進', ATTACKER_TYPES.stamina.coef),
     trait: 'mass',
-    special: { name: '金牛の猛進', color: 'red', shape: 'T', power: 140, difficulty: 'normal' },
+    special: { name: '金牛の猛進', color: 'red', shape: 'T', power: 1400, difficulty: 'normal' },
     description: '大地のように揺るがない、頼れる守り手。',
   },
   gemini: {
@@ -106,11 +131,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Gemini',
     symbol: '♊︎',
     role: 'attacker',
-    maxHpContribution: 90,
-    defense: 10,
-    actions: attack('blue', '鏡の閃き'),
+    statType: 'stamina',
+    maxHpContribution: ATTACKER_TYPES.stamina.hp,
+    defense: ATTACKER_TYPES.stamina.defense,
+    actions: attack('blue', '鏡の閃き', ATTACKER_TYPES.stamina.coef),
     trait: 'twin',
-    special: { name: '双つ星の共鳴', color: 'blue', shape: 'pillars', power: 110, difficulty: 'easy' },
+    special: { name: '双つ星の共鳴', color: 'blue', shape: 'pillars', power: 1100, difficulty: 'easy' },
     description: 'ふたりで息を合わせて戦う、いたずら好きの双子。',
   },
   cancer: {
@@ -119,11 +145,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Cancer',
     symbol: '♋︎',
     role: 'healer',
-    maxHpContribution: 110,
-    defense: 24,
-    actions: heal('月潮の癒やし', 8),
+    statType: 'guard',
+    maxHpContribution: HEALER_TYPES.guard.hp,
+    defense: HEALER_TYPES.guard.defense,
+    actions: heal('月潮の癒やし', HEALER_TYPES.guard.coef),
     trait: 'shield',
-    special: { name: '蟹甲の加護', color: 'pink', shape: 'corners', power: 120, difficulty: 'easy' },
+    special: { name: '蟹甲の加護', color: 'pink', shape: 'corners', power: 1200, difficulty: 'easy' },
     description: '仲間を固い甲羅のように守る、面倒見のよい癒やし手。',
   },
   leo: {
@@ -132,11 +159,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Leo',
     symbol: '♌︎',
     role: 'attacker',
-    maxHpContribution: 100,
-    defense: 6,
-    actions: attack('red', '獅子の爪', 13),
+    statType: 'attack',
+    maxHpContribution: ATTACKER_TYPES.attack.hp,
+    defense: ATTACKER_TYPES.attack.defense,
+    actions: attack('red', '獅子の爪', ATTACKER_TYPES.attack.coef),
     trait: 'chain',
-    special: { name: '獅子王の咆哮', color: 'red', shape: 'line5', power: 160, difficulty: 'hard' },
+    special: { name: '獅子王の咆哮', color: 'red', shape: 'line5', power: 1600, difficulty: 'hard' },
     description: '百獣の王の誇りを胸に、正面から敵を討つ。',
   },
   virgo: {
@@ -145,11 +173,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Virgo',
     symbol: '♍︎',
     role: 'healer',
-    maxHpContribution: 110,
-    defense: 12,
-    actions: heal('癒やしの光'),
+    statType: 'heal',
+    maxHpContribution: HEALER_TYPES.heal.hp,
+    defense: HEALER_TYPES.heal.defense,
+    actions: heal('癒やしの光', HEALER_TYPES.heal.coef),
     trait: 'bigHeal',
-    special: { name: '聖女の祝福', color: 'pink', shape: 'square', power: 110, difficulty: 'easy' },
+    special: { name: '聖女の祝福', color: 'pink', shape: 'square', power: 1100, difficulty: 'easy' },
     description: '祈りで仲間を包む、やさしい癒やし手。',
   },
   libra: {
@@ -158,11 +187,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Libra',
     symbol: '♎︎',
     role: 'attacker',
-    maxHpContribution: 100,
-    defense: 14,
-    actions: attack('green', '天秤の一閃'),
+    statType: 'balanced',
+    maxHpContribution: ATTACKER_TYPES.balanced.hp,
+    defense: ATTACKER_TYPES.balanced.defense,
+    actions: attack('green', '天秤の一閃', ATTACKER_TYPES.balanced.coef),
     trait: 'balance',
-    special: { name: '天秤の審判', color: 'green', shape: 'smallT', power: 110, difficulty: 'easy' },
+    special: { name: '天秤の審判', color: 'green', shape: 'smallT', power: 1100, difficulty: 'easy' },
     description: '何ごとも公平に量る、冷静な裁き手。',
   },
   scorpio: {
@@ -171,11 +201,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Scorpio',
     symbol: '♏︎',
     role: 'attacker',
-    maxHpContribution: 90,
-    defense: 6,
-    actions: attack('blue', '闇の一刺し', 13),
+    statType: 'attack',
+    maxHpContribution: ATTACKER_TYPES.attack.hp,
+    defense: ATTACKER_TYPES.attack.defense,
+    actions: attack('blue', '闇の一刺し', ATTACKER_TYPES.attack.coef),
     trait: 'poison',
-    special: { name: '蠍毒の尾撃', color: 'blue', shape: 'Z', power: 160, difficulty: 'hard' },
+    special: { name: '蠍毒の尾撃', color: 'blue', shape: 'Z', power: 1600, difficulty: 'hard' },
     description: '静かに狙いすまし、一撃で仕留める。',
   },
   sagittarius: {
@@ -184,11 +215,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Sagittarius',
     symbol: '♐︎',
     role: 'attacker',
-    maxHpContribution: 90,
-    defense: 10,
-    actions: attack('blue', '貫通射撃'),
+    statType: 'balanced',
+    maxHpContribution: ATTACKER_TYPES.balanced.hp,
+    defense: ATTACKER_TYPES.balanced.defense,
+    actions: attack('blue', '貫通射撃', ATTACKER_TYPES.balanced.coef),
     trait: 'far',
-    special: { name: '天穿つ星矢', color: 'blue', shape: 'cross', power: 160, difficulty: 'hard' },
+    special: { name: '天穿つ星矢', color: 'blue', shape: 'cross', power: 1600, difficulty: 'hard' },
     description: '星をも射抜く、誇り高き弓の名手。',
   },
   capricorn: {
@@ -197,11 +229,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Capricorn',
     symbol: '♑︎',
     role: 'attacker',
-    maxHpContribution: 100,
-    defense: 22,
-    actions: attack('green', '山羊の跳撃', 11),
+    statType: 'guard',
+    maxHpContribution: ATTACKER_TYPES.guard.hp,
+    defense: ATTACKER_TYPES.guard.defense,
+    actions: attack('green', '山羊の跳撃', ATTACKER_TYPES.guard.coef),
     trait: 'charge',
-    special: { name: '山嶺の双角', color: 'green', shape: 'horns', power: 140, difficulty: 'normal' },
+    special: { name: '山嶺の双角', color: 'green', shape: 'horns', power: 1400, difficulty: 'normal' },
     description: '険しい山も駆け上がる、粘り強い戦士。',
   },
   aquarius: {
@@ -211,11 +244,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     symbol: '♒︎',
     // 2026-11-03 攻撃（青）から回復役に
     role: 'healer',
-    maxHpContribution: 110,
-    defense: 8,
-    actions: heal('命の水', 10),
+    statType: 'stamina',
+    maxHpContribution: HEALER_TYPES.stamina.hp,
+    defense: HEALER_TYPES.stamina.defense,
+    actions: heal('命の水', HEALER_TYPES.stamina.coef),
     trait: 'rain',
-    special: { name: '宝瓶の慈雨', color: 'pink', shape: 'line4', power: 110, difficulty: 'easy' },
+    special: { name: '宝瓶の慈雨', color: 'pink', shape: 'line4', power: 1100, difficulty: 'easy' },
     description: '水がめからあふれる清らかな水で仲間を癒やす、型にはまらない自由な賢者。',
   },
   pisces: {
@@ -224,11 +258,12 @@ export const HEROES: Record<HeroId, HeroDef> = {
     latin: 'Pisces',
     symbol: '♓︎',
     role: 'attacker',
-    maxHpContribution: 100,
-    defense: 12,
-    actions: attack('green', '潮の渦'),
+    statType: 'stamina',
+    maxHpContribution: ATTACKER_TYPES.stamina.hp,
+    defense: ATTACKER_TYPES.stamina.defense,
+    actions: attack('green', '潮の渦', ATTACKER_TYPES.stamina.coef),
     trait: 'vortex',
-    special: { name: '双魚の渦潮', color: 'green', shape: 'S', power: 110, difficulty: 'easy' },
+    special: { name: '双魚の渦潮', color: 'green', shape: 'S', power: 1100, difficulty: 'easy' },
     description: '二匹の魚が渦を巻いて襲いかかる、気まぐれで夢見がちな歌い手。',
   },
 };
