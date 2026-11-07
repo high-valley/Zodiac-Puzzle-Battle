@@ -1,6 +1,6 @@
 // ステータスのタイプ（仕様書 12.13）と、キャラ一覧の並び替え（2026-11-07）
 import { describe, expect, it } from 'vitest';
-import { ALL_HEROES, ATTACKER_TYPES, HEALER_TYPES, HEROES } from '../src/data/heroes';
+import { ALL_HEROES, HEROES } from '../src/data/heroes';
 import { sortHeroes } from '../src/components/heroSort';
 import type { HeroId, OrbColor } from '../src/game/types';
 
@@ -17,17 +17,28 @@ describe('ステータスのタイプ', () => {
     }
   });
 
-  it('HP・防御・係数はタイプの値どおり（攻撃キャラも回復役も）', () => {
+  it('12人のステータス（HP・防御・係数）はみな違う。同じタイプでもかぶらない（2026-11-07）', () => {
+    const key = (id: HeroId) => {
+      const h = HEROES[id];
+      return `${h.maxHpContribution}/${h.defense}/${h.actions[h.special.color]!.coef}`;
+    };
+    expect(new Set(ALL_HEROES.map(key)).size).toBe(ALL_HEROES.length);
+    // 同じタイプの中では、HP・防御・係数のどれもが同じにならない
+    for (const a of ALL_HEROES) for (const b of ALL_HEROES) {
+      if (a >= b || HEROES[a].statType !== HEROES[b].statType || HEROES[a].role !== HEROES[b].role) continue;
+      expect(HEROES[a].maxHpContribution === HEROES[b].maxHpContribution).toBe(false);
+      expect(HEROES[a].defense === HEROES[b].defense).toBe(false);
+    }
+  });
+
+  it('タイプの得意なところは守る：攻撃型は係数140以上、体力型はHP1250以上、防御型は防御240。係数は10の倍数', () => {
     for (const id of ALL_HEROES) {
       const h = HEROES[id];
-      const table = (h.role === 'healer' ? HEALER_TYPES : ATTACKER_TYPES) as Record<string, { hp: number; defense: number; coef: number }>;
-      const t = table[h.statType];
-      expect(t === undefined).toBe(false);
-      expect(h.maxHpContribution).toBe(t.hp);
-      expect(h.defense).toBe(t.defense);
-      expect(h.actions[h.special.color]!.coef).toBe(t.coef);
-      // 係数は10の倍数（画面の攻撃力・回復力が小数にならない）
-      expect(t.coef % 10).toBe(0);
+      const coef = h.actions[h.special.color]!.coef;
+      expect(coef % 10).toBe(0);
+      if (h.statType === 'attack') expect(coef >= 140).toBe(true);
+      if (h.statType === 'stamina') expect(h.maxHpContribution >= 1250).toBe(true);
+      if (h.statType === 'guard') expect(h.defense).toBe(240);
     }
   });
 
