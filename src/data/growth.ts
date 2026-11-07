@@ -1,6 +1,7 @@
 // 育成（レベル）の設定データ。数値は仮。レベル1でいまの強さ（仕様書 12.4）
 
-export const MAX_LEVEL = 20;
+/** 最大レベル（2026-11-07 ユーザーの決定で 20 → 40） */
+export const MAX_LEVEL = 40;
 
 /** レベルが1上がるごとに増える強さ（レベル1の何%か） */
 export const LEVEL_STEP_PERCENT = 5;
