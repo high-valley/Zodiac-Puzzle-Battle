@@ -55,6 +55,9 @@ const wait = (n: number) => new Promise<void>((resolve) => setTimeout(resolve, n
 /** 数値の上に添える小さな文字 */
 const TAG_TEXT = { weak: '弱点', resist: '耐性', poison: '毒', rain: '恵みの雨', shield: '盾' } as const;
 
+/** 1画面に収めるために盤面を縮めるときの、いちばん小さい幅（px。1マス約44px＝指で押せる下限）。これより低い画面ではスクロールする */
+const BOARD_MIN_PX = 220;
+
 export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: string): () => void {
   const stage = findStage(stageId)!;
   const saved = ctx.progress.battle;
@@ -207,7 +210,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     }
     el.classList.toggle('imminent', junkIn === 1);
     // まぜる数は盤面の星屑の上限（max）まで。「攻撃」で消えれば余裕ができるので、上限も添えて出す
-    el.textContent = junkIn === 1 ? `このターンの終わりに星屑を${enemy.junk.count}個まぜる（盤面に${enemy.junk.max}個まで）` : `星屑まで あと${junkIn}ターン`;
+    el.textContent = junkIn === 1 ? `ターンの終わりに星屑を${enemy.junk.count}個（盤面に${enemy.junk.max}個まで）` : `星屑まで あと${junkIn}ターン`;
   }
 
   function renderCharge(chargeIn: number | null) {
@@ -712,8 +715,31 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   renderTurnBar();
   renderMarks();
 
+  // 画面の高さが足りないとき（Safari のツールバーが出ているとき、iPhone SE など）は、
+  // 盤面を小さくして、スクロールせずに1画面に収める（2026-11-07）
+  const wrap = $<HTMLElement>('.board-wrap');
+  let fitFrame = 0;
+  const fitBoard = () => {
+    cancelAnimationFrame(fitFrame);
+    fitFrame = requestAnimationFrame(() => {
+      if (disposed) return;
+      wrap.style.width = '';
+      const viewH = window.visualViewport?.height ?? window.innerHeight;
+      const over = document.documentElement.scrollHeight - viewH;
+      if (over <= 0) return;
+      const full = wrap.getBoundingClientRect().width;
+      wrap.style.width = `${Math.max(BOARD_MIN_PX, Math.floor(full - over))}px`;
+    });
+  };
+  fitBoard();
+  window.addEventListener('resize', fitBoard);
+  window.visualViewport?.addEventListener('resize', fitBoard);
+
   return () => {
     disposed = true;
+    cancelAnimationFrame(fitFrame);
+    window.removeEventListener('resize', fitBoard);
+    window.visualViewport?.removeEventListener('resize', fitBoard);
     window.removeEventListener('zodiac:settings', onSettingsChanged);
   };
 }

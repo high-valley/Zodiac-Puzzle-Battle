@@ -28,4 +28,4 @@ export function preloadImages(urls: string[], timeoutMs = 1500): Promise<void> {
 }
 
 /** バトルで使う絵（オーブ・背景）。アプリを開いたときから読み始めておく */
-export const BATTLE_IMAGES = ['art/orbs/red.webp', 'art/orbs/blue.webp', 'art/orbs/green.webp', 'art/orbs/pink.webp', 'art/bg/battle.webp'];
+export const BATTLE_IMAGES = ['art/orbs/red.webp', 'art/orbs/blue.webp', 'art/orbs/green.webp', 'art/orbs/pink.webp', 'art/orbs/junk.webp', 'art/bg/battle.webp'];
