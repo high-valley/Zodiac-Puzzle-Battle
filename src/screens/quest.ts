@@ -1,5 +1,6 @@
 // クエスト選択：章のマップでステージを選び、敵と★の条件を見て出撃する
 import type { AppContext } from '../app';
+import { openModal } from '../components/modal';
 import { affinityHtml } from '../components/heroCard';
 import { SCENES, STORY_NODES, findStoryNode } from '../data/story';
 import { sceneBeforeBattle, sceneSeen, scenesToReplay, waitsForPrologue } from '../storage/progress';
@@ -175,6 +176,50 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     );
   }
 
+  /** ステージのくわしい情報（敵のステータス・★の条件・ストーリーの見直し）を、下から出るシートで見せる */
+  function openStageDetail(stageId: string) {
+    const stage = findStage(stageId)!;
+    const enemy = ENEMIES[stage.enemyId];
+    const modal = openModal(ctx.root, container.querySelector('.quest') as HTMLElement, { className: 'sheet stage-sheet', labelledBy: 'stage-sheet-title' });
+    if (!modal) return;
+    modal.overlay.innerHTML = `
+      <div class="sheet-card stage-sheet-card">
+        <div class="stage-head">
+          <span class="stage-id">${stage.id}</span>
+          <h2 id="stage-sheet-title" class="stage-enemy">${enemy.name}</h2>
+        </div>
+        <div class="stage-body">
+          <div class="stage-art">${enemySvg(enemy.tint)}</div>
+          <dl class="stage-stats">
+            <div><dt>HP</dt><dd>${enemy.maxHp.toLocaleString('ja-JP')}</dd></div>
+            <div><dt>攻撃</dt><dd>${enemy.attack}</dd></div>
+            <div><dt>強攻撃</dt><dd>${enemy.heavy ? `${enemy.heavy.every}ターンごとに ${enemy.heavy.attack}` : 'なし'}</dd></div>
+            ${enemy.junk ? `<div><dt>星屑</dt><dd>${enemy.junk.every}ターンごとに${enemy.junk.count}個（最大${enemy.junk.max}個）</dd></div>` : ''}
+            <div><dt>色</dt><dd class="aff-row">${affinityHtml(enemy)}</dd></div>
+          </dl>
+        </div>
+        <ul class="star-rules" aria-label="★の条件">
+          <li><span class="star-mark">★</span>勝つ</li>
+          <li><span class="star-mark">★★</span>${stage.targetTurns}ターン以内に勝つ</li>
+          <li><span class="star-mark">★★★</span>さらにHPを${Math.round(STAR3_HP_RATIO * 100)}%以上残す</li>
+        </ul>
+        ${storyLinksFor(ctx, stage.id)}
+        <button type="button" class="primary-btn close">とじる</button>
+      </div>`;
+    // 背景（暗いところ）を押しても閉じる
+    modal.overlay.addEventListener('click', (e) => {
+      if (e.target === modal.overlay) modal.close();
+    });
+    modal.overlay.querySelector('.close')?.addEventListener('click', () => modal.close());
+    modal.overlay.querySelectorAll<HTMLButtonElement>('[data-scene]').forEach((b) =>
+      b.addEventListener('click', () => {
+        modal.close();
+        ctx.navigate({ name: 'story', sceneId: b.dataset.scene!, next: { name: 'quest', stageId: stage.id } });
+      }),
+    );
+    (modal.overlay.querySelector('.close') as HTMLElement).focus();
+  }
+
   function renderPanel() {
     const node = findStoryNode(selected);
     if (node) {
@@ -202,34 +247,26 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
     const savedHere = saved?.stageId === stage.id && ctx.canResume();
     const savedElsewhere = saved && !savedHere ? saved.stageId : null;
     const joiners = joinersOf(stage.id);
+    const cleared = !!record && record.stars > 0;
+    // 欄には出撃の判断に要るものだけ出し、敵のステータス・★の条件・ストーリーの見直しは「くわしく」のシートに出す
+    // （2026-11-07 ユーザーの要望：クエスト画面をスクロールせずに見られるように）
     panel.innerHTML = `
       <div class="stage-head">
         <span class="stage-id">${stage.id}</span>
         <h3 class="stage-enemy">${enemy.name}</h3>
+        <button type="button" class="chip stage-more" aria-haspopup="dialog">くわしく</button>
       </div>
-      <div class="stage-body">
-        <div class="stage-art">${enemySvg(enemy.tint)}</div>
-        <dl class="stage-stats">
-          <div><dt>HP</dt><dd>${enemy.maxHp.toLocaleString('ja-JP')}</dd></div>
-          <div><dt>攻撃</dt><dd>${enemy.attack}</dd></div>
-          <div><dt>強攻撃</dt><dd>${enemy.heavy ? `${enemy.heavy.every}ターンごとに ${enemy.heavy.attack}` : 'なし'}</dd></div>
-          ${enemy.junk ? `<div><dt>星屑</dt><dd>${enemy.junk.every}ターンごとに${enemy.junk.count}個（最大${enemy.junk.max}個）</dd></div>` : ''}
-          <div><dt>色</dt><dd class="aff-row">${affinityHtml(enemy)}</dd></div>
-        </dl>
+      <div class="stage-brief">
+        <span class="sb-hp">HP <b>${enemy.maxHp.toLocaleString('ja-JP')}</b></span>
+        <span class="aff-row">${affinityHtml(enemy)}</span>
       </div>
-      <ul class="star-rules" aria-label="★の条件">
-        <li><span class="star-mark">★</span>勝つ</li>
-        <li><span class="star-mark">★★</span>${stage.targetTurns}ターン以内に勝つ</li>
-        <li><span class="star-mark">★★★</span>さらにHPを${Math.round(STAR3_HP_RATIO * 100)}%以上残す</li>
-      </ul>
       <p class="stage-record">${
-        record && record.stars > 0
-          ? `これまでの記録　${starsText(record.stars)}${record.bestTurns ? `　${record.bestTurns}ターン` : ''}`
-          : 'まだクリアしていません'
+        cleared
+          ? `記録 <span class="sr-stars">${starsText(record.stars)}</span>${record.bestTurns ? `　${record.bestTurns}ターン` : ''}　<span class="sr-goal">★★は${stage.targetTurns}ターン以内</span>`
+          : `まだクリアしていません　<span class="sr-goal">★★は${stage.targetTurns}ターン以内</span>`
       }</p>
-      ${joiners.length ? `<p class="stage-join">${record && record.stars > 0 ? '仲間になった' : '初めてクリアすると仲間になる'}：${joiners.map((id) => `<span class="sj-hero">${HEROES[id].symbol} ${HEROES[id].name}</span>`).join('')}</p>` : ''}
+      ${joiners.length ? `<p class="stage-join">${cleared ? '仲間になった' : '初めてクリアすると仲間になる'}：${joiners.map((id) => `<span class="sj-hero">${HEROES[id].symbol} ${HEROES[id].name}</span>`).join('')}</p>` : ''}
       ${savedElsewhere ? `<p class="stage-note">出撃すると、途中の ${savedElsewhere} のバトルは消えます</p>` : ''}
-      ${storyLinksFor(ctx, stage.id)}
       <div class="stage-actions">
         ${
           savedHere
@@ -238,6 +275,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
             : `<button type="button" class="primary-btn go">出撃</button>`
         }
       </div>`;
+    panel.querySelector('.stage-more')?.addEventListener('click', () => openStageDetail(stage.id));
     panel.querySelector('.go')?.addEventListener('click', () => {
       // まだ見ていない「前の会話」があれば、会話を見てからバトルへ（途中のバトルの続きなら会話はとばす）。
       // よそのステージの途中のバトルは、会話を見終えてバトルに入るときに消える（会話の途中で戻ればそのまま残る）
@@ -249,9 +287,6 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
       if (!savedHere && ctx.progress.battle) ctx.setProgress({ ...ctx.progress, battle: null });
       ctx.navigate({ name: 'battle', stageId: stage.id });
     });
-    panel.querySelectorAll<HTMLButtonElement>('[data-scene]').forEach((b) =>
-      b.addEventListener('click', () => ctx.navigate({ name: 'story', sceneId: b.dataset.scene!, next: { name: 'quest', stageId: stage.id } })),
-    );
     panel.querySelector('.restart-stage')?.addEventListener('click', () => {
       ctx.setProgress({ ...ctx.progress, battle: null });
       ctx.navigate({ name: 'battle', stageId: stage.id });

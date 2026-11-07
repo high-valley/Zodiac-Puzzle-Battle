@@ -4440,3 +4440,99 @@ html[data-route='story'] body::after {
   color: var(--gold);
   letter-spacing: 0.02em;
 }
+
+/* クエスト選択を1画面に収める（2026-11-07 ユーザーの要望）。
+   ステージの欄は名前・HP・弱点と耐性・記録・出撃だけ。くわしい情報は「くわしく」で下から出すシート */
+.stage-head .stage-more {
+  margin-left: auto;
+  flex: none;
+  min-height: 36px;
+}
+.stage-head .stage-enemy {
+  min-width: 0;
+}
+.stage-brief {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.stage-brief b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.stage-panel .stage-record {
+  margin-top: 8px;
+}
+.sr-stars {
+  color: var(--gold);
+  letter-spacing: 1px;
+}
+.sr-goal {
+  white-space: nowrap;
+}
+/* 下から出るシート */
+.sheet.stage-sheet {
+  place-items: end center;
+  padding: 0;
+}
+.stage-sheet-card {
+  width: min(var(--col), 100%);
+  max-height: 88dvh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  border-radius: 20px 20px 0 0;
+  padding: 18px 16px max(18px, env(safe-area-inset-bottom));
+  animation: sheet-up 0.22s ease-out;
+}
+.stage-sheet-card .star-rules {
+  margin-top: 4px;
+}
+.stage-sheet-card .stage-story {
+  margin: 0;
+}
+@keyframes sheet-up {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-sheet-card {
+    animation: none;
+  }
+}
+/* 背の低い画面：章の見出しとマップを低くする */
+@media (max-height: 720px) {
+  .quest .chapter {
+    padding: 8px 12px;
+  }
+  .quest .chapter-name {
+    font-size: 20px;
+  }
+  .quest .chapter-tagline {
+    display: none;
+  }
+  .quest .map {
+    height: 130px;
+  }
+}
+@media (max-height: 600px) {
+  .quest .chapter-no {
+    display: none;
+  }
+  .quest .map {
+    height: 112px;
+    margin-top: 4px;
+  }
+  .quest .stage-panel {
+    padding: 12px 14px;
+  }
+}
