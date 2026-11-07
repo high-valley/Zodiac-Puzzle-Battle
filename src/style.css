@@ -31,6 +31,8 @@ body {
   margin: 0;
   min-height: 100%;
   background: var(--sky-deep);
+  /* ダブルタップで拡大しない（2026-11-07 ユーザーの要望）。スクロールはそのままできる */
+  touch-action: manipulation;
 }
 
 body {
@@ -197,6 +199,10 @@ button:focus-visible {
 /* 盤面 */
 .board-wrap {
   position: relative;
+  /* 高さが足りない画面では、バトル画面が幅を狭める（battle.ts の fitBoard）。そのときは真ん中に置く */
+  align-self: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 .board {
   --cell: 20%;
@@ -4314,29 +4320,13 @@ html[data-route='story'] body::after {
   font-family: var(--font-display);
 }
 
-/* お邪魔の星屑（仕様書 12.12。2026-11-07）。絵が届くまでは、くすんだ灰色の玉に四つ角の星をアプリで描く。
-   色のオーブとまちがえないよう、光らせず、記号は形の違う星にする */
+/* お邪魔の星屑（仕様書 12.12。2026-11-07）。ほかの4色と同じ作りの絵。光らせない */
 .orb-junk {
   --orb: #4a4658;
   --orb-deep: #16141f;
   --orb-light: #8a8499;
   --orb-glow: #00000000;
-  --orb-img: none;
-}
-.orb.orb-junk::before {
-  background:
-    radial-gradient(circle at 34% 30%, #ffffff2e 0 7%, transparent 28%),
-    radial-gradient(circle at 62% 70%, #00000055 0 20%, transparent 55%),
-    radial-gradient(circle closest-side, var(--orb) 0 80%, var(--orb-deep) 96%, transparent 100%);
-  box-shadow: inset 0 0 0 1px #ffffff1f;
-}
-.orb.orb-junk .orb-symbol {
-  display: block;
-  filter: none;
-}
-.orb.orb-junk .orb-symbol .fill {
-  fill: #b9b3c9b0;
-  stroke: none;
+  --orb-img: url('/art/orbs/junk.webp');
 }
 /* 敵がまぜた直後：黒い煙から現れる */
 .orb.junk-in {
@@ -4360,6 +4350,10 @@ html[data-route='story'] body::after {
 /* 敵の次の行動（強攻撃・星屑）を2行で出す */
 .enemy-junk {
   display: block;
+  /* 1行に収める（2行になると盤面が小さくなるため） */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   color: #c9c2dc;
 }
@@ -4370,10 +4364,6 @@ html[data-route='story'] body::after {
 .t-junk {
   display: grid;
   grid-template-columns: repeat(3, 40px);
-}
-.t-junk .orb-junk {
-  color: #b9b3c9;
-  text-shadow: none;
 }
 .t-junk .orb-red {
   animation: t-junk-clear 2.4s ease-in-out infinite;
@@ -4400,5 +4390,18 @@ html[data-route='story'] body::after {
 @media (prefers-reduced-motion: reduce) {
   .t-junk .t-orb {
     animation: none;
+  }
+}
+
+/* とても背の低い画面（Safari のツールバーが出た iPhone SE など）：盤面を小さくしても収まらない分、
+   仲間のカードの星座記号を隠して低くする（2026-11-07） */
+@media (max-height: 600px) {
+  .battle .hero {
+    min-height: 0;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .battle .hero-symbol {
+    display: none;
   }
 }
