@@ -1,7 +1,7 @@
 // キャラのカード（編成・育成・図鑑で使う）
 import { assetUrl } from './assets';
 import { HERO_ART } from '../data/heroArt';
-import { HERO_JOIN, HEROES } from '../data/heroes';
+import { HERO_JOIN, HEROES, STAT_TYPE_LABEL } from '../data/heroes';
 import { heroStats, statText } from '../game/party';
 import { findStage } from '../data/stages';
 import type { HeroId, OrbColor } from '../game/types';
@@ -42,7 +42,7 @@ export function lockedCardInner(id: HeroId): string {
     <span class="hc-lock">${joinText(id)}</span>`;
 }
 
-/** キャラのカードの中身：上半身の絵・名前・レベルとステータス（HP と攻撃力、回復役は回復力） */
+/** キャラのカードの中身：上半身の絵・名前・レベル・タイプとステータス（HP と攻撃力、回復役は回復力） */
 export function heroCardInner(id: HeroId, level: number | null): string {
   const h = HEROES[id];
   const st = heroStats(id, level ?? 1);
@@ -50,6 +50,7 @@ export function heroCardInner(id: HeroId, level: number | null): string {
     ${heroPortrait(id)}
     <span class="hc-name">${h.name}</span>
     ${level === null ? '' : `<span class="hc-level">Lv.${level}</span>`}
+    <span class="hc-type">${STAT_TYPE_LABEL[h.statType]}</span>
     <span class="hc-stats"><span>HP <b>${st.hp}</b></span><span>${h.role === 'healer' ? '回復' : '攻撃'} <b>${statText(st.power)}</b></span><span>防御 <b>${st.defense}</b></span></span>`;
 }
 

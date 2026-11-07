@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRAITS, damageTaken } from '../src/data/balance';
 import { ALL_HEROES, HEROES, TRAIT_LABEL } from '../src/data/heroes';
+import { ENEMIES } from '../src/data/enemies';
 import { createBattle, normalEffect, resolveTurn } from '../src/game/combat';
 import { partyDefense } from '../src/game/party';
 import type { BattleState, HeroId, OrbColor } from '../src/game/types';
@@ -67,7 +68,7 @@ describe('キャラ特性（仕様書 12.8。12人全員）', () => {
     const atk = r.events.find((e) => e.type === 'enemyAttack');
     expect(r.events.some((e) => e.type === 'special')).toBe(true);
     expect(atk?.type === 'enemyAttack' && atk.shield).toBe(true);
-    expect(atk?.type === 'enemyAttack' && atk.amount).toBe(Math.round(damageTaken(26, partyDefense(party)) * (1 - TRAITS.shieldCut)));
+    expect(atk?.type === 'enemyAttack' && atk.amount).toBe(Math.round(damageTaken(ENEMIES.stardust.attack, partyDefense(party)) * (1 - TRAITS.shieldCut)));
   });
 
   it('毒と恵みの雨：続く分は保存でき、壊れた値は読まない', () => {

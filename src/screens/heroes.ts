@@ -4,10 +4,11 @@ import type { AppContext } from '../app';
 import { constellationSvg } from '../components/constellations';
 import { assetUrl } from '../components/assets';
 import { ROLE_SHORT, heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
+import { mountHeroSort } from '../components/heroSort';
 import { specialOrbsHtml } from '../components/specialPreview';
 import { MAX_LEVEL, expToNext } from '../data/growth';
 import { HERO_ART } from '../data/heroArt';
-import { ALL_HEROES, HEROES, TRAIT_LABEL } from '../data/heroes';
+import { ALL_HEROES, HEROES, STAT_TYPE_LABEL, TRAIT_LABEL } from '../data/heroes';
 import { heroStats, statText } from '../game/party';
 import { SHAPE_LABEL } from '../game/specials';
 import type { HeroId } from '../game/types';
@@ -28,6 +29,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
         <h1 class="screen-title">育成</h1>
       </header>
       <p class="screen-lead">バトルに出撃すると経験値が入り、レベルが上がります。</p>
+      <div class="sort-host"></div>
       <div class="roster" role="list">
         ${ALL_HEROES.map((id) =>
           ctx.heroJoined(id)
@@ -37,11 +39,17 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
             ${party.includes(id) ? '<span class="hc-badge">出撃</span>' : ''}
           </button>`
             : `
-          <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
+          <div role="listitem" class="hero-card locked" data-id="${id}" aria-label="${HEROES[id].name}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
         ).join('')}
       </div>
     </main>`;
     container.querySelector('.back')?.addEventListener('click', () => ctx.navigate({ name: 'home' }));
+    mountHeroSort(
+      container.querySelector('.sort-host') as HTMLElement,
+      container.querySelector('.roster') as HTMLElement,
+      (id) => ctx.heroJoined(id),
+      (id) => heroGrowth(ctx.progress, id).level,
+    );
     container.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) =>
       b.addEventListener('click', () => ctx.navigate({ name: 'heroes', heroId: b.dataset.id as HeroId })),
     );
@@ -72,7 +80,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
         <span class="hero-badge" aria-hidden="true">${h.symbol}</span>
         <h2>${h.name}</h2>
         <p class="hero-latin">${h.latin}</p>
-        <p class="hero-role-text"><span class="hero-main-orb orb-${h.special.color}" aria-hidden="true"></span>${ROLE_SHORT[h.role]}</p>
+        <p class="hero-role-text"><span class="hero-main-orb orb-${h.special.color}" aria-hidden="true"></span>${ROLE_SHORT[h.role]}・${STAT_TYPE_LABEL[h.statType]}</p>
         <dl class="hero-stats">
           <div><dt>HP</dt><dd>${st.hp}</dd></div>
           <div><dt>${h.role === 'healer' ? '回復力' : '攻撃力'}</dt><dd>${statText(st.power)}</dd></div>

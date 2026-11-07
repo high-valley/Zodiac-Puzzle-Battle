@@ -51,12 +51,12 @@ describe('敵の強攻撃と記録', () => {
     expect(() => createBattle(1, 'nobody')).toThrow();
   });
 
-  it('記録：ピンク2×2の必殺だけのターン（必殺1回・回復110・連鎖0・ダメージ0）', () => {
+  it('記録：ピンク2×2の必殺だけのターン（必殺1回・回復1100・連鎖0・ダメージ0）', () => {
     const pink = ['PPGPR', 'PPRBG', 'RBGPR', 'GPRBG', 'RBGPR'];
     const start = stateWith(createBattle(1, 'stardust'), pink, { partyHp: 100 });
     const r1 = resolveTurn(start, { rotations: [{ row: 3, col: 3, direction: 'clockwise' }] });
-    // 必殺だけの消去は連鎖0。回復は必殺の110だけ（必殺で消えたピンクは通常の回復を出さない）
-    expect(r1.state.stats).toEqual({ maxChain: 0, specials: 1, damageDealt: 0, healed: 110 });
+    // 必殺だけの消去は連鎖0。回復は必殺の1100だけ（必殺で消えたピンクは通常の回復を出さない）
+    expect(r1.state.stats).toEqual({ maxChain: 0, specials: 1, damageDealt: 0, healed: 1100 });
   });
 
   it('記録は前のターンの値に積み上がる（最大連鎖は大きいほう）', () => {

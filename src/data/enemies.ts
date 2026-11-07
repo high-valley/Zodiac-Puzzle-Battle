@@ -26,14 +26,14 @@ export interface EnemyDef {
 }
 
 export const ENEMIES: Record<string, EnemyDef> = {
-  stardust: { id: 'stardust', name: '星屑のかけら', maxHp: 980, attack: 26, weak: 'red', resist: 'green', tint: '#7fb5ff' },
-  mistbeast: { id: 'mistbeast', name: '夜霧の獣', maxHp: 1120, attack: 34, weak: 'blue', resist: 'red', tint: '#8fd0c0' },
+  stardust: { id: 'stardust', name: '星屑のかけら', maxHp: 9800, attack: 260, weak: 'red', resist: 'green', tint: '#7fb5ff' },
+  mistbeast: { id: 'mistbeast', name: '夜霧の獣', maxHp: 11200, attack: 340, weak: 'blue', resist: 'red', tint: '#8fd0c0' },
   moonwarden: {
     id: 'moonwarden',
     name: '欠けた月の番人',
-    maxHp: 1700,
-    attack: 34,
-    heavy: { every: 3, attack: 92 },
+    maxHp: 17000,
+    attack: 340,
+    heavy: { every: 3, attack: 920 },
     weak: 'red',
     resist: 'blue',
     tint: '#d8c27a',
@@ -41,9 +41,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
   hunter: {
     id: 'hunter',
     name: '流れ星の狩人',
-    maxHp: 1820,
-    attack: 44,
-    heavy: { every: 3, attack: 120 },
+    maxHp: 18200,
+    attack: 440,
+    heavy: { every: 3, attack: 1200 },
     weak: 'blue',
     resist: 'red',
     tint: '#ff9a76',
@@ -51,21 +51,22 @@ export const ENEMIES: Record<string, EnemyDef> = {
   shadow: {
     id: 'shadow',
     name: '星喰いの影',
-    maxHp: 2600,
-    attack: 47,
-    heavy: { every: 3, attack: 143 },
+    maxHp: 26000,
+    attack: 470,
+    heavy: { every: 3, attack: 1430 },
     weak: 'red',
     resist: 'green',
     tint: '#a37cf0',
   },
+  // 2026-11-07 HP・攻撃を全体に10倍にした（強さのつり合いは変えない）
   // 第2章「天秤の審判」（2026-11-07）。どの敵もお邪魔の星屑をまぜる（仕様書 12.12）。数値は仮。
   // 第1章を1回ずつクリアすると最初の3人は約レベル4。skilled・レベル4〜5・80戦で、2-1 勝率100%・約11ターン → 2-5 約93〜96%・約15〜16ターン
   // （レベルの伸びを 10% にした 2026-11-07 の値。5% のときは 2-5 約86%・約17ターン）
   falsescale: {
     id: 'falsescale',
     name: '偽りの秤',
-    maxHp: 2500,
-    attack: 46,
+    maxHp: 25000,
+    attack: 460,
     junk: { every: 3, count: 1, max: 3 },
     weak: 'blue',
     resist: 'red',
@@ -74,8 +75,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
   brokenverdict: {
     id: 'brokenverdict',
     name: '割れた裁きの像',
-    maxHp: 2800,
-    attack: 50,
+    maxHp: 28000,
+    attack: 500,
     junk: { every: 2, count: 2, max: 4 },
     weak: 'red',
     resist: 'blue',
@@ -84,9 +85,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
   chainwarden: {
     id: 'chainwarden',
     name: '鎖の牢番',
-    maxHp: 3300,
-    attack: 50,
-    heavy: { every: 4, attack: 150 },
+    maxHp: 33000,
+    attack: 500,
+    heavy: { every: 4, attack: 1500 },
     junk: { every: 2, count: 2, max: 5 },
     weak: 'blue',
     resist: 'red',
@@ -95,9 +96,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
   irongiant: {
     id: 'irongiant',
     name: '鉄の時代の巨人',
-    maxHp: 3550,
-    attack: 54,
-    heavy: { every: 3, attack: 160 },
+    maxHp: 35500,
+    attack: 540,
+    heavy: { every: 3, attack: 1600 },
     junk: { every: 3, count: 3, max: 6 },
     weak: 'red',
     resist: 'green',
@@ -106,9 +107,9 @@ export const ENEMIES: Record<string, EnemyDef> = {
   scaleeater: {
     id: 'scaleeater',
     name: '天秤喰らい',
-    maxHp: 3900,
-    attack: 56,
-    heavy: { every: 3, attack: 170 },
+    maxHp: 39000,
+    attack: 560,
+    heavy: { every: 3, attack: 1700 },
     junk: { every: 2, count: 2, max: 6 },
     weak: 'blue',
     resist: 'green',

@@ -102,7 +102,8 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
   const healWeight = afterHit < 0.25 ? 3 : afterHit < 0.5 ? 1.5 : 0.6;
   const value = (board: Board) => {
     const e = estimate(board, state.party, enemyOf(state));
-    const finishing = e.damage >= state.enemyHp ? 10_000 : 0;
+    // 重みは数値10倍（2026-11-07）に合わせた値
+    const finishing = e.damage >= state.enemyHp ? 100_000 : 0;
     return finishing + e.damage + Math.min(e.heal, missing) * healWeight;
   };
   // だれかの形があと1〜2個でそろうなら、その盤面を少し高く見る（次の回転・次のターンで必殺を狙う）
@@ -110,7 +111,7 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
     let bonus = 0;
     for (const hero of party) {
       const p = shapeProgress(board, hero);
-      bonus += p.count >= p.size ? 0 : p.count === p.size - 1 ? 40 : p.count === p.size - 2 ? 12 : 0;
+      bonus += p.count >= p.size ? 0 : p.count === p.size - 1 ? 400 : p.count === p.size - 2 ? 120 : 0;
     }
     return value(board) + bonus;
   };

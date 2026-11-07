@@ -4405,3 +4405,38 @@ html[data-route='story'] body::after {
     display: none;
   }
 }
+
+/* キャラ一覧の並び替え（編成・育成。2026-11-07） */
+.sort-host {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 8px;
+}
+.hero-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.hero-sort select {
+  min-height: 36px;
+  padding: 4px 30px 4px 12px;
+  border-radius: 999px;
+  border: 1px solid #f1c07355;
+  background:
+    linear-gradient(45deg, transparent 50%, var(--gold) 50%) calc(100% - 16px) 50% / 5px 5px no-repeat,
+    linear-gradient(135deg, var(--gold) 50%, transparent 50%) calc(100% - 11px) 50% / 5px 5px no-repeat,
+    #0b0f2e;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+/* ステータスのタイプ（攻撃型・体力型など） */
+.hc-type {
+  font-size: 10px;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+}

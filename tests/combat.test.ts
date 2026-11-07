@@ -447,9 +447,10 @@ describe('防御力と色の弱点（仕様書 12.11。2026-11-04）', () => {
   });
 
   it('敵の攻撃は、仲間の防御力の合計で割合で減る（最低1）', () => {
-    expect(damageTaken(100, 0)).toBe(100);
-    expect(damageTaken(100, 50)).toBe(67);
-    expect(damageTaken(1, 500)).toBe(1);
+    // 2026-11-07 から数値は10倍（DEFENSE.base 1000）
+    expect(damageTaken(1000, 0)).toBe(1000);
+    expect(damageTaken(1000, 500)).toBe(667);
+    expect(damageTaken(1, 5000)).toBe(1);
     const { state: next } = resolveTurn(stateWith(base, QUIET_ROWS), quietMove());
     expect(base.partyHp - next.partyHp).toBe(damageTaken(ENEMY.attack, partyDefense(base.party)));
   });

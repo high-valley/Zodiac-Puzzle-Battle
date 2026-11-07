@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_LEVEL, expToNext, levelMultiplier } from '../src/data/growth';
-import { ALL_HEROES, DEFAULT_PARTY, HEROES } from '../src/data/heroes';
+import { ALL_HEROES, ATTACKER_TYPES, DEFAULT_PARTY, HEROES } from '../src/data/heroes';
 import { ALL_STAGES } from '../src/data/stages';
 import { ENEMIES } from '../src/data/enemies';
 import { colorMultiplier, createBattle, normalEffect, resolveTurn } from '../src/game/combat';
@@ -20,13 +20,13 @@ describe('12星座のデータ', () => {
     for (const id of ALL_HEROES) expect(HEROES[id].id).toBe(id);
   });
 
-  it('攻撃キャラは自分の色（必殺の色）だけで攻撃し、係数は11〜13（防御力とのつり合い）。回復キャラはピンクだけで回復（仕様書 12.7・12.11）', () => {
+  it('攻撃キャラは自分の色（必殺の色）だけで攻撃し、係数はタイプの値（2026-11-07〜）。回復キャラはピンクだけで回復（仕様書 12.7・12.11）', () => {
     for (const id of ALL_HEROES) {
       const h = HEROES[id];
       if (h.role === 'attacker') {
         expect(Object.keys(h.actions)).toEqual([h.special.color]);
         const c = h.actions[h.special.color]!.coef;
-        expect(c >= 11 && c <= 13).toBe(true);
+        expect(c).toBe(ATTACKER_TYPES[h.statType as keyof typeof ATTACKER_TYPES].coef);
         expect(h.special.color === 'pink').toBeFalsy();
       } else {
         expect(Object.keys(h.actions)).toEqual(['pink']);
@@ -81,8 +81,9 @@ describe('編成のルール', () => {
 
   it('ルールに合わない編成では戦闘を始められない', () => {
     expect(() => createBattle(1, 'stardust', [m('cancer'), m('virgo')])).toThrow();
-    expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus'), m('virgo')]).partyMaxHp).toBe(420);
-    expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus')]).partyMaxHp).toBe(310);
+    // 均整 1000 ＋ 攻撃 850 ＋ 体力 1300 ＋ 回復 1000（2026-11-07〜）
+    expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus'), m('virgo')]).partyMaxHp).toBe(4150);
+    expect(createBattle(1, 'stardust', [m('aries'), m('leo'), m('taurus')]).partyMaxHp).toBe(3150);
   });
 
   it('行動するキャラは選ばない（出撃した仲間全員が同時に行動する。仕様書 12.7）', () => {
@@ -110,8 +111,8 @@ describe('レベルによる強さ', () => {
 
   it('パーティー最大HPは3人のレベル込みの寄与値の合計', () => {
     const party = [m('aries', 6), m('sagittarius'), m('virgo', 3)];
-    expect(heroMaxHp('aries', 6)).toBe(150);
-    expect(partyMaxHp(party)).toBe(150 + 90 + Math.round(110 * 1.2));
+    expect(heroMaxHp('aries', 6)).toBe(1500);
+    expect(partyMaxHp(party)).toBe(1500 + 1000 + Math.round(1000 * 1.2));
     expect(createBattle(1, 'stardust', party).partyMaxHp).toBe(partyMaxHp(party));
   });
 
@@ -203,8 +204,8 @@ describe('キャラ名の確かめ', () => {
 });
 
 describe('12星座の性能の決まり（仕様書 12.3）', () => {
-  it('攻撃キャラの必殺の威力は形の作りやすさで決まる（やさしい110・ふつう140・むずかしい160）', () => {
-    const POWER = { easy: 110, normal: 140, hard: 160 } as const;
+  it('攻撃キャラの必殺の威力は形の作りやすさで決まる（やさしい1100・ふつう1400・むずかしい1600）', () => {
+    const POWER = { easy: 1100, normal: 1400, hard: 1600 } as const;
     for (const id of ALL_HEROES) {
       const h = HEROES[id];
       if (h.role === 'attacker') expect(h.special.power).toBe(POWER[h.special.difficulty]);
@@ -250,9 +251,9 @@ describe('途中のバトルの編成', () => {
 
   it('同じキャラが2人いる・壊れた編成は捨てる（前の版の selectedHero は見ない）', () => {
     const s = base();
-    expect(saved({ ...s, party: [m('cancer'), m('virgo'), m('virgo')], selectedHero: 'cancer', partyMaxHp: 330, partyHp: 330 })).toBeNull();
+    expect(saved({ ...s, party: [m('cancer'), m('virgo'), m('virgo')], selectedHero: 'cancer', partyMaxHp: 3150, partyHp: 3150 })).toBeNull();
     // 攻撃3人の途中バトルは読み込める
-    expect(saved({ ...s, party: [m('leo'), m('scorpio'), m('taurus')], selectedHero: 'leo', partyMaxHp: 300, partyHp: 300 })?.state.party).toHaveLength(3);
+    expect(saved({ ...s, party: [m('leo'), m('scorpio'), m('taurus')], selectedHero: 'leo', partyMaxHp: 3000, partyHp: 3000 })?.state.party).toHaveLength(3);
     expect(saved({ ...s, selectedHero: 'aries' })?.state.party).toHaveLength(3);
     expect(saved({ ...s, party: [null, m('scorpio'), m('pisces')] })).toBeNull();
     expect(saved({ ...s, party: 'leo' })).toBeNull();
