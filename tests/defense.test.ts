@@ -11,15 +11,15 @@ import { parseBoard } from './helpers';
 
 // 防御と係数（2026-11-07〜 仕様書 12.13 のタイプの値。12.11 の表は10倍前の値）
 const TABLE: Record<HeroId, [number, number]> = {
-  aries: [120, 120],
-  taurus: [100, 110],
-  gemini: [100, 110],
+  aries: [130, 120],
+  taurus: [110, 100],
+  gemini: [90, 110],
   cancer: [240, 80],
-  leo: [60, 140],
-  virgo: [100, 100],
-  libra: [120, 120],
-  scorpio: [60, 140],
-  sagittarius: [120, 120],
+  leo: [70, 140],
+  virgo: [110, 100],
+  libra: [140, 110],
+  scorpio: [50, 150],
+  sagittarius: [100, 130],
   capricorn: [240, 100],
   aquarius: [90, 90],
   pisces: [100, 110],
@@ -35,8 +35,8 @@ describe('防御力と色の弱点（仕様書 12.11）', () => {
   });
 
   it('防御もレベルで伸びる（Lv6 で 1.5倍）。仲間の合計で効く', () => {
-    expect(heroDefense('taurus', 6)).toBe(150);
-    expect(partyDefense([{ id: 'taurus', level: 1 }, { id: 'leo', level: 1 }])).toBe(160);
+    expect(heroDefense('taurus', 6)).toBe(165);
+    expect(partyDefense([{ id: 'taurus', level: 1 }, { id: 'leo', level: 1 }])).toBe(180);
     expect(damageTaken(1000, 300)).toBe(769);
   });
 
@@ -51,8 +51,8 @@ describe('防御力と色の弱点（仕様書 12.11）', () => {
   });
 
   it('通常の攻撃も .5 を切り上げる（小数の誤差で切り捨てにならない）', () => {
-    // おうし座（体力型・係数110）赤3個・3連鎖（×1.5）・耐性（×0.7）：110 × 3 × 1.5 × 0.7 = 346.5 → 347（3個なので量の特性はかからない）
-    expect(normalEffect('taurus', { red: 3, blue: 0, green: 0, pink: 0 }, 3, 1, { resist: 'red' }).damage).toBe(347);
+    // うお座（係数110）緑3個・3連鎖（×1.5）・耐性（×0.7）：110 × 3 × 1.5 × 0.7 = 346.5 → 347
+    expect(normalEffect('pisces', { red: 0, blue: 0, green: 3, pink: 0 }, 3, 1, { resist: 'green' }).damage).toBe(347);
   });
 
   it('弱点と特性は掛け算で重なる（おうし座の量 × 弱点）', () => {
