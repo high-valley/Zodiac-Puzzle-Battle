@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Cell, Direction, OrbColor, Pos } from '../game/types';
-import { advanceDial, angleAround, carryTurns, clampTurns, isAmbiguousPress, pickCarry, pickIntersection, releaseSteps, type Carry } from '../input/swipe';
+import { advanceCarry, advanceDial, angleAround, clampTurns, isAmbiguousPress, pickCarry, pickIntersection, releaseSteps, type Carry, type CarryState } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -181,7 +181,7 @@ export function createBoardView(
     moved: number;
     pending: { x: number; y: number } | null;
     /** オーブをつかんで運んでいるときの進み方（星を押して回すときは null）。x・y は押した位置 */
-    carry: (Carry & { x: number; y: number }) | null;
+    carry: (Carry & { x: number; y: number; state: CarryState }) | null;
   } | null = null;
   /** 押す前に選んであった 2×2（オーブをつかんだときの手がかり） */
   let pressedFrom: Pos | null = null;
@@ -197,6 +197,15 @@ export function createBoardView(
       const o = orbAt(from);
       o.classList.add('dragging');
       o.style.transform = arcTransform(from, at, dirOf(q), Math.abs(q));
+    }
+  }
+
+  /** 回しかけの向きが切り替わる一瞬だけ、transform をなめらかにする */
+  function easeFlip(at: Pos) {
+    for (const from of quad(at)) {
+      const o = orbAt(from);
+      o.classList.add('carry-flip');
+      setTimeout(() => o.classList.remove('carry-flip'), ROTATE_ANIM.carryFlipMs);
     }
   }
 
@@ -284,14 +293,18 @@ export function createBoardView(
       const carry = pickCarry(start.pending.x, start.pending.y, p.x, p.y, p.cell, pressedFrom);
       if (carry.pos.row !== current.row || carry.pos.col !== current.col) select(carry.pos);
       if (!pressedFrom || pressedFrom.row !== carry.pos.row || pressedFrom.col !== carry.pos.col) flashRing();
-      start.carry = { ...carry, x: start.pending.x, y: start.pending.y };
+      start.carry = { ...carry, x: start.pending.x, y: start.pending.y, state: { sign: carry.sign, locked: false } };
       start.pending = null;
     }
     let q: number;
     if (start.carry) {
       // 運んだ分だけ回す（押した所からの動きで決まる。残りの回数で止める）
       const p = local(e);
-      q = clampTurns(carryTurns(p.x - start.carry.x, p.y - start.carry.y, p.cell, start.carry), left);
+      const next = advanceCarry(p.x - start.carry.x, p.y - start.carry.y, p.cell, start.carry, start.carry.state);
+      // 進む向きが切り替わったとき（横→縦など）は、4個が逆向きへ移るので、一瞬だけなめらかに動かす
+      if (next.state.sign !== start.carry.state.sign) easeFlip(current);
+      start.carry.state = next.state;
+      q = clampTurns(next.q, left);
     } else {
       // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく。残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
       const next = advanceDial(start, angleOf(e, current), start.moved, left);
@@ -322,7 +335,7 @@ export function createBoardView(
     // 離す直前に指を止めていたら、払った速さとして扱わない
     const still = e.timeStamp - st.lastT;
     const v = still > ROTATE_ANIM.stillMs ? st.v * (ROTATE_ANIM.stillMs / still) : st.v;
-    const steps = Math.max(-remaining(), Math.min(remaining(), releaseSteps(dragged.q, v, st.moved)));
+    const steps = Math.max(-remaining(), Math.min(remaining(), releaseSteps(dragged.q, v, st.moved, SWIPE, st.carry !== null)));
     if (steps === 0) {
       springBack(dragged);
       return;

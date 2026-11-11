@@ -115,19 +115,52 @@ export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellS
   return pickCarry(x0, y0, x1, y1, cellSize, current, rule).pos;
 }
 
+/** 運んでいる途中のようす。sign は今の回る向き、locked は進む向きを固定したか */
+export interface CarryState {
+  sign: 1 | -1;
+  locked: boolean;
+}
+
 /**
- * つかんだオーブを運んだ量（90度＝1、符号つき。正＝時計回り）。純粋な関数。
- * dx・dy は押した所からの指の動き（px）。オーブは leg1 の向きへ1マス、つづけて leg2 の向きへ1マス進む（最大 180度）。
- * 1つ目の辺は、指が leg1 の向きへ進んだ分だけ進む（ななめに動かしても、その向きの成分で進むので、中心へ向かう動きでも回る）。
- * 2つ目の辺は、1つ目の辺を carryTurnStart まで進んだ所から数え始める（角を丸く曲がっても、ななめに突っ切っても続けて回る）。
- * 逆向きへは回さない（戻せば 0 に戻る）
+ * つかんだオーブを運んだ量（90度＝1、符号つき。正＝時計回り）と、次のようす。純粋な関数。
+ * dx・dy は押した所からの指の動き（px）。オーブは 2×2 の辺に沿って、まず大きく動かした向きへ1マス、
+ * つづけて角を曲がってもう1マス進む（最大 180度）。
+ * - 進んだ量は、2つの辺の向きの成分 a・b（0〜1）の大きい方 p と小さい方 s から p + s × (p が carryTurnStart〜 で数え始める割合)。
+ *   ななめ（中心へ向かう向き）に動かしても p で進み、角を丸く曲がっても、ななめに突っ切っても飛ばずにつながる。
+ * - 回る向きは、大きく動かした方の辺で決まる。どちらかの辺を carryLockAt まで進むまでは、
+ *   もう一方が carrySwapMargin 上回ったら切り替える（動かし始めに少し横へ出てから下へ運んでも、下へ進む）。
+ * - 決まった所（decideCells）から carryCatchCells までのあいだに、だんだん指に追いつかせる。
+ * - 逆向きへは回さない（戻せば 0 に戻る）
  */
-export function carryTurns(dx: number, dy: number, cellSize: number, carry: Carry, rule = SWIPE): number {
+export function advanceCarry(
+  dx: number,
+  dy: number,
+  cellSize: number,
+  carry: Carry,
+  state: CarryState = { sign: carry.sign, locked: false },
+  rule = SWIPE,
+): { q: number; state: CarryState } {
   const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-  const u = clamp01((dx * carry.leg1.x + dy * carry.leg1.y) / cellSize);
-  const w = clamp01((dx * carry.leg2.x + dy * carry.leg2.y) / cellSize);
-  const turn = clamp01((u - rule.carryTurnStart) / rule.carryTurnSpan);
-  return carry.sign * (u + w * turn);
+  const a = clamp01((dx * carry.leg1.x + dy * carry.leg1.y) / cellSize);
+  const b = clamp01((dx * carry.leg2.x + dy * carry.leg2.y) / cellSize);
+  const p = Math.max(a, b);
+  const s = Math.min(a, b);
+  let sign = state.sign;
+  if (!state.locked) {
+    // leg1 が主なら carry.sign、leg2 が主ならその逆
+    if (sign === carry.sign && b > a + rule.carrySwapMargin) sign = -carry.sign as 1 | -1;
+    else if (sign !== carry.sign && a > b + rule.carrySwapMargin) sign = carry.sign;
+  }
+  const locked = state.locked || p >= rule.carryLockAt;
+  const turn = clamp01((p - rule.carryTurnStart) / rule.carryTurnSpan);
+  const dist = Math.hypot(dx, dy) / cellSize;
+  const catchUp = clamp01((dist - rule.decideCells) / (rule.carryCatchCells - rule.decideCells));
+  return { q: sign * (p + s * turn) * catchUp, state: { sign, locked } };
+}
+
+/** 押した所からまっすぐ（途中で向きを変えずに）運んだときの量（advanceCarry を1回だけ） */
+export function carryTurns(dx: number, dy: number, cellSize: number, carry: Carry, rule = SWIPE): number {
+  return advanceCarry(dx, dy, cellSize, carry, undefined, rule).q;
 }
 
 /** 押した位置の、選んだ交点（2×2 の中心）から見た角度（ラジアン。右が 0、時計回りに増える）と距離（px） */
@@ -159,13 +192,14 @@ export function clampTurns(q: number, remaining: number): number {
  * moved は押してから動いた距離（px）。90度のうち snapAt を超えていれば回しきり、届いていなければその手前の回数にする。
  * 速く払ったときは、flickMinFrac 回していれば回しきる
  */
-export function releaseSteps(q: number, speed: number, moved: number, rule = SWIPE): number {
+export function releaseSteps(q: number, speed: number, moved: number, rule = SWIPE, flickFirstOnly = false): number {
   const sign = Math.sign(q);
   const a = Math.abs(q);
   let k = Math.floor(a);
   const frac = a - k;
   if (frac > rule.snapAt) k++;
-  else if (moved >= rule.minDistance && speed * sign >= rule.flickSpeed && frac >= rule.flickMinFrac) k++;
+  // flickFirstOnly：オーブをつかんで運んだときは、払って回しきるのは1回目だけ（1マス運んだときの少しの横ぶれで、2回分使わないように）
+  else if (moved >= rule.minDistance && speed * sign >= rule.flickSpeed && frac >= rule.flickMinFrac && !(flickFirstOnly && k >= 1)) k++;
   return sign * k;
 }
 

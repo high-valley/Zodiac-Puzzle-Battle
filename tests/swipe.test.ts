@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { advanceDial, angleAround, carryTurns, clampTurns, isAmbiguousPress, pickCarry, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
+import { advanceCarry, advanceDial, angleAround, carryTurns, clampTurns, isAmbiguousPress, pickCarry, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -280,7 +280,7 @@ describe('つかんだオーブを運んだ分だけ回す', () => {
   const carryAt = (deg: number, dist: number, current: typeof right | null = right) => {
     const a = (deg * Math.PI) / 180;
     // 2×2 は、指が decideCells 動いた所で決まる
-    const c = pickCarry(250, 250, 250 + 30 * Math.cos(a), 250 + 30 * Math.sin(a), C, current);
+    const c = pickCarry(250, 250, 250 + 22 * Math.cos(a), 250 + 22 * Math.sin(a), C, current);
     return { pos: c.pos, q: carryTurns(dist * Math.cos(a), dist * Math.sin(a), C, c) };
   };
 
@@ -338,5 +338,91 @@ describe('つかんだオーブを運んだ分だけ回す', () => {
     expect(c.pos).toEqual({ row: 2, col: 0 });
     expect(c.leg1).toEqual({ x: 0, y: 1 });
     expect(Math.abs(carryTurns(-40, 70, C, c)) > SWIPE.snapAt).toBe(true);
+  });
+
+  it('動かし始めに少し横へ出てから下へ運んでも、下へ進んで回る（進む向きは、辺の半分まで切り替わる）', () => {
+    // 右の 2×2 を選んであり、140度（左寄りの左下）へ 0.3マス → そのまま真下へ1マス
+    const a = (140 * Math.PI) / 180;
+    const c = pickCarry(250, 250, 250 + 22 * Math.cos(a), 250 + 22 * Math.sin(a), C, right);
+    expect(c.pos).toEqual({ row: 2, col: 1 });
+    let state = { sign: c.sign, locked: false };
+    let q = 0;
+    const x = 30 * Math.cos(a);
+    for (let y = 30 * Math.sin(a); y <= 30 * Math.sin(a) + 100; y += 2) {
+      const next = advanceCarry(x, y, C, c, state);
+      state = next.state;
+      q = next.q;
+    }
+    // 左下の 2×2 の右上のオーブが下へ＝時計回りに1回分より多く
+    expect(q > 1).toBe(true);
+    expect(state.locked).toBe(true);
+  });
+
+  it('辺の半分まで進んだあとは、進む向きを切り替えない', () => {
+    const c = pickCarry(250, 250, 280, 250, C, null); // 右へ（時計回り）
+    let state = advanceCarry(60, 0, C, c).state;
+    expect(state.locked).toBe(true);
+    const next = advanceCarry(60, 100, C, c, state);
+    expect(next.state.sign).toBe(c.sign);
+    expect(next.q > 1).toBe(true);
+    state = next.state;
+  });
+
+  it('決まった所からは 0 から始まり、だんだん指に追いつく（盤面が飛ばない）', () => {
+    const c = pickCarry(250, 250, 272, 250, C, null);
+    expect(carryTurns(22, 0, C, c)).toBe(0);
+    let last = 0;
+    for (let x = 22; x <= 100; x += 2) {
+      const q = carryTurns(x, 0, C, c);
+      expect(q >= last && q - last < 0.08).toBe(true);
+      last = q;
+    }
+    expect(last).toBe(1);
+  });
+
+  it('マスの大きさが 100px でなくても、1マスでちょうど1回、2マスでちょうど2回', () => {
+    for (const cell of [78, 68.4, 73.6]) {
+      const c = pickCarry(2.5 * cell, 2.5 * cell, 2.5 * cell + 0.3 * cell, 2.5 * cell, cell, null);
+      expect(carryTurns(cell, 0, cell, c)).toBe(1);
+      expect(Math.abs(carryTurns(cell, cell, cell, c))).toBe(2);
+    }
+  });
+
+  it('1マス運んだときの少しの横ぶれでは、速く払っても2回分にならない', () => {
+    // 15度の向きへ1マス：1回と少し。速さは払いの基準より速い
+    const a = (15 * Math.PI) / 180;
+    const c = pickCarry(250, 250, 250 + 22 * Math.cos(a), 250 + 22 * Math.sin(a), C, null);
+    const q = carryTurns(100 * Math.cos(a), 100 * Math.sin(a), C, c);
+    expect(Math.abs(q) > 1 && Math.abs(q) < 1.5).toBe(true);
+    const fast = Math.sign(q) * SWIPE.flickSpeed * 2;
+    expect(Math.abs(releaseSteps(q, fast, 100, SWIPE, true))).toBe(1);
+    // 星を押して回すとき（今までどおり）は、払えば次の回まで回しきる
+    expect(Math.abs(releaseSteps(q, fast, 100))).toBe(2);
+    // つかんで運ぶときも、1回目は払えば回しきる
+    expect(releaseSteps(0.3, SWIPE.flickSpeed * 2, 40, SWIPE, true)).toBe(1);
+  });
+
+  it('回る向きは、どのオーブ・どの向きでも、つかんだオーブが運んだ向きへ動く向き', () => {
+    // 2×2 の4個を時計回りに回すと、左上→右、右上→下、右下→左、左下→上へ動く
+    const cwMove = (dr: number, dc: number) => (dr === 0 && dc === 0 ? [1, 0] : dr === 0 && dc === 1 ? [0, 1] : dr === 1 && dc === 1 ? [-1, 0] : [0, -1]);
+    // 反時計回りは、左上→下、右上→左、右下→上、左下→右
+    const ccwMove = (dr: number, dc: number) => (dr === 0 && dc === 0 ? [0, 1] : dr === 0 && dc === 1 ? [-1, 0] : dr === 1 && dc === 1 ? [0, -1] : [1, 0]);
+    for (let orbRow = 0; orbRow < 5; orbRow++) {
+      for (let orbCol = 0; orbCol < 5; orbCol++) {
+        for (let deg = 0; deg < 360; deg += 15) {
+          const a = (deg * Math.PI) / 180;
+          const x0 = (orbCol + 0.5) * C;
+          const y0 = (orbRow + 0.5) * C;
+          const c = pickCarry(x0, y0, x0 + 30 * Math.cos(a), y0 + 30 * Math.sin(a), C, null);
+          const dr = orbRow - c.pos.row;
+          const dc = orbCol - c.pos.col;
+          // つかんだオーブは、選ばれた 2×2 の中にある
+          expect(dr === 0 || dr === 1).toBe(true);
+          expect(dc === 0 || dc === 1).toBe(true);
+          const move = c.sign === 1 ? cwMove(dr, dc) : ccwMove(dr, dc);
+          expect([c.leg1.x, c.leg1.y]).toEqual(move);
+        }
+      }
+    }
   });
 });
