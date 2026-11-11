@@ -2841,6 +2841,10 @@ html[data-route='result'] .update-note {
   z-index: 2;
   transition: none;
 }
+/* つかんで運ぶ向きが切り替わった一瞬だけ、逆向きへなめらかに移す（時間は balance.ts の carryFlipMs と合わせる） */
+.orb.dragging.carry-flip {
+  transition: transform 0.11s ease-out;
+}
 /* 補充中は、盤面の上から落ちてくるオーブを盤面の枠の中だけに見せる */
 .board.refilling .orbs {
   overflow: hidden;

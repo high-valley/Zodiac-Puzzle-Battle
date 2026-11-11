@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { advanceDial, angleAround, clampTurns, isAmbiguousPress, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
+import { advanceCarry, advanceDial, angleAround, carryTurns, clampTurns, isAmbiguousPress, pickCarry, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -207,52 +207,20 @@ describe('古い保存設定の互換', () => {
   });
 });
 
-// 2026-11-12：オーブのまんなか寄りを押したときは、動かした向きで 2×2 を決める（仕様書 6.2）
+// 2026-11-12：オーブをつかむたびに、動かした向きにある 2×2 を選び直す（仕様書 6.2）
 describe('動かした向きで 2×2 を決める', () => {
-  const C = 100; // 1マス 100px。オーブ (行2, 列2) のまんなかは (250, 250)
-  const mid = { x: 250, y: 250 };
+  const C = 100; // 1マス 100px。オーブ (行2, 列2) は x・y とも 200〜300、まんなかは (250, 250)
 
-  it('オーブのまんなか寄りは決めにくい。交点の星の近くと、選んでいる 2×2 の上は決めにくくない', () => {
-    expect(isAmbiguousPress(250, 250, C, null)).toBe(true);
-    expect(isAmbiguousPress(250, 215, C, null)).toBe(true); // 上の辺の中ほど（左右どちらの交点か決めにくい）
-    expect(isAmbiguousPress(215, 215, C, null)).toBe(false); // 交点 (200,200) の星の近く
-    // 選んでいる 2×2（交点 行1・列1 ＝ 中心 200,200）の上なら、選んだまま回す
-    expect(isAmbiguousPress(250, 250, C, { row: 1, col: 1 })).toBe(false);
-    // 選んでいない所のオーブのまんなかは決めにくい
-    expect(isAmbiguousPress(450, 450, C, { row: 0, col: 0 })).toBe(true);
+  it('交点の星の近くだけ、押した瞬間に決める。オーブの上は、選んである 2×2 の上でも向きで決め直す', () => {
+    expect(isAmbiguousPress(250, 250, C)).toBe(true);
+    expect(isAmbiguousPress(250, 215, C)).toBe(true);
+    expect(isAmbiguousPress(215, 215, C)).toBe(false); // 交点 (200,200) の星の近く
   });
 
-  it('右へ運ぶと、押したオーブと右隣のオーブをふくむ 2×2（左側の 2×2 にはならない）', () => {
-    const p = pickByDrag(mid.x, mid.y, mid.x + 35, mid.y, C);
-    expect(p.col).toBe(2);
-  });
-
-  it('左・上・下も同じ', () => {
-    expect(pickByDrag(mid.x, mid.y, mid.x - 35, mid.y, C).col).toBe(1);
-    expect(pickByDrag(mid.x, mid.y, mid.x, mid.y - 35, C).row).toBe(1);
-    expect(pickByDrag(mid.x, mid.y, mid.x, mid.y + 35, C).row).toBe(2);
-  });
-
-  it('まっすぐ運んで上下（左右）が決まらないときは、押した所に近い方', () => {
-    // 少し下を押して右へ → 下の 2×2（行2）。少し上を押して右へ → 上の 2×2（行1）
-    expect(pickByDrag(250, 262, 285, 262, C)).toEqual({ row: 2, col: 2 });
-    expect(pickByDrag(250, 238, 285, 238, C)).toEqual({ row: 1, col: 2 });
-  });
-
-  it('円を描くと、その円の中心の 2×2 になる（押した所が反対寄りでも）', () => {
-    // 交点 (300,300)＝行2・列2 のまわりを時計回りに 25度。押した所は上寄り（238）
-    const cx = 300;
-    const cy = 300;
-    const a0 = Math.atan2(238 - cy, 250 - cx);
-    const r = Math.hypot(250 - cx, 238 - cy);
-    const a1 = a0 + (25 * Math.PI) / 180;
-    expect(pickByDrag(250, 238, cx + r * Math.cos(a1), cy + r * Math.sin(a1), C)).toEqual({ row: 2, col: 2 });
-  });
-
-  it('決まる距離ちょうど（0.30〜0.33マス）でも、押した位置がオーブのどこでも、運んだ向きの側になる', () => {
+  it('動かした向きの側の 2×2 になる（オーブのどこを押しても、ゆっくりでも）', () => {
     for (let ox = 5; ox < 100; ox += 5) {
       for (let oy = 5; oy < 100; oy += 5) {
-        for (const d of [30, 31, 32, 33, 60]) {
+        for (const d of [30, 31, 33, 60]) {
           expect(pickByDrag(200 + ox, 200 + oy, 200 + ox + d, 200 + oy, C).col).toBe(2);
           expect(pickByDrag(200 + ox, 200 + oy, 200 + ox - d, 200 + oy, C).col).toBe(1);
           expect(pickByDrag(200 + ox, 200 + oy, 200 + ox, 200 + oy + d, C).row).toBe(2);
@@ -262,23 +230,199 @@ describe('動かした向きで 2×2 を決める', () => {
     }
   });
 
-  it('まっすぐ運ぶと、押した位置が上下に大きくずれていても、押した所に近い方（遠い方に切り替わらない）', () => {
-    for (const dy of [12, 20, 40]) {
-      expect(pickByDrag(250, 250 + dy, 285, 250 + dy, C)).toEqual({ row: 2, col: 2 });
-      expect(pickByDrag(250, 250 - dy, 285, 250 - dy, C)).toEqual({ row: 1, col: 2 });
-    }
-    // まんなかは、押した瞬間に選ぶ交点と同じ下・右
+  it('ななめに動かすと、その向きにある 2×2（左下へ動かせば左下）', () => {
+    expect(pickByDrag(250, 250, 225, 275, C)).toEqual({ row: 2, col: 1 }); // 左下
+    expect(pickByDrag(250, 250, 275, 275, C)).toEqual({ row: 2, col: 2 }); // 右下
+    expect(pickByDrag(250, 250, 225, 225, C)).toEqual({ row: 1, col: 1 }); // 左上
+    expect(pickByDrag(250, 250, 275, 225, C)).toEqual({ row: 1, col: 2 }); // 右上
+    // 下へ動かしながら少し左へ寄せても、左下
+    expect(pickByDrag(250, 250, 238, 285, C)).toEqual({ row: 2, col: 1 });
+  });
+
+  it('右の 2×2 を選んであっても、同じオーブを左下へ動かせば左下の 2×2 に移る（ユーザーの報告の場面）', () => {
+    const right = { row: 2, col: 2 };
+    expect(pickByDrag(250, 250, 225, 275, C, right)).toEqual({ row: 2, col: 1 });
+    expect(pickByDrag(250, 250, 220, 250, C, right).col).toBe(1);
+  });
+
+  it('まっすぐ運んだときだけ、選んである 2×2 が進む向きの側にあればそれ。向きを寄せれば移る', () => {
+    const lowerRight = { row: 2, col: 2 };
+    expect(pickByDrag(250, 240, 285, 240, C, lowerRight)).toEqual(lowerRight); // 上寄りを押しても選んだまま
+    expect(pickByDrag(250, 250, 285, 246, C, lowerRight)).toEqual(lowerRight); // ごくわずかなぶれでは移らない
+    // 上へ寄せたら、右上の 2×2 に移る
+    expect(pickByDrag(250, 250, 285, 240, C, lowerRight)).toEqual({ row: 1, col: 2 });
+    // 下へ運びながら少し左へ寄せたら、左下の 2×2 に移る
+    expect(pickByDrag(250, 250, 242, 285, C, lowerRight)).toEqual({ row: 2, col: 1 });
+  });
+
+  it('選んでいないとき、まっすぐ運ぶと押した所に近い方（まんなかは下・右）', () => {
+    expect(pickByDrag(250, 262, 285, 262, C)).toEqual({ row: 2, col: 2 });
+    expect(pickByDrag(250, 238, 285, 238, C)).toEqual({ row: 1, col: 2 });
     expect(pickByDrag(250, 250, 285, 250, C)).toEqual(nearestIntersection(250, 250, C));
   });
 
-  it('ななめに動かすと、その動きで回る2つの 2×2 のうち、押した所に近い方', () => {
-    // 右上へ：右下の交点（時計回り）か、左上の交点（反時計回り）
-    expect(pickByDrag(260, 260, 285, 235, C)).toEqual({ row: 2, col: 2 });
-    expect(pickByDrag(240, 240, 265, 215, C)).toEqual({ row: 1, col: 1 });
-  });
-
-  it('盤面の角のオーブは、盤面の中の 2×2 だけから選ぶ', () => {
+  it('盤面の端・角のオーブは、盤面の中の 2×2 だけから選ぶ', () => {
     expect(pickByDrag(50, 50, 50, 15, C)).toEqual({ row: 0, col: 0 });
     expect(pickByDrag(450, 450, 485, 450, C)).toEqual({ row: 3, col: 3 });
+    expect(pickByDrag(50, 250, 20, 280, C)).toEqual({ row: 2, col: 0 }); // 左端のオーブを左下へ → 左は無いので右側の下
+  });
+
+  it('オーブの絵の上は、角寄りでも「つかんだ」になる（星のすぐ近くだけ、つまみ）', () => {
+    expect(isAmbiguousPress(275, 225, C)).toBe(true); // オーブ(2,2)の右上寄り。星 (300,200) から 0.35マス
+    expect(isAmbiguousPress(285, 215, C)).toBe(false); // 星から 0.21マス
+  });
+});
+
+describe('つかんだオーブを運んだ分だけ回す', () => {
+  const C = 100;
+  const right = { row: 2, col: 2 };
+  /** オーブ(2,2)のまんなかから、向き deg（右=0、下=90）へ dist px 運んだときの、2×2 と回した量 */
+  const carryAt = (deg: number, dist: number, current: typeof right | null = right) => {
+    const a = (deg * Math.PI) / 180;
+    // 2×2 は、指が decideCells 動いた所で決まる
+    const c = pickCarry(250, 250, 250 + 22 * Math.cos(a), 250 + 22 * Math.sin(a), C, current);
+    return { pos: c.pos, q: carryTurns(dist * Math.cos(a), dist * Math.sin(a), C, c) };
+  };
+
+  it('ユーザーの報告の場面：右の 2×2 を選んであっても、左下へ 0.7マス運べば、左下の 2×2 が半分より多く回る', () => {
+    for (const deg of [105, 110, 120, 130, 134, 136, 140, 150, 160, 170]) {
+      const r = carryAt(deg, 70);
+      expect(r.pos).toEqual({ row: 2, col: 1 });
+      expect(Math.abs(r.q) > SWIPE.snapAt).toBe(true);
+      // 下寄りはオーブが下へ（左下の 2×2 の右上から時計回り）、左寄りは左へ（反時計回り）
+      expect(Math.sign(r.q)).toBe(deg < 135 ? 1 : -1);
+    }
+    // ほぼまっすぐ下（横ぶれが小さい）なら、選んである右の 2×2 のまま回る
+    const straight = carryAt(95, 70);
+    expect(straight.pos).toEqual(right);
+    expect(Math.abs(straight.q) > SWIPE.snapAt).toBe(true);
+  });
+
+  it('となりのマスへまっすぐ1マス運ぶと、ちょうど1回分。回る向きは、オーブが運んだ向きへ動く向き', () => {
+    // 選んでいないとき、まんなかを押すと下・右寄りの 2×2
+    const toRight = pickCarry(250, 250, 280, 250, C, null);
+    expect(toRight.pos).toEqual({ row: 2, col: 2 });
+    expect(carryTurns(100, 0, C, toRight)).toBe(1); // 左上のオーブが右へ＝時計回り
+    const toDown = pickCarry(250, 250, 250, 280, C, null);
+    expect(toDown.pos).toEqual({ row: 2, col: 2 });
+    expect(carryTurns(0, 100, C, toDown)).toBe(-1); // 左上のオーブが下へ＝反時計回り
+    const toLeft = pickCarry(250, 250, 220, 250, C, null);
+    expect(toLeft.pos).toEqual({ row: 2, col: 1 });
+    expect(carryTurns(-100, 0, C, toLeft)).toBe(-1); // 右上のオーブが左へ＝反時計回り
+    const toUp = pickCarry(250, 250, 250, 220, C, null);
+    expect(toUp.pos).toEqual({ row: 1, col: 2 });
+    expect(carryTurns(0, -100, C, toUp)).toBe(1); // 左下のオーブが上へ＝時計回り
+  });
+
+  it('角を曲がって2マス運ぶと2回分。ななめに突っ切っても2回分。途中は飛ばずにつながる', () => {
+    const c = pickCarry(250, 250, 250, 280, C, null); // 下へ
+    expect(carryTurns(0, 100, C, c)).toBe(-1);
+    expect(carryTurns(100, 100, C, c)).toBe(-2); // 下→右（角を曲がった先）
+    let last = 0;
+    for (let t = 0; t <= 100; t += 2) {
+      const q = Math.abs(carryTurns(t, t, C, c));
+      expect(q >= last && q - last < 0.12).toBe(true);
+      last = q;
+    }
+    expect(last).toBe(2);
+  });
+
+  it('逆向きへ動かしても逆には回さない（0 のまま）。2回分より多くは回さない', () => {
+    const c = pickCarry(250, 250, 280, 250, C, null);
+    expect(carryTurns(-80, 0, C, c)).toBe(0);
+    expect(carryTurns(300, 300, C, c)).toBe(2);
+  });
+
+  it('盤面の左端のオーブを左下へ運ぶと、動ける向き（下）へ進む', () => {
+    const c = pickCarry(50, 250, 30, 275, C, null);
+    expect(c.pos).toEqual({ row: 2, col: 0 });
+    expect(c.leg1).toEqual({ x: 0, y: 1 });
+    expect(Math.abs(carryTurns(-40, 70, C, c)) > SWIPE.snapAt).toBe(true);
+  });
+
+  it('動かし始めに少し横へ出てから下へ運んでも、下へ進んで回る（進む向きは、辺の半分まで切り替わる）', () => {
+    // 右の 2×2 を選んであり、140度（左寄りの左下）へ 0.3マス → そのまま真下へ1マス
+    const a = (140 * Math.PI) / 180;
+    const c = pickCarry(250, 250, 250 + 22 * Math.cos(a), 250 + 22 * Math.sin(a), C, right);
+    expect(c.pos).toEqual({ row: 2, col: 1 });
+    let state = { sign: c.sign, locked: false };
+    let q = 0;
+    const x = 30 * Math.cos(a);
+    for (let y = 30 * Math.sin(a); y <= 30 * Math.sin(a) + 100; y += 2) {
+      const next = advanceCarry(x, y, C, c, state);
+      state = next.state;
+      q = next.q;
+    }
+    // 左下の 2×2 の右上のオーブが下へ＝時計回りに1回分より多く
+    expect(q > 1).toBe(true);
+    expect(state.locked).toBe(true);
+  });
+
+  it('辺の半分まで進んだあとは、進む向きを切り替えない', () => {
+    const c = pickCarry(250, 250, 280, 250, C, null); // 右へ（時計回り）
+    let state = advanceCarry(60, 0, C, c).state;
+    expect(state.locked).toBe(true);
+    const next = advanceCarry(60, 100, C, c, state);
+    expect(next.state.sign).toBe(c.sign);
+    expect(next.q > 1).toBe(true);
+    state = next.state;
+  });
+
+  it('決まった所からは 0 から始まり、だんだん指に追いつく（盤面が飛ばない）', () => {
+    const c = pickCarry(250, 250, 272, 250, C, null);
+    expect(carryTurns(22, 0, C, c)).toBe(0);
+    let last = 0;
+    for (let x = 22; x <= 100; x += 2) {
+      const q = carryTurns(x, 0, C, c);
+      expect(q >= last && q - last < 0.08).toBe(true);
+      last = q;
+    }
+    expect(last).toBe(1);
+  });
+
+  it('マスの大きさが 100px でなくても、1マスでちょうど1回、2マスでちょうど2回', () => {
+    for (const cell of [78, 68.4, 73.6]) {
+      const c = pickCarry(2.5 * cell, 2.5 * cell, 2.5 * cell + 0.3 * cell, 2.5 * cell, cell, null);
+      expect(carryTurns(cell, 0, cell, c)).toBe(1);
+      expect(Math.abs(carryTurns(cell, cell, cell, c))).toBe(2);
+    }
+  });
+
+  it('1マス運んだときの少しの横ぶれでは、速く払っても2回分にならない', () => {
+    // 15度の向きへ1マス：1回と少し。速さは払いの基準より速い
+    const a = (15 * Math.PI) / 180;
+    const c = pickCarry(250, 250, 250 + 22 * Math.cos(a), 250 + 22 * Math.sin(a), C, null);
+    const q = carryTurns(100 * Math.cos(a), 100 * Math.sin(a), C, c);
+    expect(Math.abs(q) > 1 && Math.abs(q) < 1.5).toBe(true);
+    const fast = Math.sign(q) * SWIPE.flickSpeed * 2;
+    expect(Math.abs(releaseSteps(q, fast, 100, SWIPE, true))).toBe(1);
+    // 星を押して回すとき（今までどおり）は、払えば次の回まで回しきる
+    expect(Math.abs(releaseSteps(q, fast, 100))).toBe(2);
+    // つかんで運ぶときも、1回目は払えば回しきる
+    expect(releaseSteps(0.3, SWIPE.flickSpeed * 2, 40, SWIPE, true)).toBe(1);
+  });
+
+  it('回る向きは、どのオーブ・どの向きでも、つかんだオーブが運んだ向きへ動く向き', () => {
+    // 2×2 の4個を時計回りに回すと、左上→右、右上→下、右下→左、左下→上へ動く
+    const cwMove = (dr: number, dc: number) => (dr === 0 && dc === 0 ? [1, 0] : dr === 0 && dc === 1 ? [0, 1] : dr === 1 && dc === 1 ? [-1, 0] : [0, -1]);
+    // 反時計回りは、左上→下、右上→左、右下→上、左下→右
+    const ccwMove = (dr: number, dc: number) => (dr === 0 && dc === 0 ? [0, 1] : dr === 0 && dc === 1 ? [-1, 0] : dr === 1 && dc === 1 ? [0, -1] : [1, 0]);
+    for (let orbRow = 0; orbRow < 5; orbRow++) {
+      for (let orbCol = 0; orbCol < 5; orbCol++) {
+        for (let deg = 0; deg < 360; deg += 15) {
+          const a = (deg * Math.PI) / 180;
+          const x0 = (orbCol + 0.5) * C;
+          const y0 = (orbRow + 0.5) * C;
+          const c = pickCarry(x0, y0, x0 + 30 * Math.cos(a), y0 + 30 * Math.sin(a), C, null);
+          const dr = orbRow - c.pos.row;
+          const dc = orbCol - c.pos.col;
+          // つかんだオーブは、選ばれた 2×2 の中にある
+          expect(dr === 0 || dr === 1).toBe(true);
+          expect(dc === 0 || dc === 1).toBe(true);
+          const move = c.sign === 1 ? cwMove(dr, dc) : ccwMove(dr, dc);
+          expect([c.leg1.x, c.leg1.y]).toEqual(move);
+        }
+      }
+    }
   });
 });
