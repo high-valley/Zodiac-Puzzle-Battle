@@ -37,28 +37,26 @@ export function pickIntersection(x: number, y: number, cellSize: number, current
 }
 
 /**
- * 押しただけでは、どの 2×2 か決めにくい位置か（2026-11-12）。
- * 今選んでいる 2×2 の上（pickIntersection が選んだままにする所）と、交点の星の近くは、決めにくくない。
- * それ以外（オーブのまんなか寄り）は、まわりの交点がほぼ同じ距離なので、動かした向きで決める（pickByDrag）
+ * 押しただけでは 2×2 を決めない位置か（2026-11-12 改）。
+ * 交点の星の近く（neighborStarCells 以内）を押したときだけ、その交点にすぐ決める。
+ * それ以外（オーブの上）は、今選んでいる 2×2 の上でも、動かした向きで決め直す（pickByDrag）
  */
-export function isAmbiguousPress(x: number, y: number, cellSize: number, current: Pos | null, rule = SWIPE): boolean {
-  const picked = pickIntersection(x, y, cellSize, current, rule);
-  if (current && picked.row === current.row && picked.col === current.col) return false;
-  const nx = (picked.col + 1) * cellSize;
-  const ny = (picked.row + 1) * cellSize;
+export function isAmbiguousPress(x: number, y: number, cellSize: number, rule = SWIPE): boolean {
+  const near = nearestIntersection(x, y, cellSize);
+  const nx = (near.col + 1) * cellSize;
+  const ny = (near.row + 1) * cellSize;
   return !(Math.abs(x - nx) < rule.neighborStarCells * cellSize && Math.abs(y - ny) < rule.neighborStarCells * cellSize);
 }
 
 /**
- * 押した所（x0, y0）から今の指（x1, y1）への動きで、回したい 2×2 を決める（2026-11-12 ユーザーの要望。純粋な関数）。
+ * 押した所（x0, y0）から今の指（x1, y1）への動きで、回したい 2×2 を決める（純粋な関数）。
+ * 2026-11-12 ユーザーの決定：「選んである 4つのまま」をやめ、オーブをつかむたびに、動かした向きにある 2×2 を選び直す。
  * 候補は、押したオーブの四隅の交点（盤面の中のものだけ）。
- * - まっすぐ運んだとき（横ぶれが straightRatio 未満）：進む向きの側の交点（右へ運べば、押したオーブと右隣のオーブをふくむ 2×2）。
- *   残りの2つは、押した所に近い方。
- * - 少し弧を描いたとき：進む向きの側で、弧の内側（横ぶれと反対の側）。円を描けば、その円の中心の 2×2 になる。
- * - ななめに動かしたとき（横ぶれが diagonalRatio 以上）：その動きが「まわりを回る動き」になる2つの交点のうち、押した所に近い方。
- * 同じ近さなら、押した瞬間に選ぶ交点（nearestIntersection）と同じ側にする
+ * - 進む向き（横か縦の、大きく動いた方）の側の交点にする。右へ動かせば右側、下へ動かせば下側。
+ * - 残り（横へ動かしたときの上下、縦へ動かしたときの左右）は、横ぶれの側。左下へ動かせば、左下の 2×2 になる。
+ * - 横ぶれが小さい（straightRatio 未満。まっすぐ運んだ）ときだけ、今選んでいる 2×2 が進む向きの側にあればそれ、無ければ押した所に近い方
  */
-export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellSize: number, rule = SWIPE): Pos {
+export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellSize: number, current: Pos | null = null, rule = SWIPE): Pos {
   const max = BOARD_SIZE - 2;
   const orbRow = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(y0 / cellSize)));
   const orbCol = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(x0 / cellSize)));
@@ -76,28 +74,20 @@ export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellS
   const main = horizontal ? dx : dy;
   const perp = horizontal ? dy : dx;
   const ratio = Math.abs(main) > 0 ? Math.abs(perp) / Math.abs(main) : 0;
-
-  if (ratio >= rule.diagonalRatio) {
-    // ななめ：回る動きになるのは、(横の側 × 横の動き) と (縦の側 × 縦の動き) の符号がちがう2つの交点
-    const pairs = [
-      { sx: Math.sign(dx) || 1, sy: -(Math.sign(dy) || 1) },
-      { sx: -(Math.sign(dx) || 1), sy: Math.sign(dy) || 1 },
-    ]
-      .filter((c) => valid(c.sx > 0 ? orbCol : orbCol - 1) && valid(c.sy > 0 ? orbRow : orbRow - 1))
-      .map((c) => {
-        const pos = { row: c.sy > 0 ? orbRow : orbRow - 1, col: c.sx > 0 ? orbCol : orbCol - 1 };
-        return { pos, near: Math.hypot(x0 - (pos.col + 1) * cellSize, y0 - (pos.row + 1) * cellSize) };
-      });
-    if (pairs.length > 0) {
-      const home = nearestIntersection(x0, y0, cellSize);
-      pairs.sort((a, b) => a.near - b.near || (a.pos.row === home.row && a.pos.col === home.col ? -1 : 1));
-      return pairs[0].pos;
-    }
-  }
-  // 進む向きの側。直角な側は、弧なら内側（横ぶれの反対）、まっすぐなら押した所に近い方
   const mainSide = Math.sign(main) || 1;
-  const perpSide = ratio >= rule.straightRatio ? -Math.sign(perp) : nearSide(horizontal ? y0 : x0, horizontal ? orbRow : orbCol);
-  return horizontal ? { row: pick(orbRow, perpSide), col: pick(orbCol, mainSide) } : { row: pick(orbRow, mainSide), col: pick(orbCol, perpSide) };
+  const mainIndex = pick(horizontal ? orbCol : orbRow, mainSide);
+  const perpOrb = horizontal ? orbRow : orbCol;
+
+  // 今選んでいる 2×2 が、押したオーブをふくみ、進む向きの側にあるか
+  const curMain = current ? (horizontal ? current.col : current.row) : -1;
+  const curPerp = current ? (horizontal ? current.row : current.col) : -1;
+  const currentFits = current !== null && curMain === mainIndex && (curPerp === perpOrb || curPerp === perpOrb - 1);
+
+  let perpIndex: number;
+  if (ratio >= rule.straightRatio) perpIndex = pick(perpOrb, Math.sign(perp) || 1);
+  else if (currentFits) perpIndex = curPerp;
+  else perpIndex = pick(perpOrb, nearSide(horizontal ? y0 : x0, perpOrb));
+  return horizontal ? { row: perpIndex, col: mainIndex } : { row: mainIndex, col: perpIndex };
 }
 
 /** 押した位置の、選んだ交点（2×2 の中心）から見た角度（ラジアン。右が 0、時計回りに増える）と距離（px） */

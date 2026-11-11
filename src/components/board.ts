@@ -244,8 +244,8 @@ export function createBoardView(
     springs = [];
     const p = local(e);
     const before = current;
-    // オーブのまんなか寄りを押したときは、いったん近い交点を選んで見せ、動かした向きで決め直す（pointermove）
-    const pending = isAmbiguousPress(p.x, p.y, p.cell, current) ? { x: p.x, y: p.y } : null;
+    // オーブの上を押したときは、いったん近い交点（選んである 2×2 の上ならそれ）を見せ、動かした向きで決め直す（pointermove）
+    const pending = isAmbiguousPress(p.x, p.y, p.cell) ? { x: p.x, y: p.y } : null;
     select(pickIntersection(p.x, p.y, p.cell, current));
     // 押している間は枠を少し強く光らせる。選び直したときは、移ったことが分かるように軽く光らせる
     ring.classList.add('pressing');
@@ -273,7 +273,7 @@ export function createBoardView(
       // どの 2×2 か決めにくい所を押した：少し動くまで回さず、動かした向きで 2×2 を決める（仕様書 6.2）
       const p = local(e);
       if (Math.hypot(p.x - start.pending.x, p.y - start.pending.y) < SWIPE.decideCells * p.cell) return;
-      const picked = pickByDrag(start.pending.x, start.pending.y, p.x, p.y, p.cell);
+      const picked = pickByDrag(start.pending.x, start.pending.y, p.x, p.y, p.cell, current);
       if (picked.row !== current.row || picked.col !== current.col) {
         select(picked);
         flashRing();
