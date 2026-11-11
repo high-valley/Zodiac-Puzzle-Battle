@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Cell, Direction, OrbColor, Pos } from '../game/types';
-import { advanceDial, angleAround, isAmbiguousPress, pickByDrag, pickIntersection, releaseSteps, wrapAngle } from '../input/swipe';
+import { advanceDial, angleAround, carryTurns, clampTurns, isAmbiguousPress, pickCarry, pickIntersection, releaseSteps, type Carry } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -85,7 +85,7 @@ export function createBoardView(
   const el = document.createElement('div');
   el.className = 'board';
   el.setAttribute('role', 'grid');
-  el.setAttribute('aria-label', '盤面。2×2 の4個を押して、つまみを回すように指で円を描くと、4個がその向きに回ります');
+  el.setAttribute('aria-label', '盤面。オーブを指でつかんで運ぶと、動かした向きにある 2×2 の4個が回ります。4個のまんなかの星を押して、つまみのように回すこともできます');
 
   const orbLayer = document.createElement('div');
   orbLayer.className = 'orbs';
@@ -166,7 +166,8 @@ export function createBoardView(
     }
   }
 
-  // 指で回す：選んだ 2×2 の中心のまわりを、つまみを回すように（2026-11-04）。指の角度にぴったり付いて回る
+  // 指で回す（仕様書 6.1）：オーブをつかんで運ぶ（2026-11-12。動かした向きで 2×2 を決め、運んだ分だけ回す）か、
+  // 交点の星を押して、選んだ 2×2 の中心のまわりを、つまみを回すように回す（2026-11-04。指の角度にぴったり付いて回る）
   /** q は回した量（90度＝1、正＝時計回り）、v は角速度（90度＝1 / ms）、moved は押してから動いた最大の距離（px） */
   /** pending は、動かした向きで 2×2 を決めるのを待っているあいだの、押した位置（盤面の中の座標。決まったら null） */
   let start: {
@@ -179,7 +180,11 @@ export function createBoardView(
     lastT: number;
     moved: number;
     pending: { x: number; y: number } | null;
+    /** オーブをつかんで運んでいるときの進み方（星を押して回すときは null）。x・y は押した位置 */
+    carry: (Carry & { x: number; y: number }) | null;
   } | null = null;
+  /** 押す前に選んであった 2×2（オーブをつかんだときの手がかり） */
+  let pressedFrom: Pos | null = null;
   /** 指に合わせて回している途中のようす */
   let drag: { at: Pos; q: number } | null = null;
   /** 指を離して回すと決まり、その続きを animateRotate に引き継ぐもの（p は最後の1回のうち回した割合、v は指の速さ px/ms） */
@@ -249,8 +254,10 @@ export function createBoardView(
     select(pickIntersection(p.x, p.y, p.cell, current));
     // 押している間は枠を少し強く光らせる。選び直したときは、移ったことが分かるように軽く光らせる
     ring.classList.add('pressing');
-    if (before && current && (before.row !== current.row || before.col !== current.col)) flashRing();
-    start = { x: e.clientX, y: e.clientY, id: e.pointerId, lastAngle: current ? angleOf(e, current) : null, q: 0, v: 0, lastT: e.timeStamp, moved: 0, pending };
+    // オーブをつかんだときは、まだ仮の選択なので光らせない（決まったときに光らせる）
+    if (!pending && before && current && (before.row !== current.row || before.col !== current.col)) flashRing();
+    pressedFrom = before;
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId, lastAngle: current ? angleOf(e, current) : null, q: 0, v: 0, lastT: e.timeStamp, moved: 0, pending, carry: null };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -270,31 +277,27 @@ export function createBoardView(
     }
     start.moved = Math.max(start.moved, Math.hypot(e.clientX - start.x, e.clientY - start.y));
     if (start.pending) {
-      // どの 2×2 か決めにくい所を押した：少し動くまで回さず、動かした向きで 2×2 を決める（仕様書 6.2）
+      // オーブをつかんだ：少し動くまで回さず、動かした向きで 2×2 と進み方を決める（仕様書 6.1）
       const p = local(e);
       if (Math.hypot(p.x - start.pending.x, p.y - start.pending.y) < SWIPE.decideCells * p.cell) return;
-      const picked = pickByDrag(start.pending.x, start.pending.y, p.x, p.y, p.cell, current);
-      if (picked.row !== current.row || picked.col !== current.col) {
-        select(picked);
-        flashRing();
-      }
-      // 押した所からの動きを回した量にする（決めるまでに動かした分を捨てない）。
-      // ただし一度に付けるのは decideMaxTurns まで（押した所が中心に近いと角度が大きくなり、盤面が飛ぶため）
-      const from = angleAround(start.pending.x, start.pending.y, p.cell, picked);
-      const now = angleOf(e, picked);
-      if (from.r < SWIPE.centerDeadCells * p.cell || now === null) {
-        start.lastAngle = null;
-      } else {
-        const cap = SWIPE.decideMaxTurns * (Math.PI / 2);
-        const d = wrapAngle(now - from.angle);
-        start.lastAngle = Math.abs(d) > cap ? now - Math.sign(d) * cap : from.angle;
-      }
+      // 押す前に選んであった 2×2 を、まっすぐ運んだときの手がかりにする
+      const carry = pickCarry(start.pending.x, start.pending.y, p.x, p.y, p.cell, pressedFrom);
+      if (carry.pos.row !== current.row || carry.pos.col !== current.col) select(carry.pos);
+      if (!pressedFrom || pressedFrom.row !== carry.pos.row || pressedFrom.col !== carry.pos.col) flashRing();
+      start.carry = { ...carry, x: start.pending.x, y: start.pending.y };
       start.pending = null;
     }
-    // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく。残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
-    const next = advanceDial(start, angleOf(e, current), start.moved, left);
-    start.lastAngle = next.lastAngle;
-    const q = next.q;
+    let q: number;
+    if (start.carry) {
+      // 運んだ分だけ回す（押した所からの動きで決まる。残りの回数で止める）
+      const p = local(e);
+      q = clampTurns(carryTurns(p.x - start.carry.x, p.y - start.carry.y, p.cell, start.carry), left);
+    } else {
+      // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく。残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
+      const next = advanceDial(start, angleOf(e, current), start.moved, left);
+      start.lastAngle = next.lastAngle;
+      q = next.q;
+    }
     if (q === start.q) return;
     const dt = e.timeStamp - start.lastT;
     if (dt > 0) start.v = start.v * 0.5 + ((q - start.q) / dt) * 0.5;
@@ -346,8 +349,10 @@ export function createBoardView(
     start.q = 0;
     start.v = 0;
     start.lastAngle = null;
-    // 向きで決めるのを待っていた分も捨てる（回せるようになったとき、押した所からの動きが一度に付かないように）
+    // 向きで決めるのを待っていた分と、運んでいた分も捨てる（回せるようになったとき、押した所からの動きが一度に付かないように）。
+    // このあとは、選んである 2×2 を指の角度で回す
     start.pending = null;
+    start.carry = null;
   }
 
   // 回している指の取り消しだけを扱う（ほかの指の取り消しで、回している操作を止めない）

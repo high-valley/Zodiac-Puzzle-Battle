@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { advanceDial, angleAround, clampTurns, isAmbiguousPress, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
+import { advanceDial, angleAround, carryTurns, clampTurns, isAmbiguousPress, pickCarry, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -265,5 +265,78 @@ describe('動かした向きで 2×2 を決める', () => {
     expect(pickByDrag(50, 50, 50, 15, C)).toEqual({ row: 0, col: 0 });
     expect(pickByDrag(450, 450, 485, 450, C)).toEqual({ row: 3, col: 3 });
     expect(pickByDrag(50, 250, 20, 280, C)).toEqual({ row: 2, col: 0 }); // 左端のオーブを左下へ → 左は無いので右側の下
+  });
+
+  it('オーブの絵の上は、角寄りでも「つかんだ」になる（星のすぐ近くだけ、つまみ）', () => {
+    expect(isAmbiguousPress(275, 225, C)).toBe(true); // オーブ(2,2)の右上寄り。星 (300,200) から 0.35マス
+    expect(isAmbiguousPress(285, 215, C)).toBe(false); // 星から 0.21マス
+  });
+});
+
+describe('つかんだオーブを運んだ分だけ回す', () => {
+  const C = 100;
+  const right = { row: 2, col: 2 };
+  /** オーブ(2,2)のまんなかから、向き deg（右=0、下=90）へ dist px 運んだときの、2×2 と回した量 */
+  const carryAt = (deg: number, dist: number, current: typeof right | null = right) => {
+    const a = (deg * Math.PI) / 180;
+    // 2×2 は、指が decideCells 動いた所で決まる
+    const c = pickCarry(250, 250, 250 + 30 * Math.cos(a), 250 + 30 * Math.sin(a), C, current);
+    return { pos: c.pos, q: carryTurns(dist * Math.cos(a), dist * Math.sin(a), C, c) };
+  };
+
+  it('ユーザーの報告の場面：右の 2×2 を選んであっても、左下へ 0.7マス運べば、左下の 2×2 が半分より多く回る', () => {
+    for (const deg of [105, 110, 120, 130, 134, 136, 140, 150, 160, 170]) {
+      const r = carryAt(deg, 70);
+      expect(r.pos).toEqual({ row: 2, col: 1 });
+      expect(Math.abs(r.q) > SWIPE.snapAt).toBe(true);
+      // 下寄りはオーブが下へ（左下の 2×2 の右上から時計回り）、左寄りは左へ（反時計回り）
+      expect(Math.sign(r.q)).toBe(deg < 135 ? 1 : -1);
+    }
+    // ほぼまっすぐ下（横ぶれが小さい）なら、選んである右の 2×2 のまま回る
+    const straight = carryAt(95, 70);
+    expect(straight.pos).toEqual(right);
+    expect(Math.abs(straight.q) > SWIPE.snapAt).toBe(true);
+  });
+
+  it('となりのマスへまっすぐ1マス運ぶと、ちょうど1回分。回る向きは、オーブが運んだ向きへ動く向き', () => {
+    // 選んでいないとき、まんなかを押すと下・右寄りの 2×2
+    const toRight = pickCarry(250, 250, 280, 250, C, null);
+    expect(toRight.pos).toEqual({ row: 2, col: 2 });
+    expect(carryTurns(100, 0, C, toRight)).toBe(1); // 左上のオーブが右へ＝時計回り
+    const toDown = pickCarry(250, 250, 250, 280, C, null);
+    expect(toDown.pos).toEqual({ row: 2, col: 2 });
+    expect(carryTurns(0, 100, C, toDown)).toBe(-1); // 左上のオーブが下へ＝反時計回り
+    const toLeft = pickCarry(250, 250, 220, 250, C, null);
+    expect(toLeft.pos).toEqual({ row: 2, col: 1 });
+    expect(carryTurns(-100, 0, C, toLeft)).toBe(-1); // 右上のオーブが左へ＝反時計回り
+    const toUp = pickCarry(250, 250, 250, 220, C, null);
+    expect(toUp.pos).toEqual({ row: 1, col: 2 });
+    expect(carryTurns(0, -100, C, toUp)).toBe(1); // 左下のオーブが上へ＝時計回り
+  });
+
+  it('角を曲がって2マス運ぶと2回分。ななめに突っ切っても2回分。途中は飛ばずにつながる', () => {
+    const c = pickCarry(250, 250, 250, 280, C, null); // 下へ
+    expect(carryTurns(0, 100, C, c)).toBe(-1);
+    expect(carryTurns(100, 100, C, c)).toBe(-2); // 下→右（角を曲がった先）
+    let last = 0;
+    for (let t = 0; t <= 100; t += 2) {
+      const q = Math.abs(carryTurns(t, t, C, c));
+      expect(q >= last && q - last < 0.12).toBe(true);
+      last = q;
+    }
+    expect(last).toBe(2);
+  });
+
+  it('逆向きへ動かしても逆には回さない（0 のまま）。2回分より多くは回さない', () => {
+    const c = pickCarry(250, 250, 280, 250, C, null);
+    expect(carryTurns(-80, 0, C, c)).toBe(0);
+    expect(carryTurns(300, 300, C, c)).toBe(2);
+  });
+
+  it('盤面の左端のオーブを左下へ運ぶと、動ける向き（下）へ進む', () => {
+    const c = pickCarry(50, 250, 30, 275, C, null);
+    expect(c.pos).toEqual({ row: 2, col: 0 });
+    expect(c.leg1).toEqual({ x: 0, y: 1 });
+    expect(Math.abs(carryTurns(-40, 70, C, c)) > SWIPE.snapAt).toBe(true);
   });
 });

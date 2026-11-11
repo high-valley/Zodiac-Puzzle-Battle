@@ -37,26 +37,34 @@ export function pickIntersection(x: number, y: number, cellSize: number, current
 }
 
 /**
- * 押しただけでは 2×2 を決めない位置か（2026-11-12 改）。
- * 交点の星の近く（neighborStarCells 以内）を押したときだけ、その交点にすぐ決める。
- * それ以外（オーブの上）は、今選んでいる 2×2 の上でも、動かした向きで決め直す（pickByDrag）
+ * オーブをつかんだ（押しただけでは 2×2 を決めない）か（2026-11-12 改）。
+ * 交点の星のすぐ近く（dialStarCells 以内）を押したときだけ、その交点にすぐ決めて、つまみのように回す。
+ * それ以外は、今選んでいる 2×2 の上でも、動かした向きで決め直す（pickCarry）
  */
 export function isAmbiguousPress(x: number, y: number, cellSize: number, rule = SWIPE): boolean {
   const near = nearestIntersection(x, y, cellSize);
-  const nx = (near.col + 1) * cellSize;
-  const ny = (near.row + 1) * cellSize;
-  return !(Math.abs(x - nx) < rule.neighborStarCells * cellSize && Math.abs(y - ny) < rule.neighborStarCells * cellSize);
+  return Math.hypot(x - (near.col + 1) * cellSize, y - (near.row + 1) * cellSize) >= rule.dialStarCells * cellSize;
+}
+
+/** つかんだオーブの運び方。pos は回す 2×2、leg1・leg2 はオーブが進む1つ目・2つ目の辺の向き、sign は回る向き（+1＝時計回り） */
+export interface Carry {
+  pos: Pos;
+  leg1: { x: number; y: number };
+  leg2: { x: number; y: number };
+  sign: 1 | -1;
 }
 
 /**
- * 押した所（x0, y0）から今の指（x1, y1）への動きで、回したい 2×2 を決める（純粋な関数）。
+ * 押した所（x0, y0）から今の指（x1, y1）への動きで、回したい 2×2 と、つかんだオーブの進み方を決める（純粋な関数）。
  * 2026-11-12 ユーザーの決定：「選んである 4つのまま」をやめ、オーブをつかむたびに、動かした向きにある 2×2 を選び直す。
  * 候補は、押したオーブの四隅の交点（盤面の中のものだけ）。
  * - 進む向き（横か縦の、大きく動いた方）の側の交点にする。右へ動かせば右側、下へ動かせば下側。
  * - 残り（横へ動かしたときの上下、縦へ動かしたときの左右）は、横ぶれの側。左下へ動かせば、左下の 2×2 になる。
- * - 横ぶれが小さい（straightRatio 未満。まっすぐ運んだ）ときだけ、今選んでいる 2×2 が進む向きの側にあればそれ、無ければ押した所に近い方
+ * - 横ぶれが小さい（straightRatio 未満。まっすぐ運んだ）ときだけ、今選んでいる 2×2 が進む向きの側にあればそれ、無ければ押した所に近い方。
+ * オーブは、まず進む向きへ1マス（leg1）、つづけて 2×2 の中心の側へ1マス（leg2）進む。
+ * 盤面の端で進む向きへ動けないときは、横ぶれの向きを1つ目の辺にする
  */
-export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellSize: number, current: Pos | null = null, rule = SWIPE): Pos {
+export function pickCarry(x0: number, y0: number, x1: number, y1: number, cellSize: number, current: Pos | null = null, rule = SWIPE): Carry {
   const max = BOARD_SIZE - 2;
   const orbRow = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(y0 / cellSize)));
   const orbCol = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(x0 / cellSize)));
@@ -87,7 +95,39 @@ export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellS
   if (ratio >= rule.straightRatio) perpIndex = pick(perpOrb, Math.sign(perp) || 1);
   else if (currentFits) perpIndex = curPerp;
   else perpIndex = pick(perpOrb, nearSide(horizontal ? y0 : x0, perpOrb));
-  return horizontal ? { row: perpIndex, col: mainIndex } : { row: mainIndex, col: perpIndex };
+  const pos = horizontal ? { row: perpIndex, col: mainIndex } : { row: mainIndex, col: perpIndex };
+
+  // 2×2 の中心は、つかんだオーブから見て (sx, sy) の側。オーブが動けるのは、横なら sx、縦なら sy の向きだけ
+  const sx = pos.col === orbCol ? 1 : -1;
+  const sy = pos.row === orbRow ? 1 : -1;
+  const across = { x: sx, y: 0 };
+  const down = { x: 0, y: sy };
+  // 1つ目の辺：指の動きと同じ向きに動ける方（横が主で横へ動けるなら横。動けなければ縦）
+  const canAcross = Math.sign(dx) === sx;
+  const canDown = Math.sign(dy) === sy;
+  const firstAcross = horizontal ? canAcross || !canDown : !canDown && canAcross;
+  // 時計回りは、中心から見たオーブの位置 (-sx, -sy) と進む向きの外積が正（y は下向き）
+  return firstAcross ? { pos, leg1: across, leg2: down, sign: (sx * sy) as 1 | -1 } : { pos, leg1: down, leg2: across, sign: (-sx * sy) as 1 | -1 };
+}
+
+/** 動かした向きで決めた 2×2 だけを返す（pickCarry の pos） */
+export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellSize: number, current: Pos | null = null, rule = SWIPE): Pos {
+  return pickCarry(x0, y0, x1, y1, cellSize, current, rule).pos;
+}
+
+/**
+ * つかんだオーブを運んだ量（90度＝1、符号つき。正＝時計回り）。純粋な関数。
+ * dx・dy は押した所からの指の動き（px）。オーブは leg1 の向きへ1マス、つづけて leg2 の向きへ1マス進む（最大 180度）。
+ * 1つ目の辺は、指が leg1 の向きへ進んだ分だけ進む（ななめに動かしても、その向きの成分で進むので、中心へ向かう動きでも回る）。
+ * 2つ目の辺は、1つ目の辺を carryTurnStart まで進んだ所から数え始める（角を丸く曲がっても、ななめに突っ切っても続けて回る）。
+ * 逆向きへは回さない（戻せば 0 に戻る）
+ */
+export function carryTurns(dx: number, dy: number, cellSize: number, carry: Carry, rule = SWIPE): number {
+  const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+  const u = clamp01((dx * carry.leg1.x + dy * carry.leg1.y) / cellSize);
+  const w = clamp01((dx * carry.leg2.x + dy * carry.leg2.y) / cellSize);
+  const turn = clamp01((u - rule.carryTurnStart) / rule.carryTurnSpan);
+  return carry.sign * (u + w * turn);
 }
 
 /** 押した位置の、選んだ交点（2×2 の中心）から見た角度（ラジアン。右が 0、時計回りに増える）と距離（px） */
