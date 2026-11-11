@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { advanceDial, angleAround, clampTurns, nearestIntersection, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
+import { advanceDial, angleAround, clampTurns, isAmbiguousPress, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -204,5 +204,53 @@ describe('advanceDial（指の角度から回した量を足す。2026-11-04）'
 describe('古い保存設定の互換', () => {
   it('前の版の「指に付いて回る角度」（dragMaxP）が残っていても読める', () => {
     expect(parseRotateTuning({ ...DEFAULT_ROTATE_TUNING, dragMaxP: 1 })).toEqual(DEFAULT_ROTATE_TUNING);
+  });
+});
+
+// 2026-11-12：オーブのまんなか寄りを押したときは、動かした向きで 2×2 を決める（仕様書 6.2）
+describe('動かした向きで 2×2 を決める', () => {
+  const C = 100; // 1マス 100px。オーブ (行2, 列2) のまんなかは (250, 250)
+  const mid = { x: 250, y: 250 };
+
+  it('オーブのまんなか寄りは決めにくい。交点の星の近くと、選んでいる 2×2 の上は決めにくくない', () => {
+    expect(isAmbiguousPress(250, 250, C, null)).toBe(true);
+    expect(isAmbiguousPress(250, 215, C, null)).toBe(true); // 上の辺の中ほど（左右どちらの交点か決めにくい）
+    expect(isAmbiguousPress(215, 215, C, null)).toBe(false); // 交点 (200,200) の星の近く
+    // 選んでいる 2×2（交点 行1・列1 ＝ 中心 200,200）の上なら、選んだまま回す
+    expect(isAmbiguousPress(250, 250, C, { row: 1, col: 1 })).toBe(false);
+    // 選んでいない所のオーブのまんなかは決めにくい
+    expect(isAmbiguousPress(450, 450, C, { row: 0, col: 0 })).toBe(true);
+  });
+
+  it('右へ運ぶと、押したオーブと右隣のオーブをふくむ 2×2（左側の 2×2 にはならない）', () => {
+    const p = pickByDrag(mid.x, mid.y, mid.x + 35, mid.y, C);
+    expect(p.col).toBe(2);
+  });
+
+  it('左・上・下も同じ', () => {
+    expect(pickByDrag(mid.x, mid.y, mid.x - 35, mid.y, C).col).toBe(1);
+    expect(pickByDrag(mid.x, mid.y, mid.x, mid.y - 35, C).row).toBe(1);
+    expect(pickByDrag(mid.x, mid.y, mid.x, mid.y + 35, C).row).toBe(2);
+  });
+
+  it('まっすぐ運んで上下（左右）が決まらないときは、押した所に近い方', () => {
+    // 少し下を押して右へ → 下の 2×2（行2）。少し上を押して右へ → 上の 2×2（行1）
+    expect(pickByDrag(250, 262, 285, 262, C)).toEqual({ row: 2, col: 2 });
+    expect(pickByDrag(250, 238, 285, 238, C)).toEqual({ row: 1, col: 2 });
+  });
+
+  it('円を描くと、その円の中心の 2×2 になる（押した所が反対寄りでも）', () => {
+    // 交点 (300,300)＝行2・列2 のまわりを時計回りに 25度。押した所は上寄り（238）
+    const cx = 300;
+    const cy = 300;
+    const a0 = Math.atan2(238 - cy, 250 - cx);
+    const r = Math.hypot(250 - cx, 238 - cy);
+    const a1 = a0 + (25 * Math.PI) / 180;
+    expect(pickByDrag(250, 238, cx + r * Math.cos(a1), cy + r * Math.sin(a1), C)).toEqual({ row: 2, col: 2 });
+  });
+
+  it('盤面の角のオーブは、盤面の中の 2×2 だけから選ぶ', () => {
+    expect(pickByDrag(50, 50, 50, 15, C)).toEqual({ row: 0, col: 0 });
+    expect(pickByDrag(450, 450, 485, 450, C)).toEqual({ row: 3, col: 3 });
   });
 });

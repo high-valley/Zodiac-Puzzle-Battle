@@ -36,6 +36,45 @@ export function pickIntersection(x: number, y: number, cellSize: number, current
   return nearest;
 }
 
+/**
+ * 押しただけでは、どの 2×2 か決めにくい位置か（2026-11-12）。
+ * 今選んでいる 2×2 の上（pickIntersection が選んだままにする所）と、交点の星の近くは、決めにくくない。
+ * それ以外（オーブのまんなか寄り）は、まわりの交点がほぼ同じ距離なので、動かした向きで決める（pickByDrag）
+ */
+export function isAmbiguousPress(x: number, y: number, cellSize: number, current: Pos | null, rule = SWIPE): boolean {
+  const picked = pickIntersection(x, y, cellSize, current, rule);
+  if (current && picked.row === current.row && picked.col === current.col) return false;
+  const nx = (picked.col + 1) * cellSize;
+  const ny = (picked.row + 1) * cellSize;
+  return !(Math.abs(x - nx) < rule.neighborStarCells * cellSize && Math.abs(y - ny) < rule.neighborStarCells * cellSize);
+}
+
+/**
+ * 押した所（x0, y0）から今の指（x1, y1）への動きで、回したい 2×2 を決める（2026-11-12 ユーザーの要望。純粋な関数）。
+ * 押したオーブの四隅の交点のうち、指の動きが「その交点のまわりを回る動き」にいちばん合うもの
+ * （交点からの距離が変わらないもの）を選ぶ。右へ運べば、押したオーブと右隣のオーブをふくむ 2×2 になる。
+ * 合い方がほぼ同じ（decideTieCells 以内）なら、押した所に近い交点にする
+ */
+export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellSize: number, rule = SWIPE): Pos {
+  const max = BOARD_SIZE - 2;
+  const orbRow = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(y0 / cellSize)));
+  const orbCol = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(x0 / cellSize)));
+  let best: { pos: Pos; err: number; near: number }[] = [];
+  for (const row of [orbRow - 1, orbRow]) {
+    for (const col of [orbCol - 1, orbCol]) {
+      if (row < 0 || col < 0 || row > max || col > max) continue;
+      const cx = (col + 1) * cellSize;
+      const cy = (row + 1) * cellSize;
+      const r0 = Math.hypot(x0 - cx, y0 - cy);
+      best.push({ pos: { row, col }, err: Math.abs(Math.hypot(x1 - cx, y1 - cy) - r0), near: r0 });
+    }
+  }
+  const min = Math.min(...best.map((b) => b.err));
+  best = best.filter((b) => b.err <= min + rule.decideTieCells * cellSize);
+  best.sort((a, b) => a.near - b.near);
+  return best[0].pos;
+}
+
 /** 押した位置の、選んだ交点（2×2 の中心）から見た角度（ラジアン。右が 0、時計回りに増える）と距離（px） */
 export function angleAround(x: number, y: number, cellSize: number, at: Pos): { angle: number; r: number } {
   const dx = x - (at.col + 1) * cellSize;
