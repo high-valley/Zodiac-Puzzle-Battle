@@ -1,7 +1,7 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Cell, Direction, OrbColor, Pos } from '../game/types';
-import { advanceDial, angleAround, isAmbiguousPress, pickByDrag, pickIntersection, releaseSteps } from '../input/swipe';
+import { advanceDial, angleAround, isAmbiguousPress, pickByDrag, pickIntersection, releaseSteps, wrapAngle } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -278,9 +278,17 @@ export function createBoardView(
         select(picked);
         flashRing();
       }
-      // 押した所からの動きをそのまま回した量にする（決めるまでに動かした分を捨てない）
+      // 押した所からの動きを回した量にする（決めるまでに動かした分を捨てない）。
+      // ただし一度に付けるのは decideMaxTurns まで（押した所が中心に近いと角度が大きくなり、盤面が飛ぶため）
       const from = angleAround(start.pending.x, start.pending.y, p.cell, picked);
-      start.lastAngle = from.r < SWIPE.centerDeadCells * p.cell ? null : from.angle;
+      const now = angleOf(e, picked);
+      if (from.r < SWIPE.centerDeadCells * p.cell || now === null) {
+        start.lastAngle = null;
+      } else {
+        const cap = SWIPE.decideMaxTurns * (Math.PI / 2);
+        const d = wrapAngle(now - from.angle);
+        start.lastAngle = Math.abs(d) > cap ? now - Math.sign(d) * cap : from.angle;
+      }
       start.pending = null;
     }
     // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく。残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
@@ -338,6 +346,8 @@ export function createBoardView(
     start.q = 0;
     start.v = 0;
     start.lastAngle = null;
+    // 向きで決めるのを待っていた分も捨てる（回せるようになったとき、押した所からの動きが一度に付かないように）
+    start.pending = null;
   }
 
   // 回している指の取り消しだけを扱う（ほかの指の取り消しで、回している操作を止めない）

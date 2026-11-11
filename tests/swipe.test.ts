@@ -249,6 +249,34 @@ describe('動かした向きで 2×2 を決める', () => {
     expect(pickByDrag(250, 238, cx + r * Math.cos(a1), cy + r * Math.sin(a1), C)).toEqual({ row: 2, col: 2 });
   });
 
+  it('決まる距離ちょうど（0.30〜0.33マス）でも、押した位置がオーブのどこでも、運んだ向きの側になる', () => {
+    for (let ox = 5; ox < 100; ox += 5) {
+      for (let oy = 5; oy < 100; oy += 5) {
+        for (const d of [30, 31, 32, 33, 60]) {
+          expect(pickByDrag(200 + ox, 200 + oy, 200 + ox + d, 200 + oy, C).col).toBe(2);
+          expect(pickByDrag(200 + ox, 200 + oy, 200 + ox - d, 200 + oy, C).col).toBe(1);
+          expect(pickByDrag(200 + ox, 200 + oy, 200 + ox, 200 + oy + d, C).row).toBe(2);
+          expect(pickByDrag(200 + ox, 200 + oy, 200 + ox, 200 + oy - d, C).row).toBe(1);
+        }
+      }
+    }
+  });
+
+  it('まっすぐ運ぶと、押した位置が上下に大きくずれていても、押した所に近い方（遠い方に切り替わらない）', () => {
+    for (const dy of [12, 20, 40]) {
+      expect(pickByDrag(250, 250 + dy, 285, 250 + dy, C)).toEqual({ row: 2, col: 2 });
+      expect(pickByDrag(250, 250 - dy, 285, 250 - dy, C)).toEqual({ row: 1, col: 2 });
+    }
+    // まんなかは、押した瞬間に選ぶ交点と同じ下・右
+    expect(pickByDrag(250, 250, 285, 250, C)).toEqual(nearestIntersection(250, 250, C));
+  });
+
+  it('ななめに動かすと、その動きで回る2つの 2×2 のうち、押した所に近い方', () => {
+    // 右上へ：右下の交点（時計回り）か、左上の交点（反時計回り）
+    expect(pickByDrag(260, 260, 285, 235, C)).toEqual({ row: 2, col: 2 });
+    expect(pickByDrag(240, 240, 265, 215, C)).toEqual({ row: 1, col: 1 });
+  });
+
   it('盤面の角のオーブは、盤面の中の 2×2 だけから選ぶ', () => {
     expect(pickByDrag(50, 50, 50, 15, C)).toEqual({ row: 0, col: 0 });
     expect(pickByDrag(450, 450, 485, 450, C)).toEqual({ row: 3, col: 3 });

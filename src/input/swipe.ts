@@ -51,28 +51,53 @@ export function isAmbiguousPress(x: number, y: number, cellSize: number, current
 
 /**
  * 押した所（x0, y0）から今の指（x1, y1）への動きで、回したい 2×2 を決める（2026-11-12 ユーザーの要望。純粋な関数）。
- * 押したオーブの四隅の交点のうち、指の動きが「その交点のまわりを回る動き」にいちばん合うもの
- * （交点からの距離が変わらないもの）を選ぶ。右へ運べば、押したオーブと右隣のオーブをふくむ 2×2 になる。
- * 合い方がほぼ同じ（decideTieCells 以内）なら、押した所に近い交点にする
+ * 候補は、押したオーブの四隅の交点（盤面の中のものだけ）。
+ * - まっすぐ運んだとき（横ぶれが straightRatio 未満）：進む向きの側の交点（右へ運べば、押したオーブと右隣のオーブをふくむ 2×2）。
+ *   残りの2つは、押した所に近い方。
+ * - 少し弧を描いたとき：進む向きの側で、弧の内側（横ぶれと反対の側）。円を描けば、その円の中心の 2×2 になる。
+ * - ななめに動かしたとき（横ぶれが diagonalRatio 以上）：その動きが「まわりを回る動き」になる2つの交点のうち、押した所に近い方。
+ * 同じ近さなら、押した瞬間に選ぶ交点（nearestIntersection）と同じ側にする
  */
 export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellSize: number, rule = SWIPE): Pos {
   const max = BOARD_SIZE - 2;
   const orbRow = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(y0 / cellSize)));
   const orbCol = Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(x0 / cellSize)));
-  let best: { pos: Pos; err: number; near: number }[] = [];
-  for (const row of [orbRow - 1, orbRow]) {
-    for (const col of [orbCol - 1, orbCol]) {
-      if (row < 0 || col < 0 || row > max || col > max) continue;
-      const cx = (col + 1) * cellSize;
-      const cy = (row + 1) * cellSize;
-      const r0 = Math.hypot(x0 - cx, y0 - cy);
-      best.push({ pos: { row, col }, err: Math.abs(Math.hypot(x1 - cx, y1 - cy) - r0), near: r0 });
+  const valid = (v: number) => v >= 0 && v <= max;
+  /** 交点の行（列）：side が正ならオーブの下（右）側、負なら上（左）側。盤面の外なら反対側 */
+  const pick = (orb: number, side: number) => {
+    const want = side > 0 ? orb : orb - 1;
+    return valid(want) ? want : side > 0 ? orb - 1 : orb;
+  };
+  /** 押した所に近い側（+1＝下・右、-1＝上・左）。まんなかは nearestIntersection と同じ下・右 */
+  const nearSide = (v: number, orb: number) => (v - (orb + 0.5) * cellSize >= 0 ? 1 : -1);
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const horizontal = Math.abs(dx) >= Math.abs(dy);
+  const main = horizontal ? dx : dy;
+  const perp = horizontal ? dy : dx;
+  const ratio = Math.abs(main) > 0 ? Math.abs(perp) / Math.abs(main) : 0;
+
+  if (ratio >= rule.diagonalRatio) {
+    // ななめ：回る動きになるのは、(横の側 × 横の動き) と (縦の側 × 縦の動き) の符号がちがう2つの交点
+    const pairs = [
+      { sx: Math.sign(dx) || 1, sy: -(Math.sign(dy) || 1) },
+      { sx: -(Math.sign(dx) || 1), sy: Math.sign(dy) || 1 },
+    ]
+      .filter((c) => valid(c.sx > 0 ? orbCol : orbCol - 1) && valid(c.sy > 0 ? orbRow : orbRow - 1))
+      .map((c) => {
+        const pos = { row: c.sy > 0 ? orbRow : orbRow - 1, col: c.sx > 0 ? orbCol : orbCol - 1 };
+        return { pos, near: Math.hypot(x0 - (pos.col + 1) * cellSize, y0 - (pos.row + 1) * cellSize) };
+      });
+    if (pairs.length > 0) {
+      const home = nearestIntersection(x0, y0, cellSize);
+      pairs.sort((a, b) => a.near - b.near || (a.pos.row === home.row && a.pos.col === home.col ? -1 : 1));
+      return pairs[0].pos;
     }
   }
-  const min = Math.min(...best.map((b) => b.err));
-  best = best.filter((b) => b.err <= min + rule.decideTieCells * cellSize);
-  best.sort((a, b) => a.near - b.near);
-  return best[0].pos;
+  // 進む向きの側。直角な側は、弧なら内側（横ぶれの反対）、まっすぐなら押した所に近い方
+  const mainSide = Math.sign(main) || 1;
+  const perpSide = ratio >= rule.straightRatio ? -Math.sign(perp) : nearSide(horizontal ? y0 : x0, horizontal ? orbRow : orbCol);
+  return horizontal ? { row: pick(orbRow, perpSide), col: pick(orbCol, mainSide) } : { row: pick(orbRow, mainSide), col: pick(orbCol, perpSide) };
 }
 
 /** 押した位置の、選んだ交点（2×2 の中心）から見た角度（ラジアン。右が 0、時計回りに増える）と距離（px） */
