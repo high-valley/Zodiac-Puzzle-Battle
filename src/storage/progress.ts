@@ -180,6 +180,18 @@ export function isBattleState(v: unknown): v is BattleState {
   // 星屑をまぜるまでの残りターンも同じ。まぜない敵の盤面に星屑があるのはおかしい
   if (enemy.junk ? !isInt(s.enemyJunkIn, 1, enemy.junk.every) : s.enemyJunkIn !== undefined) return false;
   if (!enemy.junk && board.some((row: unknown[]) => row.includes('junk'))) return false;
+  // ぶつかり岩（2026-11-12〜）：固める敵だけが、残りターンと岩の一覧を持つ。岩は盤面の中の、星屑でないマスで、重ならない
+  if (enemy.rock) {
+    if (!isInt(s.enemyRockIn, 1, enemy.rock.every)) return false;
+    if (!Array.isArray(s.rocks) || s.rocks.length > enemy.rock.max) return false;
+    const seen = new Set<string>();
+    for (const p of s.rocks as unknown[]) {
+      const q = p as Record<string, unknown> | null;
+      if (typeof q !== 'object' || q === null || !isInt(q.row, 0, BOARD_SIZE - 1) || !isInt(q.col, 0, BOARD_SIZE - 1)) return false;
+      if (board[q.row as number][q.col as number] === 'junk' || seen.has(`${q.row},${q.col}`)) return false;
+      seen.add(`${q.row},${q.col}`);
+    }
+  } else if (s.enemyRockIn !== undefined || s.rocks !== undefined) return false;
   if (!isInt(s.rngSeed, 0, 0xffffffff)) return false;
   if (s.status !== 'playing') return false;
   // 特性で続くもの（2026-11-05〜。無くてもよい）

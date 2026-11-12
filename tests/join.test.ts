@@ -28,12 +28,15 @@ describe('仲間の加入（仕様書 12.6）', () => {
     expect(partyProblem(DEFAULT_PARTY)).toBeNull();
   });
 
-  it('今の設定：第1章では誰も加入せず、最初の新しい仲間は第2章の最後（緑のてんびん座。4人目の枠が使える）。ほかは未定', () => {
+  it('今の設定：第1章では誰も加入せず、最初の新しい仲間は第2章の最後（緑のてんびん座。4人目の枠が使える）。第3章で 3-3 にふたご座、3-5 におうし座。ほかは未定', () => {
     for (const s of ['1-1', '1-2', '1-3', '1-4', '1-5']) expect(joinersOf(s)).toEqual([]);
     expect(HERO_JOIN.libra).toEqual({ stageId: '2-5' });
     expect(HEROES.libra.special.color).toBe('green');
     expect(heroesJoinedBy(emptyProgress(), '2-5', true)).toEqual(['libra']);
-    expect(ALL_HEROES.filter((id) => HERO_JOIN[id] === 'later')).toHaveLength(8);
+    expect(HERO_JOIN.gemini).toEqual({ stageId: '3-3' });
+    expect(HERO_JOIN.taurus).toEqual({ stageId: '3-5' });
+    expect(heroesJoinedBy(emptyProgress(), '3-3', true)).toEqual(['gemini']);
+    expect(ALL_HEROES.filter((id) => HERO_JOIN[id] === 'later')).toHaveLength(6);
     // 第1章をすべてクリアしても仲間は3人のまま
     let p = emptyProgress();
     for (const s of ['1-1', '1-2', '1-3', '1-4', '1-5']) p = recordResult(p, s, 3, 5);

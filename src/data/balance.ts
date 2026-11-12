@@ -21,6 +21,12 @@ export function chainMultiplier(chain: number): number {
  * 盤面の指の操作（CSS px）。選んだ 2×2 の中心のまわりを、つまみを回すように指で回す（2026-11-04 ユーザーの決定）。
  * 指の角度にぴったり付いて回り、何周でも続けて回せる（90度ごとに1回と数え、残りの回数で止まる）
  */
+/** ぶつかり岩（仕様書 12.14。2026-11-12） */
+export const ROCK = {
+  /** 岩を置いても、回せる 2×2（交点）がこれだけは残るようにする（16 のうち） */
+  minFreeIntersections: 6,
+};
+
 export const SWIPE = {
   /** これより短い動き（px）は「押しただけ」：選ぶだけで回さない */
   dragDeadZone: 4,

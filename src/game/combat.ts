@@ -1,12 +1,12 @@
 // 戦闘の開始と1ターンの解決
 // 処理順：回転（1〜3回。この間は何も消えない）→ 攻撃で確定 → 固有形判定（仲間全員）→ 通常マッチ／連鎖 → 回復 → 攻撃 → 敵行動 → ターン更新
 // 出撃した仲間は全員が同時に行動し、各キャラは自分の色のオーブが消えたときだけ動く（仕様書 12.7）
-import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, TRAITS, WEAKNESS, chainMultiplier, damageTaken } from '../data/balance';
+import { MAX_CHAIN, MAX_ROTATIONS_PER_TURN, ROCK, TRAITS, WEAKNESS, chainMultiplier, damageTaken } from '../data/balance';
 import { DEFAULT_ENEMY_ID, ENEMIES, type EnemyDef } from '../data/enemies';
 import { DEFAULT_PARTY, HEROES } from '../data/heroes';
 import { levelPercent } from '../data/growth';
 import { partyDefense, partyMaxHp, partyProblem, scaled } from './party';
-import { cloneBoard, collapseAndRefill, createInitialBoard, isValidIntersection, rotate2x2 } from './board';
+import { breakAndDropRocks, cloneBoard, collapseAndRefill, createInitialBoard, freeIntersections, isRockBlocked, isValidIntersection, rotate2x2, sortPos } from './board';
 import { nextInt } from './rng';
 import { countJunk, findMatches, junkBeside, matchedMask, maskToCells } from './matching';
 import { detectHeroSpecial } from './specials';
@@ -59,6 +59,7 @@ export function createBattle(
     enemyMaxHp: enemy.maxHp,
     enemyChargeIn: enemy.heavy ? enemy.heavy.every : null,
     ...(enemy.junk ? { enemyJunkIn: enemy.junk.every } : {}),
+    ...(enemy.rock ? { enemyRockIn: enemy.rock.every, rocks: [] } : {}),
     rngSeed: initial.seed,
     status: 'playing',
     stats: { maxChain: 0, specials: 0, damageDealt: 0, healed: 0 },
@@ -69,10 +70,12 @@ export function createBattle(
  * 星屑でないマスから count 個を乱数で選び、星屑に変える（仕様書 12.12）。
  * 星屑はそろわないので、まぜても新しいマッチはできない。選んだマスは上の行から順に返す
  */
-export function mixJunk(board: Board, count: number, seed: number): { board: Board; cells: Pos[]; seed: number } {
+export function mixJunk(board: Board, count: number, seed: number, rocks: readonly Pos[] = []): { board: Board; cells: Pos[]; seed: number } {
   let s = seed;
   const free: Pos[] = [];
-  board.forEach((line, row) => line.forEach((x, col) => x !== 'junk' && free.push({ row, col })));
+  // 岩で固まったオーブは星屑にしない
+  const rocked = (row: number, col: number) => rocks.some((p) => p.row === row && p.col === col);
+  board.forEach((line, row) => line.forEach((x, col) => x !== 'junk' && !rocked(row, col) && free.push({ row, col })));
   const picked: Pos[] = [];
   for (let i = 0; i < count && free.length > 0; i++) {
     const pick = nextInt(s, free.length);
@@ -84,6 +87,32 @@ export function mixJunk(board: Board, count: number, seed: number): { board: Boa
   for (const p of picked) next[p.row][p.col] = 'junk';
   picked.sort((a, b) => a.row - b.row || a.col - b.col);
   return { board: next, cells: picked, seed: s };
+}
+
+/**
+ * 星屑でも岩でもないオーブから count 個を乱数で選び、岩で固める（仕様書 12.14）。
+ * 回せる 2×2 が ROCK.minFreeIntersections より少なくなるマスは選ばない。返す rocks は固めた後のすべての岩
+ */
+export function placeRocks(board: Board, rocks: readonly Pos[], count: number, seed: number): { rocks: Pos[]; cells: Pos[]; seed: number } {
+  let s = seed;
+  const all = rocks.map((p) => ({ ...p }));
+  const picked: Pos[] = [];
+  for (let i = 0; i < count; i++) {
+    const free: Pos[] = [];
+    board.forEach((line, row) =>
+      line.forEach((x, col) => {
+        if (x === 'junk' || all.some((p) => p.row === row && p.col === col)) return;
+        if (freeIntersections([...all, { row, col }]) < ROCK.minFreeIntersections) return;
+        free.push({ row, col });
+      }),
+    );
+    if (free.length === 0) break;
+    const pick = nextInt(s, free.length);
+    s = pick.seed;
+    picked.push(free[pick.value]);
+    all.push(free[pick.value]);
+  }
+  return { rocks: sortPos(all), cells: sortPos(picked), seed: s };
 }
 
 function emptyCounts(): Record<OrbColor, number> {
@@ -147,6 +176,10 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     if (r.direction !== 'clockwise' && r.direction !== 'counterclockwise') {
       throw new RangeError(`回転方向が不正です: ${String(r.direction)}`);
     }
+    // 岩で固まったオーブを含む 2×2 は回せない（仕様書 12.14。岩は回している間は動かない）
+    if (isRockBlocked(state.rocks, r.row, r.col)) {
+      throw new RangeError(`岩で固まったオーブは回せません: (${r.row}, ${r.col})`);
+    }
   }
 
   // 回している間は何も消えない。回し終えた盤面で、必殺と消去を判定する
@@ -192,6 +225,8 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
   // 必殺だけで消えたオーブは通常効果を出さず、連鎖の段数にも数えない（通常マッチの段だけ数える）
   let specialCells = specials.flatMap((sp) => sp.cells);
   let chain = 0;
+  // ぶつかり岩（固める敵だけ）
+  let rocks = state.rocks;
   for (;;) {
     const groups = findMatches(board);
     if (groups.length === 0 && specialCells.length === 0) break;
@@ -238,10 +273,18 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
     // 消えるマスの上下左右にある星屑は、一緒に消える（効果は出さない。仕様書 12.12）
     const junk = junkBeside(board, mask);
     for (const p of junk) mask[p.row][p.col] = true;
+    // 消えるマスとその上下左右の岩は割れ、残った岩はオーブと一緒に落ちる（仕様書 12.14）
+    let rockInfo: { broken?: Pos[]; rocks?: Pos[] } = {};
+    if (rocks) {
+      const after = breakAndDropRocks(rocks, mask);
+      rocks = after.rocks;
+      rockInfo = { rocks, ...(after.broken.length > 0 ? { broken: after.broken } : {}) };
+    }
     const refilled = collapseAndRefill(board, mask, seed);
     board = refilled.board;
     seed = refilled.seed;
     events.push({
+      ...rockInfo,
       type: 'clear',
       chain: groups.length > 0 ? chain : 0,
       cells: maskToCells(mask),
@@ -301,6 +344,7 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
   let status: BattleState['status'] = 'playing';
   let chargeIn = state.enemyChargeIn;
   let junkIn = state.enemyJunkIn;
+  let rockIn = state.enemyRockIn;
   if (enemyHp === 0) {
     status = 'victory';
   } else {
@@ -327,11 +371,24 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       junkIn -= 1;
       if (junkIn <= 0) {
         junkIn = enemy.junk.every;
-        const mixed = mixJunk(board, Math.min(enemy.junk.count, enemy.junk.max - countJunk(board)), seed);
+        const mixed = mixJunk(board, Math.min(enemy.junk.count, enemy.junk.max - countJunk(board)), seed, rocks);
         seed = mixed.seed;
         if (mixed.cells.length > 0) {
           board = mixed.board;
           events.push({ type: 'junk', cells: mixed.cells, board });
+        }
+      }
+    }
+    // ぶつかり岩：残りターンが 0 になったら、盤面のオーブを岩で固めて数え直す
+    if (status === 'playing' && enemy.rock && rockIn !== undefined) {
+      rockIn -= 1;
+      if (rockIn <= 0) {
+        rockIn = enemy.rock.every;
+        const placed = placeRocks(board, rocks ?? [], Math.max(0, Math.min(enemy.rock.count, enemy.rock.max - (rocks?.length ?? 0))), seed);
+        seed = placed.seed;
+        if (placed.cells.length > 0) {
+          rocks = placed.rocks;
+          events.push({ type: 'rock', cells: placed.cells, rocks });
         }
       }
     }
@@ -353,6 +410,8 @@ export function resolveTurn(state: BattleState, action: TurnAction): TurnResult 
       enemyHp,
       enemyChargeIn: chargeIn,
       ...(junkIn !== undefined ? { enemyJunkIn: junkIn } : {}),
+      ...(rockIn !== undefined ? { enemyRockIn: rockIn } : {}),
+      ...(rocks ? { rocks } : {}),
       rngSeed: seed,
       status,
       traits,
