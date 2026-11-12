@@ -6,7 +6,7 @@ import { constellationSvg } from '../components/constellations';
 import { ROLE_PLATE } from '../components/heroCard';
 import { TAB_ICON } from '../components/tabBar';
 import { artHeightRatio, HERO_ART } from '../data/heroArt';
-import { HEROES } from '../data/heroes';
+import { HEROES, heroNameHtml } from '../data/heroes';
 import type { HeroId } from '../game/types';
 import { CHAPTERS, findStage, stageEnemyName } from '../data/stages';
 import { heroGrowth, nextStageId } from '../storage/progress';
@@ -97,7 +97,7 @@ export function mountHome(container: HTMLElement, ctx: AppContext): () => void {
           <li class="home-plate">
             <span class="plate-badge orb-${HEROES[id].special.color}" aria-hidden="true">${HEROES[id].symbol}</span>
             <span class="plate-text">
-              <span class="plate-name">${HEROES[id].name}</span>
+              <span class="plate-name">${heroNameHtml(id)}</span>
               <span class="plate-meta"><span class="plate-role">${ROLE_PLATE[HEROES[id].role]}　</span>Lv.${heroGrowth(ctx.progress, id).level}</span>
             </span>
           </li>`,

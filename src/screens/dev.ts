@@ -2,7 +2,7 @@
 // 「すべて解放」は表示の上だけで、保存した進行（クリアの記録・仲間）は書き換えない。レベルのボタンだけは進行を書き換える
 import type { AppContext } from '../app';
 import { MAX_LEVEL } from '../data/growth';
-import { ALL_HEROES, HERO_JOIN, HEROES } from '../data/heroes';
+import { ALL_HEROES, HERO_JOIN, HERO_CALL_NAME } from '../data/heroes';
 import { ALL_STAGES } from '../data/stages';
 import { FEATURE_IDS, type Route } from '../routes';
 import { featureShortName } from './comingSoon';
@@ -94,7 +94,7 @@ export function mountDev(container: HTMLElement, ctx: AppContext): () => void {
         </div>
         <h3 class="dev-sub">育成（キャラごと）</h3>
         <div class="dev-grid">
-          ${ALL_HEROES.map((id) => `<button type="button" class="text-btn hero" data-id="${id}">${HEROES[id].name}</button>`).join('')}
+          ${ALL_HEROES.map((id) => `<button type="button" class="text-btn hero" data-id="${id}">${HERO_CALL_NAME[id]}</button>`).join('')}
         </div>
       </section>
     </main>`;

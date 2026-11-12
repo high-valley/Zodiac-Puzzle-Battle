@@ -3,7 +3,7 @@ import type { AppContext } from '../app';
 import { enemySvg } from '../components/enemyArt';
 import { affinityHtml, heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { ENEMIES } from '../data/enemies';
-import { ALL_HEROES, HEROES } from '../data/heroes';
+import { ALL_HEROES, heroFullName } from '../data/heroes';
 import { ALL_STAGES } from '../data/stages';
 import type { HeroId } from '../game/types';
 import { heroGrowth } from '../storage/progress';
@@ -27,7 +27,7 @@ export function mountBook(container: HTMLElement, ctx: AppContext): () => void {
           ${heroCardInner(id, heroGrowth(ctx.progress, id).level)}
         </button>`
           : `
-        <div role="listitem" class="hero-card locked" aria-label="${HEROES[id].name}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
+        <div role="listitem" class="hero-card locked" aria-label="${heroFullName(id)}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
       ).join('')}
     </div>
     <h2 class="section-title">敵 <small>${defeated.size} / ${enemies.length}</small></h2>

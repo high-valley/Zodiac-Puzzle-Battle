@@ -4701,3 +4701,133 @@ html[data-route='story'] body::after {
     animation: none;
   }
 }
+
+/* ───────── 名前：呼び名のあとに小さく星座（2026-11-12 ユーザーの要望で全画面をそろえる） ───────── */
+.hn-sign {
+  margin-left: 0.35em;
+  font-size: 0.72em;
+  font-weight: 500;
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}
+
+/* ───────── バトルの仲間のカード：上半身の絵（2026-11-12 ユーザーの要望） ─────────
+   絵をカードいっぱいに敷き（顔が上に来るように）、下に名前と小さく星座、右上に役割の札を重ねる。
+   カードの高さは前と同じくらいに保つ（バトル画面をスクロールさせない） */
+.battle .hero {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  min-height: 80px;
+  align-content: end;
+  justify-items: center;
+  gap: 0;
+  padding: 0 3px 4px;
+}
+.hero-face {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.hero-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 15%;
+  display: block;
+}
+/* 文字を読みやすくする下の影 */
+.hero-face::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, #0b1233c0 72%, #0b1233f2 100%);
+}
+.battle .hero-name {
+  font-size: 13px;
+  line-height: 1.15;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px #000c;
+}
+.battle .hero-sign {
+  font-size: 9.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #d9d3ea;
+  text-shadow: 0 1px 2px #000c;
+}
+.battle .hero-sign .hero-symbol {
+  display: inline;
+  font-size: 1em;
+  line-height: inherit;
+  margin-right: 2px;
+  color: inherit;
+}
+/* 役割の札：右上に小さく */
+.battle .hero-role {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px 1px 3px;
+  border-radius: 999px;
+  background: #0b1233cc;
+  font-size: 9px;
+  line-height: 1.3;
+  color: #e9e4f5;
+}
+.battle .hero-role .hero-main-orb {
+  width: 10px;
+  height: 10px;
+  margin-right: 2px;
+  vertical-align: 0;
+}
+.battle .heroes:has(> :nth-child(4)) .hero-name {
+  font-size: 12px;
+  letter-spacing: -0.03em;
+}
+.battle .heroes:has(> :nth-child(4)) .hero-sign {
+  font-size: 9px;
+  letter-spacing: -0.03em;
+}
+@media (max-height: 740px) {
+  .battle .hero {
+    min-height: 68px;
+  }
+}
+@media (max-height: 600px) {
+  /* 星座記号は、カードの下の星座の行に小さく入れたので隠さない（2026-11-07 の「記号を隠す」はカードの上の大きな記号のためだった） */
+  .battle .hero {
+    min-height: 56px;
+  }
+}
+/* カード・名前の札・育成の見出しでは、星座の名前を名前の下の行に（途中で折り返さないように） */
+.hc-name .hn-sign,
+.plate-name .hn-sign,
+h2 > .hn-sign {
+  display: block;
+  margin-left: 0;
+  line-height: 1.3;
+}
+h2 > .hn-sign {
+  font-size: 0.5em;
+  margin-top: 2px;
+}
+.plate-name .hn-sign {
+  font-size: 9px;
+}
+.hc-name {
+  overflow-wrap: anywhere;
+}
+/* 4人の名前の札・編成の枠：呼び名を1行に収める（「サジタリウス」「アクエリアス」が折り返したり切れたりしないように） */
+.home-plates.count-4 .plate-name {
+  font-size: 10px;
+  letter-spacing: -0.04em;
+}
+.slot .hc-name {
+  white-space: nowrap;
+  font-size: 12px;
+  letter-spacing: -0.04em;
+  overflow-wrap: normal;
+}

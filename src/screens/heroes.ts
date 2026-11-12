@@ -8,7 +8,7 @@ import { mountHeroSort } from '../components/heroSort';
 import { specialOrbsHtml } from '../components/specialPreview';
 import { MAX_LEVEL, expToNext } from '../data/growth';
 import { HERO_ART } from '../data/heroArt';
-import { ALL_HEROES, HEROES, STAT_TYPE_LABEL, TRAIT_LABEL } from '../data/heroes';
+import { ALL_HEROES, HEROES, STAT_TYPE_LABEL, TRAIT_LABEL, HERO_CALL_NAME, heroFullName, heroNameHtml } from '../data/heroes';
 import { heroStats, statText } from '../game/party';
 import { SHAPE_LABEL } from '../game/specials';
 import type { HeroId } from '../game/types';
@@ -39,7 +39,7 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
             ${party.includes(id) ? '<span class="hc-badge">出撃</span>' : ''}
           </button>`
             : `
-          <div role="listitem" class="hero-card locked" data-id="${id}" aria-label="${HEROES[id].name}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
+          <div role="listitem" class="hero-card locked" data-id="${id}" aria-label="${heroFullName(id)}（${joinText(id)}）">${lockedCardInner(id)}</div>`,
         ).join('')}
       </div>
     </main>`;
@@ -74,11 +74,11 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
     <section class="hero-hero main-${h.special.color}">
       <div class="hero-stage">
         ${constellationSvg(heroId, '')}
-        <img class="hero-full" src="${assetUrl(HERO_ART[heroId].file)}" alt="${h.name}の立ち絵" draggable="false" />
+        <img class="hero-full" src="${assetUrl(HERO_ART[heroId].file)}" alt="${heroFullName(heroId)}の立ち絵" draggable="false" />
       </div>
       <div class="hero-title">
         <span class="hero-badge" aria-hidden="true">${h.symbol}</span>
-        <h2>${h.name}</h2>
+        <h2>${heroNameHtml(heroId)}</h2>
         <p class="hero-latin">${h.latin}</p>
         <p class="hero-role-text"><span class="hero-main-orb orb-${h.special.color}" aria-hidden="true"></span>${ROLE_SHORT[h.role]}・${STAT_TYPE_LABEL[h.statType]}</p>
         <dl class="hero-stats">
@@ -126,8 +126,8 @@ export function mountHeroes(container: HTMLElement, ctx: AppContext, heroId?: He
     </section>
 
     <nav class="hero-nav" aria-label="ほかのキャラ">
-      <button type="button" class="text-btn prev">‹ ${HEROES[prev].name}</button>
-      <button type="button" class="text-btn next">${HEROES[next].name} ›</button>
+      <button type="button" class="text-btn prev">‹ ${HERO_CALL_NAME[prev]}</button>
+      <button type="button" class="text-btn next">${HERO_CALL_NAME[next]} ›</button>
     </nav>
   </main>`;
 

@@ -4,7 +4,7 @@ import { cueForEvent, turnHasSpecial } from '../audio/cues';
 import { createBoardView } from '../components/board';
 import { assetUrl, BATTLE_IMAGES, preloadImages } from '../components/assets';
 import { createFx } from '../components/effects';
-import { affinityHtml } from '../components/heroCard';
+import { affinityHtml, heroFaceImg, heroFaceUrl } from '../components/heroCard';
 import { enemySvg } from '../components/enemyArt';
 import { isModalOpen, openModal } from '../components/modal';
 import { specialOrbsHtml } from '../components/specialPreview';
@@ -15,7 +15,7 @@ import { bindRotateTuning, rotateTuningHtml } from '../components/rotateTuning';
 import { DEV_TOOLS } from '../data/devTools';
 import { HERO_ART } from '../data/heroArt';
 import { BATTLE_INTRO, CUTIN_ART, FX_TIMING } from '../data/heroFx';
-import { HEROES } from '../data/heroes';
+import { HEROES, HERO_CALL_NAME, heroFullName } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
 import { isRockBlocked, rotate2x2 } from '../game/board';
 import { createBattle, enemyOf, resolveTurn } from '../game/combat';
@@ -129,10 +129,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     <div class="heroes" aria-label="仲間（全員が同時に行動する。押すと上の必殺の形が光る）">
       ${state.party.map(
         ({ id }) => `
-        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-describedby="special-${id}" aria-label="${HEROES[id].name}（${HEROES[id].role === 'healer' ? '回復役' : '攻撃役'}）">
-          <span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>
-          <span class="hero-name">${HEROES[id].name}</span>
+        <button type="button" class="hero hero-${id}" data-hero="${id}" aria-describedby="special-${id}" aria-label="${heroFullName(id)}（${HEROES[id].role === 'healer' ? '回復役' : '攻撃役'}）">
+          <span class="hero-face" aria-hidden="true">${heroFaceImg(id)}</span>
           <span class="hero-role"><span class="hero-main-orb orb-${HEROES[id].special.color}" aria-hidden="true"></span>${HEROES[id].role === 'healer' ? '回復' : '攻撃'}</span>
+          <span class="hero-name">${HERO_CALL_NAME[id]}</span>
+          <span class="hero-sign"><span class="hero-symbol" aria-hidden="true">${HEROES[id].symbol}</span>${HEROES[id].name}</span>
         </button>`,
       ).join('')}
     </div>
@@ -171,7 +172,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   // 必殺のカットインの立ち絵を先に読み込んでおく（初めての必殺で絵が間に合わないことがないように）
   // バトル突入の画面：オーブ・背景・カットインの絵を読み込むあいだ、ステージと敵の名前を見せる（2026-11-04）。
   // 読み込み済みなら短く、まだなら最大1.5秒まで待つ。そのあと消えて操作できるようになる
-  const images = [...BATTLE_IMAGES, ...state.party.flatMap(({ id }) => [HERO_ART[id].file, ...(CUTIN_ART[id]?.frames ?? [])])].map(assetUrl);
+  const images = [
+    ...[...BATTLE_IMAGES, ...state.party.flatMap(({ id }) => [HERO_ART[id].file, ...(CUTIN_ART[id]?.frames ?? [])])].map(assetUrl),
+    // 仲間のカードの上半身の絵（2026-11-12）
+    ...state.party.map(({ id }) => heroFaceUrl(id)),
+  ];
   const intro = document.createElement('div');
   intro.className = 'battle-intro';
   intro.setAttribute('role', 'status');

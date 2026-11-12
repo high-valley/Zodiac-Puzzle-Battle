@@ -337,3 +337,33 @@ export const DEFAULT_PARTY: readonly PartyMember[] = [
 /** 編成の人数：1〜4人（2026-11-03。仲間が3人のうちは3人まで） */
 export const PARTY_MIN = 1;
 export const PARTY_MAX = 4;
+
+/**
+ * キャラの呼び名。星座の英名から（2026-11-04 に会話の名前の札として決め、2026-11-12 ユーザーの要望で画面全体の表示名にした）。
+ * HEROES[id].name（「いて座」など）は、呼び名に添える星座の名前として使う
+ */
+export const HERO_CALL_NAME: Record<HeroId, string> = {
+  aries: 'アリエス',
+  taurus: 'タウラス',
+  gemini: 'ジェミニ',
+  cancer: 'キャンサー',
+  leo: 'レオ',
+  virgo: 'ヴァルゴ',
+  libra: 'リブラ',
+  scorpio: 'スコルピオ',
+  sagittarius: 'サジタリウス',
+  capricorn: 'カプリコーン',
+  aquarius: 'アクエリアス',
+  pisces: 'ピスケス',
+};
+
+/** 文の中や読み上げで使う名前：「サジタリウス（いて座）」 */
+export function heroFullName(id: HeroId): string {
+  return `${HERO_CALL_NAME[id]}（${HEROES[id].name}）`;
+}
+
+/** 画面に出す名前：呼び名のあとに、小さく星座の名前を添える（HTML） */
+export function heroNameHtml(id: HeroId): string {
+  // 読み上げでは「サジタリウス（いて座）」になるよう、見えない括弧で区切る
+  return `${HERO_CALL_NAME[id]}<small class="hn-sign"><span class="visually-hidden">（</span>${HEROES[id].name}<span class="visually-hidden">）</span></small>`;
+}

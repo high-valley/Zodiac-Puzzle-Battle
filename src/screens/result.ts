@@ -3,7 +3,7 @@ import { sceneAfterWin } from '../storage/progress';
 import type { AppContext } from '../app';
 import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
-import { HEROES } from '../data/heroes';
+import { HEROES, heroFullName, heroNameHtml } from '../data/heroes';
 import { ALL_STAGES, STAR3_HP_RATIO, findStage } from '../data/stages';
 import type { BattleOutcome } from './battle';
 
@@ -50,7 +50,7 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
       <ul>
         ${outcome.growth
           .map(
-            (g) => `<li><span class="rg-sym" aria-hidden="true">${HEROES[g.id].symbol}</span>${HEROES[g.id].name}
+            (g) => `<li><span class="rg-sym" aria-hidden="true">${HEROES[g.id].symbol}</span>${heroNameHtml(g.id)}
               <span class="rg-lv">Lv.${g.before}${g.after > g.before ? ` → <b>Lv.${g.after}</b><span class="rg-up">レベルアップ</span>` : ''}</span></li>`,
           )
           .join('')}
@@ -62,7 +62,7 @@ export function mountResult(container: HTMLElement, ctx: AppContext, outcome: Ba
       outcome.joined.length
         ? `<section class="result-join" aria-label="新しい仲間">
              <p class="rj-title">新しい仲間</p>
-             <ul>${outcome.joined.map((id) => `<li><span class="rj-sym" aria-hidden="true">${HEROES[id].symbol}</span>${HEROES[id].name}が仲間になった</li>`).join('')}</ul>
+             <ul>${outcome.joined.map((id) => `<li><span class="rj-sym" aria-hidden="true">${HEROES[id].symbol}</span>${heroFullName(id)}が仲間になった</li>`).join('')}</ul>
            </section>`
         : ''
     }
