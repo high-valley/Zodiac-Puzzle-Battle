@@ -364,5 +364,6 @@ export function heroFullName(id: HeroId): string {
 
 /** 画面に出す名前：呼び名のあとに、小さく星座の名前を添える（HTML） */
 export function heroNameHtml(id: HeroId): string {
-  return `${HERO_CALL_NAME[id]}<small class="hn-sign">${HEROES[id].name}</small>`;
+  // 読み上げでは「サジタリウス（いて座）」になるよう、見えない括弧で区切る
+  return `${HERO_CALL_NAME[id]}<small class="hn-sign"><span class="visually-hidden">（</span>${HEROES[id].name}<span class="visually-hidden">）</span></small>`;
 }

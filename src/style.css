@@ -4797,11 +4797,9 @@ html[data-route='story'] body::after {
   }
 }
 @media (max-height: 600px) {
+  /* 星座記号は、カードの下の星座の行に小さく入れたので隠さない（2026-11-07 の「記号を隠す」はカードの上の大きな記号のためだった） */
   .battle .hero {
     min-height: 56px;
-  }
-  .battle .hero-sign .hero-symbol {
-    display: inline;
   }
 }
 /* カード・名前の札・育成の見出しでは、星座の名前を名前の下の行に（途中で折り返さないように） */
@@ -4826,7 +4824,6 @@ h2 > .hn-sign {
 .home-plates.count-4 .plate-name {
   font-size: 10px;
   letter-spacing: -0.04em;
-  text-overflow: clip;
 }
 .slot .hc-name {
   white-space: nowrap;
