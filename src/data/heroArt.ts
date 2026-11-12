@@ -71,3 +71,12 @@ export function artHeightRatio(id: HeroId): number {
   const a = HERO_ART[id];
   return (HERO_HEIGHT_CM[id] * a.pose) / TALLEST_CM / (1 - a.headTop);
 }
+
+/**
+ * バトルの仲間のカード用の小さな絵（2026-11-12）。会話用の上半身の絵（ふつう）の上 6 割を幅 330px に縮めたもの（1枚 13〜26KB）。
+ * 上半身の絵を差し替えたら `python3 tools/make-face-thumbs.py` で作り直し、?v= の数字を上げる
+ */
+export const HERO_FACE_VERSION = 1;
+export function heroFaceFile(id: HeroId): string {
+  return `art/faces/${id}.webp?v=${HERO_FACE_VERSION}`;
+}
