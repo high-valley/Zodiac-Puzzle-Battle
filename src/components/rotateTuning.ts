@@ -12,8 +12,8 @@ const ITEMS: { key: keyof RotateTuning; label: string; note: string }[] = [
 const show = (_key: keyof RotateTuning, v: number) => `${(v / 1000).toFixed(2)}秒`;
 
 /** 伝えてもらうときの1行 */
-export function rotateTuningSummary(t: RotateTuning): string {
-  return `離したあと ${show('releaseMinMs', t.releaseMinMs)}〜${show('releaseMaxMs', Math.max(t.releaseMinMs, t.releaseMaxMs))}`;
+export function rotateTuningSummary(t: RotateTuning, mode: RotateMode = 'grab'): string {
+  return `${mode === 'tap' ? 'タップで選ぶ方式' : '今の方式'}／離したあと ${show('releaseMinMs', t.releaseMinMs)}〜${show('releaseMaxMs', Math.max(t.releaseMinMs, t.releaseMaxMs))}`;
 }
 
 const MODES: { value: RotateMode; label: string; note: string }[] = [
@@ -43,7 +43,7 @@ export function rotateTuningHtml(t: RotateTuning, mode: RotateMode = 'grab'): st
           <span class="tune-note">${note}</span>
         </label>`;
       }).join('')}
-      <p class="tune-summary">伝える値：<b>${rotateTuningSummary(t)}</b></p>
+      <p class="tune-summary">伝える値：<b>${rotateTuningSummary(t, mode)}</b></p>
       <p class="tune-note">演出の速さを「×2」にしているときは、時間が半分になります。</p>
       <button type="button" class="text-btn wide tune-reset">初期値に戻す</button>
     </div>`;
@@ -51,15 +51,16 @@ export function rotateTuningHtml(t: RotateTuning, mode: RotateMode = 'grab'): st
 
 /** つまみを動かすたびに保存する（すぐバトルで試せるように） */
 export function bindRotateTuning(root: HTMLElement, ctx: AppContext): void {
+  const refreshSummary = () => {
+    const s = root.querySelector('.tune-summary b');
+    if (s) s.textContent = rotateTuningSummary(rotateTuningOf(ctx.settings), ctx.settings.devRotateMode);
+  };
   root.querySelectorAll<HTMLInputElement>('input[name=rotate-mode]').forEach((input) =>
     input.addEventListener('change', () => {
       if (input.checked) ctx.setSettings({ ...ctx.settings, devRotateMode: input.value as RotateMode });
+      refreshSummary();
     }),
   );
-  const refreshSummary = () => {
-    const s = root.querySelector('.tune-summary b');
-    if (s) s.textContent = rotateTuningSummary(rotateTuningOf(ctx.settings));
-  };
   root.querySelectorAll<HTMLInputElement>('.tune input[type=range]').forEach((input) =>
     input.addEventListener('input', () => {
       const key = input.dataset.key as keyof RotateTuning;

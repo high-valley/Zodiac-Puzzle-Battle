@@ -118,6 +118,7 @@ export function createBoardView(
   const hole = document.createElement('div');
   hole.className = 'sel-hole';
   dim.append(hole);
+  dim.hidden = true;
   el.append(dim);
 
   const ring = document.createElement('div');
@@ -298,6 +299,8 @@ export function createBoardView(
       return;
     }
     start.moved = Math.max(start.moved, Math.hypot(e.clientX - start.x, e.clientY - start.y));
+    // タップで選ぶ方式：タップのぶれ（tapSlop まで）では回し始めない
+    if (start.tapPick && start.moved < SWIPE.tapSlop) return;
     if (start.pending) {
       // どの 2×2 か決めにくい所を押した：少し動くまで回さず、動かした向きで 2×2 を決める（仕様書 6.2）
       const p = local(e);
@@ -341,7 +344,7 @@ export function createBoardView(
     const dragged = drag;
     drag = null;
     // タップで選ぶ方式：オーブを押して、動かさずに離した（または回すほど動かさなかった）ら、その 2×2 を選ぶ
-    if (st.tapPick && st.moved < SWIPE.minDistance && (!dragged || Math.abs(dragged.q) < 0.05)) {
+    if (st.tapPick && st.moved < SWIPE.tapSlop) {
       if (dragged) clearDrag(dragged.at);
       const pick = st.tapPick;
       if (!current || current.row !== pick.row || current.col !== pick.col) {

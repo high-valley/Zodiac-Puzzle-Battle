@@ -301,5 +301,12 @@ describe('タップで選ぶ方式', () => {
   it('交点の星の近くだけ、星として選ぶ', () => {
     expect(starAt(205, 195, C)).toEqual({ row: 1, col: 1 });
     expect(starAt(250, 250, C)).toBe(null);
+    expect(starAt(229, 200, C)).toEqual({ row: 1, col: 1 }); // 0.3 マスの内側
+    expect(starAt(231, 200, C)).toBe(null); // 外側
+  });
+  it('端の行・列で外の角の側を押しても、盤面の中の 2×2', () => {
+    expect(pickQuadrant(80, 20, C)).toEqual({ row: 0, col: 0 }); // 上端の右上寄り
+    expect(pickQuadrant(420, 480, C)).toEqual({ row: 3, col: 3 }); // 下端の左下寄り
+    expect(pickQuadrant(499, 499, C)).toEqual({ row: 3, col: 3 });
   });
 });

@@ -78,8 +78,8 @@ export function mountDev(container: HTMLElement, ctx: AppContext): () => void {
       </section>
 
       <section class="panel">
-        <h2 class="panel-title">オーブを回す速さ</h2>
-        <p class="dev-note">つまみを動かすと、すぐこの端末に保存されます。バトルの一時停止メニューの「回す速さ（調整用）」からも変えられます。よい速さが見つかったら「伝える値」を教えてください。</p>
+        <h2 class="panel-title">オーブの回し方・回す速さ</h2>
+        <p class="dev-note">つまみを動かすと、すぐこの端末に保存されます。バトルの一時停止メニューの「回し方・回す速さ（調整用）」からも変えられます。よい回し方・速さが見つかったら「伝える値」を教えてください。</p>
         ${rotateTuningHtml(rotateTuningOf(ctx.settings), ctx.settings.devRotateMode)}
       </section>
 
