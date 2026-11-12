@@ -1,7 +1,8 @@
 // 5×5 盤面の表示と交点スワイプの入力
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Cell, Direction, OrbColor, Pos } from '../game/types';
-import { advanceDial, angleAround, isAmbiguousPress, pickByDrag, pickIntersection, releaseSteps, wrapAngle } from '../input/swipe';
+import type { RotateMode } from '../storage/settings';
+import { advanceDial, angleAround, isAmbiguousPress, pickByDrag, pickIntersection, pickQuadrant, releaseSteps, starAt, wrapAngle } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
 /** 色覚の違いでも見分けられるよう、色ごとに記号を重ねる（オーブの形は共通） */
@@ -81,6 +82,8 @@ export function createBoardView(
   remaining: () => number = () => 3,
   /** 回す動きの速さ（開発者画面で変えられるので、使うたびに読む） */
   tuning: () => RotateTuning = () => DEFAULT_ROTATE_TUNING,
+  /** 回し方（開発者モードで試し比べる。'tap'＝タップで選んで、なぞって回す。使うたびに読む） */
+  mode: () => RotateMode = () => 'grab',
 ): BoardView {
   const el = document.createElement('div');
   el.className = 'board';
@@ -107,6 +110,16 @@ export function createBoardView(
     }
   }
   el.append(starLayer);
+
+  // タップで選ぶ方式：選んだ 2×2 の外を暗くする（中の .hole の外側を、大きな影で塗る。盤面の外へははみ出さない）
+  const dim = document.createElement('div');
+  dim.className = 'sel-dim';
+  dim.setAttribute('aria-hidden', 'true');
+  const hole = document.createElement('div');
+  hole.className = 'sel-hole';
+  dim.append(hole);
+  dim.hidden = true;
+  el.append(dim);
 
   const ring = document.createElement('div');
   ring.className = 'ring';
@@ -160,9 +173,12 @@ export function createBoardView(
     current = pos;
     if (pos) stars[pos.row][pos.col].classList.add('on');
     ring.hidden = pos === null;
+    dim.hidden = pos === null;
     if (pos) {
       ring.style.setProperty('--r', String(pos.row));
       ring.style.setProperty('--c', String(pos.col));
+      hole.style.setProperty('--r', String(pos.row));
+      hole.style.setProperty('--c', String(pos.col));
     }
   }
 
@@ -179,6 +195,8 @@ export function createBoardView(
     lastT: number;
     moved: number;
     pending: { x: number; y: number } | null;
+    /** タップで選ぶ方式で、オーブを押したとき：動かさずに離したら、この 2×2 を選ぶ */
+    tapPick: Pos | null;
   } | null = null;
   /** 指に合わせて回している途中のようす */
   let drag: { at: Pos; q: number } | null = null;
@@ -242,15 +260,27 @@ export function createBoardView(
     for (const a of running) a.finish();
     for (const a of springs) a.cancel();
     springs = [];
+    el.classList.toggle('tap-mode', mode() === 'tap');
     const p = local(e);
     const before = current;
-    // オーブのまんなか寄りを押したときは、いったん近い交点を選んで見せ、動かした向きで決め直す（pointermove）
-    const pending = isAmbiguousPress(p.x, p.y, p.cell, current) ? { x: p.x, y: p.y } : null;
-    select(pickIntersection(p.x, p.y, p.cell, current));
+    let pending: { x: number; y: number } | null = null;
+    let tapPick: Pos | null = null;
+    if (mode() === 'tap') {
+      // タップで選ぶ方式：星を押したらその 2×2。オーブを押したら、動かさずに離したときに選び直す（pointerup）。
+      // 動かしたら、選んである 2×2 を回す（どこをなぞっても）。まだ選んでいなければ、押した所の 2×2 を選んで回す
+      const star = starAt(p.x, p.y, p.cell);
+      if (star) select(star);
+      else if (!current) select(pickQuadrant(p.x, p.y, p.cell));
+      else tapPick = pickQuadrant(p.x, p.y, p.cell);
+    } else {
+      // オーブのまんなか寄りを押したときは、いったん近い交点を選んで見せ、動かした向きで決め直す（pointermove）
+      pending = isAmbiguousPress(p.x, p.y, p.cell, current) ? { x: p.x, y: p.y } : null;
+      select(pickIntersection(p.x, p.y, p.cell, current));
+    }
     // 押している間は枠を少し強く光らせる。選び直したときは、移ったことが分かるように軽く光らせる
     ring.classList.add('pressing');
     if (before && current && (before.row !== current.row || before.col !== current.col)) flashRing();
-    start = { x: e.clientX, y: e.clientY, id: e.pointerId, lastAngle: current ? angleOf(e, current) : null, q: 0, v: 0, lastT: e.timeStamp, moved: 0, pending };
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId, lastAngle: current ? angleOf(e, current) : null, q: 0, v: 0, lastT: e.timeStamp, moved: 0, pending, tapPick };
     el.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -269,6 +299,8 @@ export function createBoardView(
       return;
     }
     start.moved = Math.max(start.moved, Math.hypot(e.clientX - start.x, e.clientY - start.y));
+    // タップで選ぶ方式：タップのぶれ（tapSlop まで）では回し始めない
+    if (start.tapPick && start.moved < SWIPE.tapSlop) return;
     if (start.pending) {
       // どの 2×2 か決めにくい所を押した：少し動くまで回さず、動かした向きで 2×2 を決める（仕様書 6.2）
       const p = local(e);
@@ -311,6 +343,16 @@ export function createBoardView(
     start = null;
     const dragged = drag;
     drag = null;
+    // タップで選ぶ方式：オーブを押して、動かさずに離した（または回すほど動かさなかった）ら、その 2×2 を選ぶ
+    if (st.tapPick && st.moved < SWIPE.tapSlop) {
+      if (dragged) clearDrag(dragged.at);
+      const pick = st.tapPick;
+      if (!current || current.row !== pick.row || current.col !== pick.col) {
+        select(pick);
+        flashRing();
+      }
+      return;
+    }
     if (!dragged) return;
     if (locked || !current) {
       clearDrag(dragged.at);

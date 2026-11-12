@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE } from '../src/data/balance';
-import { advanceDial, angleAround, clampTurns, isAmbiguousPress, nearestIntersection, pickByDrag, pickIntersection, releaseSteps, toTurns, wrapAngle } from '../src/input/swipe';
+import { advanceDial, angleAround, clampTurns, isAmbiguousPress, nearestIntersection, pickByDrag, pickIntersection, pickQuadrant, releaseSteps, starAt, toTurns, wrapAngle } from '../src/input/swipe';
 import { DEFAULT_SETTINGS, parseRotateTuning, rotateTuningOf } from '../src/storage/settings';
 
 describe('nearestIntersection', () => {
@@ -280,5 +280,33 @@ describe('動かした向きで 2×2 を決める', () => {
   it('盤面の角のオーブは、盤面の中の 2×2 だけから選ぶ', () => {
     expect(pickByDrag(50, 50, 50, 15, C)).toEqual({ row: 0, col: 0 });
     expect(pickByDrag(450, 450, 485, 450, C)).toEqual({ row: 3, col: 3 });
+  });
+});
+
+// 2026-11-12 試し：タップで選ぶ方式
+describe('タップで選ぶ方式', () => {
+  const C = 100; // オーブ (行2, 列2) は x・y とも 200〜300
+  it('押したオーブの、押した角の側の 2×2', () => {
+    expect(pickQuadrant(220, 280, C)).toEqual({ row: 2, col: 1 }); // 左下寄り → 左下
+    expect(pickQuadrant(280, 220, C)).toEqual({ row: 1, col: 2 }); // 右上寄り → 右上
+    expect(pickQuadrant(220, 220, C)).toEqual({ row: 1, col: 1 });
+    expect(pickQuadrant(280, 280, C)).toEqual({ row: 2, col: 2 });
+    expect(pickQuadrant(250, 250, C)).toEqual({ row: 2, col: 2 }); // まんなかは右下
+  });
+  it('盤面の端・角のオーブは、盤面の中の 2×2', () => {
+    expect(pickQuadrant(20, 20, C)).toEqual({ row: 0, col: 0 });
+    expect(pickQuadrant(480, 480, C)).toEqual({ row: 3, col: 3 });
+    expect(pickQuadrant(20, 280, C)).toEqual({ row: 2, col: 0 });
+  });
+  it('交点の星の近くだけ、星として選ぶ', () => {
+    expect(starAt(205, 195, C)).toEqual({ row: 1, col: 1 });
+    expect(starAt(250, 250, C)).toBe(null);
+    expect(starAt(229, 200, C)).toEqual({ row: 1, col: 1 }); // 0.3 マスの内側
+    expect(starAt(231, 200, C)).toBe(null); // 外側
+  });
+  it('端の行・列で外の角の側を押しても、盤面の中の 2×2', () => {
+    expect(pickQuadrant(80, 20, C)).toEqual({ row: 0, col: 0 }); // 上端の右上寄り
+    expect(pickQuadrant(420, 480, C)).toEqual({ row: 3, col: 3 }); // 下端の左下寄り
+    expect(pickQuadrant(499, 499, C)).toEqual({ row: 3, col: 3 });
   });
 });

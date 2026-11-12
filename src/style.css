@@ -4543,3 +4543,56 @@ html[data-route='story'] body::after {
   font-size: 20px;
   text-align: left;
 }
+
+/* 回し方の試し比べ（2026-11-12）：タップで選ぶ方式では、選んだ 2×2 の外を暗くし、枠を強くする */
+.sel-dim {
+  position: absolute;
+  inset: 0;
+  /* オーブと星の上、枠（z-index 3）の下 */
+  z-index: 2;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  display: none;
+}
+.board.tap-mode .sel-dim:not([hidden]) {
+  display: block;
+}
+.sel-hole {
+  position: absolute;
+  left: calc(var(--c) * 20%);
+  top: calc(var(--r) * 20%);
+  width: 40%;
+  height: 40%;
+  border-radius: 12px;
+  box-shadow: 0 0 0 999px #050a1f8c;
+  transition:
+    left 0.1s ease-out,
+    top 0.1s ease-out;
+}
+.board.locked .sel-dim,
+.board.refilling .sel-dim {
+  display: none !important;
+}
+.board.tap-mode .ring {
+  border-width: 3.5px;
+}
+.tune-mode {
+  border: 1px solid #f1c07355;
+  border-radius: 12px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+}
+.tune-mode-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 6px 0;
+}
+.tune-mode-row input {
+  margin-top: 4px;
+  accent-color: var(--gold);
+}
+.tune-mode-row .tune-note {
+  display: block;
+}

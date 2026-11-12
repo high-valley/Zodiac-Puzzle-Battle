@@ -100,6 +100,28 @@ export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellS
   return horizontal ? { row: pick(orbRow, perpSide), col: pick(orbCol, mainSide) } : { row: pick(orbRow, mainSide), col: pick(orbCol, perpSide) };
 }
 
+/**
+ * タップで選ぶ方式（2026-11-12 試し）：押したオーブの、押した角の側にある 2×2（純粋な関数）。
+ * オーブの左下寄りを押せば、そのオーブを右上にふくむ左下の 2×2。盤面の端では、盤面の中の 2×2 にする
+ */
+export function pickQuadrant(x: number, y: number, cellSize: number): Pos {
+  const max = BOARD_SIZE - 2;
+  const clampOrb = (v: number) => Math.min(BOARD_SIZE - 1, Math.max(0, Math.floor(v / cellSize)));
+  const orbRow = clampOrb(y);
+  const orbCol = clampOrb(x);
+  const side = (v: number, orb: number) => (v / cellSize - orb >= 0.5 ? orb : orb - 1);
+  const clamp = (v: number) => Math.min(max, Math.max(0, v));
+  return { row: clamp(side(y, orbRow)), col: clamp(side(x, orbCol)) };
+}
+
+/** 交点の星の近く（縦横 neighborStarCells 以内）を押したか。押したならその交点、でなければ null */
+export function starAt(x: number, y: number, cellSize: number, rule = SWIPE): Pos | null {
+  const near = nearestIntersection(x, y, cellSize);
+  const nx = (near.col + 1) * cellSize;
+  const ny = (near.row + 1) * cellSize;
+  return Math.abs(x - nx) < rule.neighborStarCells * cellSize && Math.abs(y - ny) < rule.neighborStarCells * cellSize ? near : null;
+}
+
 /** 押した位置の、選んだ交点（2×2 の中心）から見た角度（ラジアン。右が 0、時計回りに増える）と距離（px） */
 export function angleAround(x: number, y: number, cellSize: number, at: Pos): { angle: number; r: number } {
   const dx = x - (at.col + 1) * cellSize;
