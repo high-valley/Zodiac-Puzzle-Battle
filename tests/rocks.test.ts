@@ -121,3 +121,37 @@ describe('途中のバトルの保存（岩）', () => {
     expect(isBattleState(JSON.parse(JSON.stringify(noList)))).toBe(false);
   });
 });
+
+describe('岩の落下（レビューの指摘）', () => {
+  it('落ちた岩で回せる 2×2 が足りなくなったら、落ちた岩を下から割る（broken は落ちる前の位置）', () => {
+    // 一番下の行の (4,1)〜(4,3) が消えると、(0,1)(0,3)(1,1)(2,3) は1つずつ落ちる → 回せる 2×2 が2つになるので割る
+    const rocks = [{ row: 0, col: 1 }, { row: 0, col: 3 }, { row: 1, col: 1 }, { row: 2, col: 3 }];
+    expect(freeIntersections(rocks)).toBe(6);
+    const r = breakAndDropRocks(rocks, mask([{ row: 4, col: 1 }, { row: 4, col: 2 }, { row: 4, col: 3 }]));
+    expect(freeIntersections(r.rocks) >= ROCK.minFreeAfterDrop).toBe(true);
+    expect(r.broken.length + r.rocks.length).toBe(4);
+    // 割れたのは落ちる前の位置で、元の岩のどれか
+    for (const p of r.broken) expect(rocks.some((q) => q.row === p.row && q.col === p.col)).toBe(true);
+  });
+
+  it('引数の岩と盤面は変えない（凍結して渡しても動く）', () => {
+    const rocks = Object.freeze([Object.freeze({ row: 1, col: 1 })]) as unknown as Pos[];
+    const state = Object.freeze(stateWith(createBattle(3, 'clashrocks'), QUIET_ROWS, { rocks, enemyRockIn: 1 }));
+    const before = JSON.stringify(state);
+    resolveTurn(state, quiet);
+    expect(JSON.stringify(state)).toBe(before);
+  });
+
+  it('回しかけの保存に岩で回せない 2×2 があれば読まない', async () => {
+    const { parsePending } = await import('../src/storage/progress');
+    expect(parsePending([{ row: 0, col: 0, direction: 'clockwise' }], [{ row: 1, col: 1 }])).toEqual([]);
+    expect(parsePending([{ row: 3, col: 3, direction: 'clockwise' }], [{ row: 1, col: 1 }])).toEqual([{ row: 3, col: 3, direction: 'clockwise' }]);
+  });
+
+  it('回せる 2×2 が1つもない岩の並びは、保存から読まない', () => {
+    const rocks = [{ row: 1, col: 1 }, { row: 1, col: 3 }, { row: 3, col: 1 }, { row: 3, col: 3 }];
+    expect(freeIntersections(rocks)).toBe(0);
+    const state = stateWith(createBattle(1, 'clashrocks'), QUIET_ROWS, { rocks });
+    expect(isBattleState(JSON.parse(JSON.stringify(state)))).toBe(false);
+  });
+});
