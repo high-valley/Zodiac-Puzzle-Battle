@@ -1,16 +1,18 @@
 // キャラのカード（編成・育成・図鑑で使う）
 import { assetUrl } from './assets';
-import { HERO_ART } from '../data/heroArt';
+import { HERO_ART, heroFaceFile } from '../data/heroArt';
 import { HERO_JOIN, HEROES, STAT_TYPE_LABEL, heroNameHtml } from '../data/heroes';
 import { heroStats, statText } from '../game/party';
 import { findStage } from '../data/stages';
 import type { HeroId, OrbColor } from '../game/types';
 import { ORB_LABEL } from './board';
-import { PORTRAIT_ART } from '../data/story';
 
-/** 会話用の上半身の絵（ふつうの表情）。バトルの仲間のカードで使う（2026-11-12 ユーザーの要望）。無ければ立ち絵 */
+/**
+ * バトルの仲間のカードの上半身の絵（2026-11-12 ユーザーの要望）。
+ * 会話用の大きな絵（約150KB）ではなく、カード用に縮めた小さな絵（約20KB）を読む（バトル開始の待ちを短く）
+ */
 export function heroFaceUrl(id: HeroId): string {
-  return assetUrl(PORTRAIT_ART[id]?.normal ?? HERO_ART[id].file);
+  return assetUrl(heroFaceFile(id));
 }
 
 export function heroFaceImg(id: HeroId): string {

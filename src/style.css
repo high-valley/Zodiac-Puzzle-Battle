@@ -4733,7 +4733,8 @@ html[data-route='story'] body::after {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 15%;
+  /* カード用の小さな絵（上半身の絵の上 6 割）。顔が名前に隠れないよう、上寄りに置く */
+  object-position: 50% 20%;
   display: block;
 }
 /* 文字を読みやすくする下の影 */
