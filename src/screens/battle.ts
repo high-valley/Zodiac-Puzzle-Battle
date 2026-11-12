@@ -156,11 +156,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     // 指で回せる回数（攻撃の演出中・回せる回数を使い切ったときは 0 で、指に合わせて動かさない）
     () => (!busy && !disposed && state.status === 'playing' ? MAX_ROTATIONS_PER_TURN - pending.length : 0),
     () => rotateTuningOf(ctx.settings),
-    () => ctx.settings.devRotateMode,
+    () => ctx.settings.rotateMode,
   );
   $('.board-wrap').prepend(board.el);
-  // 回し方（試し比べ）：タップで選ぶ方式では、選んだ 2×2 の外を暗くする
-  const applyRotateMode = () => board.el.classList.toggle('tap-mode', ctx.settings.devRotateMode === 'tap');
+  // 回し方（設定）：タップで選ぶ方式では、選んだ 2×2 の外を暗くする
+  const applyRotateMode = () => board.applyMode();
   applyRotateMode();
 
   const enemyFigure = $<HTMLElement>('.enemy-figure');
@@ -639,8 +639,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         // 開発者用：回す動きの速さを試す（つまみを動かすと保存され、「つづける」ですぐ試せる）
         modal.overlay.innerHTML = `
         <div class="sheet-card">
-          <h2 id="menu-title">回し方・回す速さ（調整用）</h2>
-          ${rotateTuningHtml(rotateTuningOf(ctx.settings), ctx.settings.devRotateMode)}
+          <h2 id="menu-title">回す速さ（調整用）</h2>
+          ${rotateTuningHtml(rotateTuningOf(ctx.settings), ctx.settings.rotateMode)}
           <button type="button" class="primary-btn resume">つづけて試す</button>
           <button type="button" class="text-btn wide back">メニューに戻る</button>
         </div>`;
@@ -660,7 +660,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
           <button type="button" class="primary-btn resume">つづける</button>
           <button type="button" class="text-btn wide how">遊び方</button>
           <button type="button" class="text-btn wide settings">設定</button>
-          ${DEV_TOOLS ? '<button type="button" class="text-btn wide tune-open">回し方・回す速さ（調整用）</button>' : ''}
+          ${DEV_TOOLS ? '<button type="button" class="text-btn wide tune-open">回す速さ（調整用）</button>' : ''}
           <button type="button" class="text-btn wide danger retire">${confirmRetire ? 'もう一度押すとリタイア（このバトルは記録されません）' : 'リタイア'}</button>
         </div>`;
       modal.overlay.querySelector('.resume')?.addEventListener('click', () => modal.close());
@@ -707,7 +707,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     renderSettings();
   });
 
-  // 設定（速さ）がメニューから変わったら反映する
+  // 設定（速さ・回し方）がメニューから変わったら反映する
   const onSettingsChanged = () => {
     renderSettings();
     applyRotateMode();

@@ -1,4 +1,4 @@
-// 設定（効果音・演出の速さ・遊び方・データの初期化）
+// 設定（効果音・演出の速さ・オーブの回し方・遊び方・データの初期化）
 import { openModal } from './modal';
 import type { Settings } from '../storage/settings';
 
@@ -31,6 +31,12 @@ export function openSettingsDialog(root: HTMLElement, background: HTMLElement, o
         <h2 id="settings-title">設定</h2>
         ${toggle('soundOn', '効果音', s.soundOn, 'オン', 'オフ')}
         ${toggle('speed', '演出の速さ', s.speed === 1, 'ふつう', 'はやい')}
+        ${toggle('rotateMode', 'オーブの回し方', s.rotateMode === 'grab', '押して回す', 'タップで選ぶ')}
+        <p class="setting-note">${
+          s.rotateMode === 'grab'
+            ? '押した所の 4個を選び、そのまま指で回します'
+            : 'タップで 4個を選び（外が暗くなります）、盤のどこをなぞっても選んだ 4個が回ります'
+        }</p>
         ${toggle('skipClearedStory', 'クリアしたステージの会話', !s.skipClearedStory, '見る', 'とばす')}
         <button type="button" class="text-btn wide show-tutorial">遊び方を見る</button>
         ${
@@ -49,6 +55,7 @@ export function openSettingsDialog(root: HTMLElement, background: HTMLElement, o
         if (key === 'soundOn') s.soundOn = !s.soundOn;
         if (key === 'speed') s.speed = s.speed === 1 ? 2 : 1;
         if (key === 'skipClearedStory') s.skipClearedStory = !s.skipClearedStory;
+        if (key === 'rotateMode') s.rotateMode = s.rotateMode === 'grab' ? 'tap' : 'grab';
         opts.onChange({ ...s });
         render();
         (overlay.querySelector(`.seg[data-key="${key}"]`) as HTMLElement | null)?.focus();
