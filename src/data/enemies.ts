@@ -18,6 +18,11 @@ export interface EnemyDef {
    * 盤面の星屑は max 個まで（それ以上はまぜない）
    */
   junk?: { every: number; count: number; max: number };
+  /**
+   * ぶつかり岩（仕様書 12.14。2026-11-12）：every ターンごとに、敵の攻撃のあとで盤面のオーブ count 個を岩で固める。
+   * 盤面の岩は max 個まで。固まったオーブを含む 2×2 は回せない
+   */
+  rock?: { every: number; count: number; max: number };
   /** 色の弱点と耐性（仕様書 12.11）。その色の仲間の攻撃（通常・必殺）が弱点なら ×1.5、耐性なら ×0.7（data/balance の WEAKNESS）。回復には効かない */
   weak?: OrbColor;
   resist?: OrbColor;
@@ -114,6 +119,65 @@ export const ENEMIES: Record<string, EnemyDef> = {
     weak: 'blue',
     resist: 'green',
     tint: '#7c5cc4',
+  },
+  // 第3章「金牛と双子の海」（2026-11-12）。どの敵もぶつかり岩でオーブを固める（仕様書 12.14）。数値は仮。
+  // 第2章までを1回ずつクリアすると最初の3人は約レベル8。skilled・レベル8（てんびん座1〜6、ふたご座1〜3）・60戦で、
+  // 3-1 勝率100%・約11ターン → 3-5 約100%・約17ターン（自動プレイヤーは岩を割ることを狙わないので、人はもう少し楽）
+  stormshade: {
+    id: 'stormshade',
+    name: '荒れ海の影',
+    maxHp: 52000,
+    attack: 720,
+    rock: { every: 3, count: 1, max: 2 },
+    weak: 'red',
+    resist: 'blue',
+    tint: '#4f7fb8',
+  },
+  ghostargo: {
+    id: 'ghostargo',
+    name: 'さまよう船の幽霊',
+    maxHp: 56000,
+    attack: 750,
+    heavy: { every: 4, attack: 2250 },
+    rock: { every: 3, count: 1, max: 2 },
+    junk: { every: 3, count: 1, max: 3 },
+    weak: 'green',
+    resist: 'red',
+    tint: '#8fb3a8',
+  },
+  clashrocks: {
+    id: 'clashrocks',
+    name: 'ぶつかり岩の門',
+    maxHp: 60000,
+    attack: 780,
+    rock: { every: 2, count: 2, max: 4 },
+    weak: 'blue',
+    resist: 'green',
+    tint: '#8d8478',
+  },
+  thornveil: {
+    id: 'thornveil',
+    name: '星隠しの茨',
+    maxHp: 65000,
+    attack: 800,
+    heavy: { every: 3, attack: 2400 },
+    rock: { every: 3, count: 1, max: 3 },
+    junk: { every: 2, count: 2, max: 5 },
+    weak: 'red',
+    resist: 'blue',
+    tint: '#6f9a5a',
+  },
+  bulleater: {
+    id: 'bulleater',
+    name: '白牛喰らい',
+    maxHp: 72000,
+    attack: 850,
+    heavy: { every: 3, attack: 2550 },
+    rock: { every: 2, count: 2, max: 4 },
+    junk: { every: 3, count: 2, max: 4 },
+    weak: 'blue',
+    resist: 'red',
+    tint: '#d9d2c0',
   },
 };
 

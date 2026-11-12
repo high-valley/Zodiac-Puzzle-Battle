@@ -195,6 +195,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
             <div><dt>攻撃</dt><dd>${enemy.attack}</dd></div>
             <div><dt>強攻撃</dt><dd>${enemy.heavy ? `${enemy.heavy.every}ターンごとに ${enemy.heavy.attack}` : 'なし'}</dd></div>
             ${enemy.junk ? `<div><dt>星屑</dt><dd>${enemy.junk.every}ターンごとに${enemy.junk.count}個（最大${enemy.junk.max}個）</dd></div>` : ''}
+            ${enemy.rock ? `<div><dt>岩</dt><dd>${enemy.rock.every}ターンごとに${enemy.rock.count}個固める（最大${enemy.rock.max}個）</dd></div>` : ''}
             <div><dt>色</dt><dd class="aff-row">${affinityHtml(enemy)}</dd></div>
           </dl>
         </div>

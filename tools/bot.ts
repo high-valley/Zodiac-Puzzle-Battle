@@ -2,7 +2,7 @@
 // 見えている盤面だけで判断する：回したあとの盤面は見るが、補充で何が落ちてくるか（seed の先）は見ない
 import { MAX_ROTATIONS_PER_TURN, damageTaken } from '../src/data/balance';
 import { HEROES } from '../src/data/heroes';
-import { MAX_INTERSECTION, rotate2x2 } from '../src/game/board';
+import { MAX_INTERSECTION, isRockBlocked, rotate2x2 } from '../src/game/board';
 import { enemyOf, normalEffect, specialEffect } from '../src/game/combat';
 import type { EnemyDef } from '../src/data/enemies';
 import { partyDefense } from '../src/game/party';
@@ -30,7 +30,7 @@ export function allRotations(): Rotation[] {
   return list;
 }
 
-const ROTATIONS = allRotations();
+const ALL_ROTATIONS = allRotations();
 
 /** 次のターンの終わりに受ける敵の攻撃（強攻撃が来るならその量）。画面にも出ている公開情報 */
 export function nextEnemyAttack(state: BattleState): number {
@@ -89,6 +89,8 @@ export function chooseAction(state: BattleState, level: BotLevel, seed: number):
   };
 
   const party = state.party.map((m) => m.id);
+  // 岩で固まったオーブを含む 2×2 は回せない（仕様書 12.14）
+  const ROTATIONS = ALL_ROTATIONS.filter((r) => !isRockBlocked(state.rocks, r.row, r.col));
   if (level === 'random') {
     const count = 1 + rand(MAX_ROTATIONS_PER_TURN);
     const rotations = [...Array(count)].map(() => ROTATIONS[rand(ROTATIONS.length)]);

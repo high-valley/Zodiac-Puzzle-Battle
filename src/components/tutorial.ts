@@ -2,7 +2,7 @@
 import { DEFAULT_PARTY, HEROES } from '../data/heroes';
 import { STAR3_HP_RATIO } from '../data/stages';
 import type { HeroId, OrbColor } from '../game/types';
-import { ORB_GLYPH } from './board';
+import { ORB_GLYPH, ROCK_SHELL_SVG } from './board';
 import { openModal } from './modal';
 import { specialPreviewSvg } from './specialPreview';
 
@@ -84,6 +84,16 @@ const STEPS: Step[] = [
       <div class="t-junk" aria-hidden="true">
         ${orb('red')}${orb('red')}${orb('red')}
         <span class="t-orb orb-junk">✦</span>${orb('blue')}${orb('pink')}
+      </div>`,
+  },
+  {
+    tab: 'battle',
+    title: 'ぶつかり岩',
+    body: '第3章の敵は、何ターンかごとに盤面のオーブを岩で固めます。固まったオーブを含む4個は回せません（枠が灰色になります）。固まったオーブも色はそのままで、そろえば消えます。上下左右のマスでオーブが消えると、岩が割れてまた回せるようになります。',
+    figure: `
+      <div class="t-rock" aria-hidden="true">
+        ${orb('red')}${orb('red')}${orb('red')}
+        <span class="t-orb orb-blue">${ORB_GLYPH.blue}${ROCK_SHELL_SVG}</span>${orb('green')}${orb('pink')}
       </div>`,
   },
 ];

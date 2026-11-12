@@ -307,8 +307,9 @@ export const HERO_JOIN: Record<HeroId, HeroJoin> = {
   sagittarius: 'start',
   virgo: 'start',
   leo: 'later',
-  taurus: 'later',
-  gemini: 'later',
+  // 第3章（2026-11-12 ユーザーの決定）：ふたご座は 3-3、おうし座は章の最後の 3-5
+  taurus: { stageId: '3-5' },
+  gemini: { stageId: '3-3' },
   cancer: 'later',
   // 最初の新しい仲間は第2章の最後（2-5。2026-11-07 に第2章を5ステージで作った）。緑のキャラが入り、4人目の枠が使えるようになる（2026-11-03）
   libra: { stageId: '2-5' },

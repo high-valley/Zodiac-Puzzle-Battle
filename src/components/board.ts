@@ -2,6 +2,7 @@
 import { BOARD_SIZE, DEFAULT_ROTATE_TUNING, releaseDuration, ROTATE_ANIM, SWIPE, type RotateTuning } from '../data/balance';
 import type { Board, Cell, Direction, OrbColor, Pos } from '../game/types';
 import type { RotateMode } from '../storage/settings';
+import { isRockBlocked } from '../game/board';
 import { advanceDial, angleAround, isAmbiguousPress, pickByDrag, pickIntersection, pickQuadrant, releaseSteps, starAt, wrapAngle } from '../input/swipe';
 import { shapeLinks } from './shapeLinks';
 
@@ -20,6 +21,13 @@ const ORB_SYMBOL: Record<Cell, string> = {
   green: '<path d="M5 5h14v14H5Z" class="line"/>',
   pink: '<path d="M12 20.4C6 16.3 3 13 3 9.3 3 6.6 5.1 4.6 7.6 4.6c1.8 0 3.3 1 4.4 2.6 1.1-1.6 2.6-2.6 4.4-2.6 2.5 0 4.6 2 4.6 4.7 0 3.7-3 7-9 11.1Z" class="fill"/>',
 };
+
+/** ぶつかり岩の殻（仕様書 12.14）：オーブの色と記号が透けて見える、ひびの入った石の輪 */
+export const ROCK_SHELL_SVG =
+  '<svg class="rock-shell" viewBox="0 0 24 24" aria-hidden="true">' +
+  '<path class="rock-body" fill-rule="evenodd" d="M12 .9 17.6 2.4 21.7 6.6 23.1 12.3 21.4 17.8 17.2 21.6 11.6 23.1 6 21.5 2.3 17.4 .9 11.7 2.6 6.1 6.7 2.3ZM12 5.2A6.8 6.8 0 1 0 12 18.8 6.8 6.8 0 1 0 12 5.2Z"/>' +
+  '<path class="rock-crack" d="M4 7.2 6.3 8.6M19.6 5.6 17.4 7.8 18.6 8.4M20.6 16.9 18 15.9M5.4 19 7.6 16.9 6.6 16.2M12.4 1.6 12 4.4"/>' +
+  '</svg>';
 
 export function orbSymbolSvg(color: Cell): string {
   return `<svg class="orb-symbol" viewBox="0 0 24 24" aria-hidden="true">${ORB_SYMBOL[color]}</svg>`;
@@ -47,6 +55,12 @@ export interface BoardView {
   drawConstellation(cells: Pos[], ms: number): Promise<void>;
   /** 盤面を描き直し、敵がまぜたお邪魔の星屑（cells）を現れさせる（仕様書 12.12） */
   animateJunk(board: Board, cells: Pos[], ms: number): Promise<void>;
+  /** 岩で固まったマス（仕様書 12.14）。次に描き直したときにも残る。岩のある 2×2 は指で回せない */
+  setRocks(rocks: readonly Pos[]): void;
+  /** 敵が新しく岩で固めたマス（cells）を見せる。rocks は固めた後のすべての岩 */
+  animateRocks(rocks: readonly Pos[], cells: Pos[], ms: number): Promise<void>;
+  /** 割れた岩を見せる（オーブはそのまま。消えるオーブなら一緒に消える） */
+  crackRocks(cells: Pos[]): void;
 }
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -131,7 +145,7 @@ export function createBoardView(
   ring.className = 'ring';
   ring.hidden = true;
   // 選び直したときの光は一度だけ（枠が隠れてまた出たときに、もう一度光らないように）
-  ring.addEventListener('animationend', () => ring.classList.remove('moved'));
+  ring.addEventListener('animationend', (e) => ring.classList.remove(e.animationName === 'ring-nope' ? 'nope' : 'moved'));
   el.append(ring);
 
   let orbs: HTMLElement[][] = [];
@@ -141,6 +155,18 @@ export function createBoardView(
   let springs: Animation[] = [];
   let current: Pos | null = null;
   let locked = false;
+  /** 岩で固まったマス（仕様書 12.14） */
+  let rocks: Pos[] = [];
+  const rockedAt = (r: number, c: number) => rocks.some((p) => p.row === r && p.col === c);
+  const blocked = (at: Pos | null) => !!at && isRockBlocked(rocks, at.row, at.col);
+
+  /** 岩の殻をつける・外す（読み上げにも添える） */
+  function dressRock(o: HTMLElement, color: Cell, on: boolean) {
+    o.classList.toggle('rocked', on);
+    o.querySelector('.rock-shell')?.remove();
+    if (on) o.insertAdjacentHTML('beforeend', ROCK_SHELL_SVG);
+    o.setAttribute('aria-label', on ? `${CELL_LABEL[color]}（岩で固まっている）` : CELL_LABEL[color]);
+  }
 
   function orbAt(p: Pos) {
     return orbs[p.row][p.col];
@@ -162,6 +188,8 @@ export function createBoardView(
         o.setAttribute('role', 'gridcell');
         o.setAttribute('aria-label', CELL_LABEL[color]);
         o.innerHTML = orbSymbolSvg(color);
+        o.dataset.cell = color;
+        if (rockedAt(r, c)) dressRock(o, color, true);
         orbLayer.append(o);
         return o;
       }),
@@ -180,6 +208,8 @@ export function createBoardView(
     if (pos) stars[pos.row][pos.col].classList.add('on');
     ring.hidden = pos === null;
     dim.hidden = pos === null;
+    // 岩のある 2×2 を選んだら、枠を灰色にして回せないことを見せる
+    ring.classList.toggle('blocked', blocked(pos));
     if (pos) {
       ring.style.setProperty('--r', String(pos.row));
       ring.style.setProperty('--c', String(pos.col));
@@ -203,6 +233,8 @@ export function createBoardView(
     pending: { x: number; y: number } | null;
     /** タップで選ぶ方式で、オーブを押したとき：動かさずに離したら、この 2×2 を選ぶ */
     tapPick: Pos | null;
+    /** 岩で回せないことを、この押し方でもう見せたか */
+    nope?: boolean;
   } | null = null;
   /** 指に合わせて回している途中のようす */
   let drag: { at: Pos; q: number } | null = null;
@@ -327,6 +359,17 @@ export function createBoardView(
         start.lastAngle = Math.abs(d) > cap ? now - Math.sign(d) * cap : from.angle;
       }
       start.pending = null;
+    }
+    // 岩のある 2×2 は回せない：回そうとしたら枠を一度だけ揺らす（仕様書 12.14）
+    if (blocked(current)) {
+      if (start.moved >= SWIPE.tapSlop && !start.nope) {
+        start.nope = true;
+        ring.classList.remove('nope');
+        void ring.offsetWidth;
+        ring.classList.add('nope');
+      }
+      resetDial();
+      return;
     }
     // 中心を通りすぎるあいだは、回しかけの位置のまま止めておく。残りの回数で止める（止まった所から逆へ回せば、すぐ戻る）
     const next = advanceDial(start, angleOf(e, current), start.moved, left);
@@ -485,6 +528,24 @@ export function createBoardView(
       running = [];
       el.classList.remove('rotating');
       render(board);
+    },
+    setRocks(list) {
+      rocks = list.map((p) => ({ ...p }));
+      orbs.forEach((line, r) => line.forEach((o, c) => dressRock(o, (o.dataset.cell ?? 'red') as Cell, rockedAt(r, c))));
+      ring.classList.toggle('blocked', blocked(current));
+    },
+    async animateRocks(list, cells, ms) {
+      this.setRocks(list);
+      for (const p of cells) orbAt(p).classList.add('rock-in');
+      await wait(ms);
+      for (const p of cells) orbAt(p).classList.remove('rock-in');
+    },
+    crackRocks(cells) {
+      for (const p of cells) {
+        const o = orbAt(p);
+        o.classList.remove('rocked');
+        o.classList.add('rock-break');
+      }
     },
     async animateJunk(next, cells, ms) {
       render(next);

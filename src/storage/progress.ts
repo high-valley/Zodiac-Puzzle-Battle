@@ -7,8 +7,8 @@ import { ALL_HEROES, DEFAULT_PARTY, HERO_JOIN, isHeroId, joinersOf, type HeroJoi
 import { NEW_HERO, gainExp, type HeroGrowth } from '../game/growth';
 import { partyMaxHp, partyProblem } from '../game/party';
 import { ALL_STAGES, findStage, previousStage } from '../data/stages';
-import type { BattleState, HeroId, PartyMember, Rotation } from '../game/types';
-import { isValidIntersection } from '../game/board';
+import type { BattleState, HeroId, PartyMember, Pos, Rotation } from '../game/types';
+import { freeIntersections, isRockBlocked, isValidIntersection } from '../game/board';
 import { MAX_ROTATIONS_PER_TURN, TRAITS } from '../data/balance';
 import { SCENES, STAGE_SCENES, STORY_NODES } from '../data/story';
 
@@ -180,6 +180,20 @@ export function isBattleState(v: unknown): v is BattleState {
   // 星屑をまぜるまでの残りターンも同じ。まぜない敵の盤面に星屑があるのはおかしい
   if (enemy.junk ? !isInt(s.enemyJunkIn, 1, enemy.junk.every) : s.enemyJunkIn !== undefined) return false;
   if (!enemy.junk && board.some((row: unknown[]) => row.includes('junk'))) return false;
+  // ぶつかり岩（2026-11-12〜）：固める敵だけが、残りターンと岩の一覧を持つ。岩は盤面の中の、星屑でないマスで、重ならない
+  if (enemy.rock) {
+    if (!isInt(s.enemyRockIn, 1, enemy.rock.every)) return false;
+    if (!Array.isArray(s.rocks) || s.rocks.length > enemy.rock.max) return false;
+    const seen = new Set<string>();
+    for (const p of s.rocks as unknown[]) {
+      const q = p as Record<string, unknown> | null;
+      if (typeof q !== 'object' || q === null || !isInt(q.row, 0, BOARD_SIZE - 1) || !isInt(q.col, 0, BOARD_SIZE - 1)) return false;
+      if (board[q.row as number][q.col as number] === 'junk' || seen.has(`${q.row},${q.col}`)) return false;
+      seen.add(`${q.row},${q.col}`);
+    }
+    // 回せる 2×2 が1つもない並びは、続けられない
+    if (freeIntersections(s.rocks as Pos[]) < 1) return false;
+  } else if (s.enemyRockIn !== undefined || s.rocks !== undefined) return false;
   if (!isInt(s.rngSeed, 0, 0xffffffff)) return false;
   if (s.status !== 'playing') return false;
   // 特性で続くもの（2026-11-05〜。無くてもよい）
@@ -197,13 +211,15 @@ export function isBattleState(v: unknown): v is BattleState {
 }
 
 /** 回した途中の分を読む。おかしければ回していないことにする（盤面は保存した状態のまま） */
-export function parsePending(v: unknown): Rotation[] {
+export function parsePending(v: unknown, rocks?: readonly Pos[]): Rotation[] {
   if (!Array.isArray(v) || v.length > MAX_ROTATIONS_PER_TURN) return [];
   const ok = v.every(
     (r) =>
       typeof r === 'object' &&
       r !== null &&
       isValidIntersection((r as Rotation).row, (r as Rotation).col) &&
+      // 岩で固まったオーブを含む 2×2 は回せない（仕様書 12.14）
+      !isRockBlocked(rocks, (r as Rotation).row, (r as Rotation).col) &&
       ((r as Rotation).direction === 'clockwise' || (r as Rotation).direction === 'counterclockwise'),
   );
   return ok ? v.map((r: Rotation) => ({ row: r.row, col: r.col, direction: r.direction })) : [];
@@ -264,7 +280,7 @@ export function parseProgress(raw: string | null): Progress {
   if (b && typeof b.stageId === 'string' && isUnlocked(progress, b.stageId) && isBattleState(b.state)) {
     const stage = findStage(b.stageId)!;
     if (stage.enemyId === (b.state as BattleState).enemyId) {
-      progress.battle = { stageId: b.stageId, state: b.state as BattleState, pending: parsePending(b.pending) };
+      progress.battle = { stageId: b.stageId, state: b.state as BattleState, pending: parsePending(b.pending, (b.state as BattleState).rocks) };
     }
   }
   return progress;

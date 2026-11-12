@@ -65,6 +65,14 @@ export interface BattleState {
   enemyChargeIn: number | null;
   /** お邪魔の星屑をまぜるまであと何ターンか。まぜない敵は省く（2026-11-07〜） */
   enemyJunkIn?: number;
+  /** ぶつかり岩で固めるまであと何ターンか。固めない敵は省く（2026-11-12〜。仕様書 12.14） */
+  enemyRockIn?: number;
+  /**
+   * 岩で固まったオーブのマス（上の行から順）。固める敵だけが持つ。
+   * 固まったオーブを含む 2×2 は回せない。オーブの色はそのままで、そろえば消える。
+   * そのマスか上下左右のマスが消えると、岩は割れる。割れなかった岩は、オーブと一緒に落ちる
+   */
+  rocks?: Pos[];
   /** 乱数の内部状態。補充のたびに進む */
   rngSeed: number;
   status: BattleStatus;
@@ -157,6 +165,9 @@ export type BattleEvent =
       heal: number;
       /** 落下・補充した後の盤面 */
       board: Board;
+      /** 岩で固める敵だけ：この段で割れた岩（消える前の位置。無ければ省く）と、落ちた後に残っている岩 */
+      broken?: Pos[];
+      rocks?: Pos[];
     }
   /** amount は実際に増えた量 */
   | { type: 'heal'; amount: number; partyHp: number }
@@ -165,6 +176,8 @@ export type BattleEvent =
   | { type: 'enemyAttack'; amount: number; partyHp: number; heavy: boolean; shield?: boolean }
   /** 敵がお邪魔の星屑をまぜた。cells は星屑になったマス、board はまぜた後の盤面 */
   | { type: 'junk'; cells: Pos[]; board: Board }
+  /** 敵がぶつかり岩でオーブを固めた。cells は新しく固めたマス、rocks は固めた後のすべての岩 */
+  | { type: 'rock'; cells: Pos[]; rocks: Pos[] }
   /** 毒（さそり座）のターンの終わりのダメージ */
   | { type: 'poison'; amount: number; enemyHp: number }
   /** 恵みの雨（みずがめ座）の続く回復。amount は実際に増えた量 */

@@ -1,7 +1,7 @@
 // 盤面の生成・2×2回転・落下と補充
-import { BOARD_SIZE, MIN_MATCH, ORB_COLORS } from '../data/balance';
+import { BOARD_SIZE, MIN_MATCH, ORB_COLORS, ROCK } from '../data/balance';
 import { nextInt } from './rng';
-import type { Board, Cell, Direction, OrbColor } from './types';
+import type { Board, Cell, Direction, OrbColor, Pos } from './types';
 
 /** 回転できる交点は 0..(BOARD_SIZE - 2) */
 export const MAX_INTERSECTION = BOARD_SIZE - 2;
@@ -105,4 +105,50 @@ export function collapseAndRefill(
     }
   }
   return { board: next, seed: s };
+}
+
+/** (row, col) を左上とする 2×2 に、岩で固まったマスがあるか（あれば回せない。仕様書 12.14） */
+export function isRockBlocked(rocks: readonly Pos[] | undefined, row: number, col: number): boolean {
+  return !!rocks && rocks.some((p) => (p.row === row || p.row === row + 1) && (p.col === col || p.col === col + 1));
+}
+
+/** 回せる交点の数（岩で固まったマスを含まない 2×2） */
+export function freeIntersections(rocks: readonly Pos[] | undefined): number {
+  let n = 0;
+  for (let r = 0; r <= MAX_INTERSECTION; r++) for (let c = 0; c <= MAX_INTERSECTION; c++) if (!isRockBlocked(rocks, r, c)) n++;
+  return n;
+}
+
+/** 位置を上の行から順に並べる */
+export function sortPos(cells: Pos[]): Pos[] {
+  return cells.sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+/**
+ * 消えるマス（cleared）で、岩を割って落とす。そのマスか上下左右が消える岩は割れる（broken）。
+ * 残った岩は、collapseAndRefill と同じく、その下で消えたマスの数だけ落ちる。
+ * 落ちたせいで回せる 2×2 が ROCK.minFreeAfterDrop より少なくなったら、落ちた岩を下の行（同じ行なら右）から順に割る（手詰まりを防ぐ）
+ */
+export function breakAndDropRocks(rocks: readonly Pos[], cleared: boolean[][]): { rocks: Pos[]; broken: Pos[] } {
+  const on = (r: number, c: number) => r >= 0 && c >= 0 && r < BOARD_SIZE && c < BOARD_SIZE && cleared[r][c];
+  const broken: Pos[] = [];
+  /** 残る岩：落ちる前（from）と落ちた後（to） */
+  const kept: { from: Pos; to: Pos }[] = [];
+  for (const p of rocks) {
+    const { row: r, col: c } = p;
+    if (on(r, c) || on(r - 1, c) || on(r + 1, c) || on(r, c - 1) || on(r, c + 1)) broken.push({ ...p });
+    else {
+      let below = 0;
+      for (let k = r + 1; k < BOARD_SIZE; k++) if (cleared[k][c]) below++;
+      kept.push({ from: { ...p }, to: { row: r + below, col: c } });
+    }
+  }
+  // 落ちた岩のせいで回せる所が足りなければ、落ちた岩を下の行から割る（broken には落ちる前の位置を入れる）
+  const fell = kept.filter((k) => k.to.row !== k.from.row).sort((a, b) => b.to.row - a.to.row || b.to.col - a.to.col);
+  while (fell.length > 0 && freeIntersections(kept.map((k) => k.to)) < ROCK.minFreeAfterDrop) {
+    const k = fell.shift()!;
+    kept.splice(kept.indexOf(k), 1);
+    broken.push(k.from);
+  }
+  return { rocks: sortPos(kept.map((k) => k.to)), broken: sortPos(broken) };
 }

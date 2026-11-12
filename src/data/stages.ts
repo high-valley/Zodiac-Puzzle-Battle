@@ -1,4 +1,4 @@
-// ステージ構成（第1章・第2章）と、★の条件
+// ステージ構成（第1章〜第3章）と、★の条件
 import { ENEMIES } from './enemies';
 
 export interface StageDef {
@@ -46,6 +46,19 @@ export const CHAPTERS: ChapterDef[] = [
       { id: '2-3', chapter: 2, enemyId: 'chainwarden', targetTurns: 17, exp: 110 },
       { id: '2-4', chapter: 2, enemyId: 'irongiant', targetTurns: 16, exp: 120 },
       { id: '2-5', chapter: 2, enemyId: 'scaleeater', targetTurns: 17, exp: 150 },
+    ],
+  },
+  {
+    // 2026-11-12。どの敵もぶつかり岩でオーブを固める（仕様書 12.14）。3-3 でふたご座、3-5 でおうし座が加わる（12.6）
+    number: 3,
+    name: '金牛と双子の海',
+    tagline: 'ぶつかる岩の向こうへ、星の船を進める',
+    stages: [
+      { id: '3-1', chapter: 3, enemyId: 'stormshade', targetTurns: 13, exp: 170 },
+      { id: '3-2', chapter: 3, enemyId: 'ghostargo', targetTurns: 14, exp: 180 },
+      { id: '3-3', chapter: 3, enemyId: 'clashrocks', targetTurns: 15, exp: 190 },
+      { id: '3-4', chapter: 3, enemyId: 'thornveil', targetTurns: 16, exp: 200 },
+      { id: '3-5', chapter: 3, enemyId: 'bulleater', targetTurns: 19, exp: 240 },
     ],
   },
 ];

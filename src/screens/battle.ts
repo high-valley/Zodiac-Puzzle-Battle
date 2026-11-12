@@ -17,7 +17,7 @@ import { HERO_ART } from '../data/heroArt';
 import { BATTLE_INTRO, CUTIN_ART, FX_TIMING } from '../data/heroFx';
 import { HEROES } from '../data/heroes';
 import { findStage, starsFor } from '../data/stages';
-import { rotate2x2 } from '../game/board';
+import { isRockBlocked, rotate2x2 } from '../game/board';
 import { createBattle, enemyOf, resolveTurn } from '../game/combat';
 import { findMatches, matchedMask, maskToCells, junkBeside } from '../game/matching';
 import { detectHeroSpecial } from '../game/specials';
@@ -159,6 +159,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     () => ctx.settings.rotateMode,
   );
   $('.board-wrap').prepend(board.el);
+  // ぶつかり岩（仕様書 12.14）：次に描き直したときから岩を見せる
+  board.setRocks(state.rocks ?? []);
   // 回し方（設定）：タップで選ぶ方式では、選んだ 2×2 の外を暗くする
   const applyRotateMode = () => board.applyMode();
   applyRotateMode();
@@ -205,16 +207,27 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     bar.classList.toggle('low', value / max <= 0.3);
   }
 
-  /** お邪魔の星屑をまぜるまでの予告（仕様書 12.12） */
-  function renderJunk(junkIn: number | undefined) {
+  /**
+   * お邪魔の星屑をまぜる・岩で固めるまでの予告（仕様書 12.12・12.14）。
+   * 盤面を小さくしないよう1行にまとめる。両方ある敵は短く書く
+   */
+  function renderJunk(junkIn: number | undefined, rockIn: number | undefined = state.enemyRockIn) {
     const el = $<HTMLElement>('.enemy-junk');
-    if (!enemy.junk || junkIn === undefined) {
+    const junk = enemy.junk && junkIn !== undefined ? { def: enemy.junk, left: junkIn } : null;
+    const rock = enemy.rock && rockIn !== undefined ? { def: enemy.rock, left: rockIn } : null;
+    el.classList.toggle('imminent', junk?.left === 1 || rock?.left === 1);
+    if (junk && rock) {
+      const part = (name: string, g: { def: { count: number }; left: number }) => (g.left === 1 ? `次で${name}${g.def.count}個` : `${name} あと${g.left}`);
+      el.textContent = `${part('星屑', junk)}・${part('岩', rock)}`;
+    } else if (junk) {
+      // まぜる数は盤面の星屑の上限（max）まで。「攻撃」で消えれば余裕ができるので、上限も添えて出す
+      el.textContent =
+        junk.left === 1 ? `ターンの終わりに星屑を${junk.def.count}個（盤面に${junk.def.max}個まで）` : `星屑まで あと${junk.left}ターン`;
+    } else if (rock) {
+      el.textContent = rock.left === 1 ? `ターンの終わりに岩で${rock.def.count}個固める（${rock.def.max}個まで）` : `岩まで あと${rock.left}ターン`;
+    } else {
       el.textContent = '';
-      return;
     }
-    el.classList.toggle('imminent', junkIn === 1);
-    // まぜる数は盤面の星屑の上限（max）まで。「攻撃」で消えれば余裕ができるので、上限も添えて出す
-    el.textContent = junkIn === 1 ? `ターンの終わりに星屑を${enemy.junk.count}個（盤面に${enemy.junk.max}個まで）` : `星屑まで あと${junkIn}ターン`;
   }
 
   function renderCharge(chargeIn: number | null) {
@@ -424,7 +437,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         if (ev.chain > 1) popup('.enemy-popups', `${ev.chain}連鎖`, 'chain');
         // 自分の色が消えた仲間が動く（全員が同時に行動する）
         flashActors(ev.actors.map((a) => a.heroId));
+        // 消えるマスとその隣の岩は、消えるのと一緒に割れる（仕様書 12.14）
+        if (ev.broken) board.crackRocks(ev.broken);
         await board.animateClear(ev.cells, puzzleMs(200));
+        // 残った岩は、オーブと一緒に落ちる
+        if (ev.rocks) board.setRocks(ev.rocks);
         // 補充は目で追える速さで（演出 ×2 なら半分）
         await board.animateDrop(ev.board, ev.cells, puzzleMs(380));
         break;
@@ -468,6 +485,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
         // 敵がお邪魔の星屑をまぜる（隣でそろえると一緒に消える）
         popup('.enemy-popups', '星屑', 'chain');
         await board.animateJunk(ev.board, ev.cells, puzzleMs(500));
+        break;
+      case 'rock':
+        // 敵がぶつかり岩でオーブを固める（固まったオーブを含む 2×2 は回せない）
+        popup('.enemy-popups', '岩', 'chain');
+        await board.animateRocks(ev.rocks, ev.cells, puzzleMs(500));
         break;
       case 'end':
         break;
@@ -522,6 +544,8 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       if (rotating) return;
     }
     if (busy || rotating || disposed || state.status !== 'playing') return;
+    // 岩で固まったオーブを含む 2×2 は回せない（盤面の入力でも止めているが、念のため。仕様書 12.14）
+    if (isRockBlocked(state.rocks, at.row, at.col)) return;
     if (pending.length >= MAX_ROTATIONS_PER_TURN) {
       const bar = $<HTMLElement>('.turn-bar');
       bar.classList.remove('nudge');
@@ -611,10 +635,11 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
       }
     } finally {
       if (!disposed) {
+        board.setRocks(state.rocks ?? []);
         board.render(state.board);
         renderStatus();
         renderCharge(state.enemyChargeIn);
-        renderJunk(state.enemyJunkIn);
+        renderJunk(state.enemyJunkIn, state.enemyRockIn);
         // 勝敗が決まったら操作を止めたままにする（リザルトへ移るまでにメニューを開いたりリタイアしたりできないように）
         if (state.status === 'playing') setBusy(false);
         renderTurnBar();
