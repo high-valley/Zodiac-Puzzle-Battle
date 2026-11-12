@@ -101,7 +101,7 @@ export function pickByDrag(x0: number, y0: number, x1: number, y1: number, cellS
 }
 
 /**
- * タップで選ぶ方式（2026-11-12 試し）：押したオーブの、押した角の側にある 2×2（純粋な関数）。
+ * タップで選ぶ方式（2026-11-12）：押したオーブの、押した角の側にある 2×2（純粋な関数）。
  * オーブの左下寄りを押せば、そのオーブを右上にふくむ左下の 2×2。盤面の端では、盤面の中の 2×2 にする
  */
 export function pickQuadrant(x: number, y: number, cellSize: number): Pos {

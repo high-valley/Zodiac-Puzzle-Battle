@@ -994,6 +994,12 @@ button:focus-visible {
   font-size: 12px;
   color: var(--ink-soft);
 }
+.setting-note {
+  margin: -6px 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
 .setting-row {
   display: flex;
   align-items: center;
@@ -4544,7 +4550,7 @@ html[data-route='story'] body::after {
   text-align: left;
 }
 
-/* 回し方の試し比べ（2026-11-12）：タップで選ぶ方式では、選んだ 2×2 の外を暗くし、枠を強くする */
+/* オーブの回し方（2026-11-12）：タップで選ぶ方式では、選んだ 2×2 の外を暗くし、枠を強くする */
 .sel-dim {
   position: absolute;
   inset: 0;
@@ -4576,23 +4582,4 @@ html[data-route='story'] body::after {
 }
 .board.tap-mode .ring {
   border-width: 3.5px;
-}
-.tune-mode {
-  border: 1px solid #f1c07355;
-  border-radius: 12px;
-  margin: 0 0 12px;
-  padding: 8px 12px;
-}
-.tune-mode-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 6px 0;
-}
-.tune-mode-row input {
-  margin-top: 4px;
-  accent-color: var(--gold);
-}
-.tune-mode-row .tune-note {
-  display: block;
 }

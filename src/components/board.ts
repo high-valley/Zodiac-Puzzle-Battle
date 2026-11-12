@@ -82,7 +82,7 @@ export function createBoardView(
   remaining: () => number = () => 3,
   /** 回す動きの速さ（開発者画面で変えられるので、使うたびに読む） */
   tuning: () => RotateTuning = () => DEFAULT_ROTATE_TUNING,
-  /** 回し方（開発者モードで試し比べる。'tap'＝タップで選んで、なぞって回す。使うたびに読む） */
+  /** 回し方（設定で選ぶ。'tap'＝タップで選んで、なぞって回す。使うたびに読む） */
   mode: () => RotateMode = () => 'grab',
 ): BoardView {
   const el = document.createElement('div');

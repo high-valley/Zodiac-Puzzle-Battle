@@ -16,15 +16,15 @@ export interface Settings {
   /** 開発者モード：回す動きの速さを試すための値（null なら設定データの値） */
   devRotate: RotateTuning | null;
   /**
-   * 開発者モード：オーブの回し方を試し比べる（2026-11-12）。
-   * 'grab'＝今の方式（押した所で 2×2 を選び、そのまま回す）、'tap'＝タップで選んで、なぞって回す
+   * オーブの回し方（2026-11-12。設定でいつでも変えられる）。
+   * 'grab'＝押して回す（押した所で 2×2 を選び、そのまま回す）、'tap'＝タップで選ぶ（タップで選んで、なぞって回す）
    */
-  devRotateMode: RotateMode;
+  rotateMode: RotateMode;
 }
 
 export type RotateMode = 'grab' | 'tap';
 
-export const DEFAULT_SETTINGS: Settings = { soundOn: true, tutorialSeen: false, speed: 1, skipClearedStory: false, devUnlockAll: false, devRotate: null, devRotateMode: 'grab' };
+export const DEFAULT_SETTINGS: Settings = { soundOn: true, tutorialSeen: false, speed: 1, skipClearedStory: false, devUnlockAll: false, devRotate: null, rotateMode: 'grab' };
 const KEY = 'zodiac-puzzle-battle:settings';
 
 /** 保存されていた文字列を読み、壊れていたり足りない項目は既定値で補う */
@@ -43,7 +43,8 @@ export function parseSettings(raw: string | null): Settings {
       // 開発者の機能を外した版では、保存されていても使わない
       devUnlockAll: DEV_TOOLS && bool(d.devUnlockAll, DEFAULT_SETTINGS.devUnlockAll),
       devRotate: DEV_TOOLS ? parseRotateTuning(d.devRotate) : null,
-      devRotateMode: DEV_TOOLS && d.devRotateMode === 'tap' ? 'tap' : 'grab',
+      // 試し比べのときの名前（devRotateMode）で保存された値も読む
+      rotateMode: d.rotateMode === 'tap' || (d.rotateMode === undefined && d.devRotateMode === 'tap') ? 'tap' : 'grab',
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
