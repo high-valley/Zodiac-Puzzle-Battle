@@ -175,7 +175,7 @@ describe('createSoundPlayer', () => {
 
 describe('parseSettings', () => {
   it('何も保存されていなければ既定値（音はオン、遊び方は未表示）', () => {
-    expect(parseSettings(null)).toEqual({ soundOn: true, tutorialSeen: false, speed: 1, skipClearedStory: false, devUnlockAll: false, devRotate: null });
+    expect(parseSettings(null)).toEqual({ soundOn: true, tutorialSeen: false, speed: 1, skipClearedStory: false, devUnlockAll: false, devRotate: null, devRotateMode: 'grab' });
     expect(DEFAULT_SETTINGS.soundOn).toBe(true);
   });
 
@@ -187,7 +187,13 @@ describe('parseSettings', () => {
       skipClearedStory: false,
       devUnlockAll: false,
       devRotate: null,
+      devRotateMode: 'grab',
     });
+  });
+
+  it('回し方の試し比べ：tap だけ読み、ほかの値は今の方式', () => {
+    expect(parseSettings('{"devRotateMode":"tap"}').devRotateMode).toBe('tap');
+    expect(parseSettings('{"devRotateMode":"other"}').devRotateMode).toBe('grab');
   });
 
   it('壊れた値・型の違う値・足りない項目は既定値で補う', () => {

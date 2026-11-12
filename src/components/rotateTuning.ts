@@ -2,7 +2,7 @@
 // ここで決めた値をユーザーが伝え、設定データ（data/balance の DEFAULT_ROTATE_TUNING）に入れる
 import type { AppContext } from '../app';
 import { DEFAULT_ROTATE_TUNING, ROTATE_TUNING_RANGE, type RotateTuning } from '../data/balance';
-import { rotateTuningOf } from '../storage/settings';
+import { rotateTuningOf, type RotateMode } from '../storage/settings';
 
 const ITEMS: { key: keyof RotateTuning; label: string; note: string }[] = [
   { key: 'releaseMinMs', label: '指を離したあと（速く払ったとき）', note: '指で回して離してから、回しきるまで' },
@@ -16,8 +16,23 @@ export function rotateTuningSummary(t: RotateTuning): string {
   return `離したあと ${show('releaseMinMs', t.releaseMinMs)}〜${show('releaseMaxMs', Math.max(t.releaseMinMs, t.releaseMaxMs))}`;
 }
 
-export function rotateTuningHtml(t: RotateTuning): string {
+const MODES: { value: RotateMode; label: string; note: string }[] = [
+  { value: 'grab', label: '今の方式', note: '押した所で 2×2 を選び、そのまま指で回す' },
+  { value: 'tap', label: 'タップで選ぶ方式', note: 'オーブの角寄りをタップして 2×2 を選ぶ（選んだ外は暗くなる）。なぞると、どこをなぞっても選んだ 2×2 が回る' },
+];
+
+export function rotateTuningHtml(t: RotateTuning, mode: RotateMode = 'grab'): string {
   return `
+    <fieldset class="tune-mode">
+      <legend class="tune-label">回し方（試し比べ）</legend>
+      ${MODES.map(
+        (m) => `
+        <label class="tune-mode-row">
+          <input type="radio" name="rotate-mode" value="${m.value}" ${m.value === mode ? 'checked' : ''} />
+          <span><b>${m.label}</b><span class="tune-note">${m.note}</span></span>
+        </label>`,
+      ).join('')}
+    </fieldset>
     <div class="tune">
       ${ITEMS.map(({ key, label, note }) => {
         const r = ROTATE_TUNING_RANGE[key];
@@ -36,6 +51,11 @@ export function rotateTuningHtml(t: RotateTuning): string {
 
 /** つまみを動かすたびに保存する（すぐバトルで試せるように） */
 export function bindRotateTuning(root: HTMLElement, ctx: AppContext): void {
+  root.querySelectorAll<HTMLInputElement>('input[name=rotate-mode]').forEach((input) =>
+    input.addEventListener('change', () => {
+      if (input.checked) ctx.setSettings({ ...ctx.settings, devRotateMode: input.value as RotateMode });
+    }),
+  );
   const refreshSummary = () => {
     const s = root.querySelector('.tune-summary b');
     if (s) s.textContent = rotateTuningSummary(rotateTuningOf(ctx.settings));
