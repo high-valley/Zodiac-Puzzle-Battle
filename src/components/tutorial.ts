@@ -1,5 +1,5 @@
 // 遊び方（初回だけ自動で開き、「?」でいつでも開ける）。タブ：基本操作／必殺技／バトルの基本
-import { DEFAULT_PARTY, HEROES } from '../data/heroes';
+import { DEFAULT_PARTY, heroNameHtml } from '../data/heroes';
 import { STAR3_HP_RATIO } from '../data/stages';
 import type { HeroId, OrbColor } from '../game/types';
 import { ORB_GLYPH, ROCK_SHELL_SVG } from './board';
@@ -53,7 +53,7 @@ const STEPS: Step[] = [
     body: 'キャラごとに決まった色と形が、「攻撃」を押したときの盤面にあると、そのキャラの必殺技が出ます（形ができると金の輪で光ります）。仲間の形はどれも毎ターン有効で、同じターンに何人出てもかまいません。3回まで回せるので、途中で3個並んでも崩れずに形を組み立てられます。盤面の下に、仲間全員の形を本物のオーブで並べています（仲間のカードを押すと、その形が光ります）。',
     figure: (party) => `
       <div class="t-specials" aria-hidden="true">
-        ${party.map((id) => `<div class="t-special">${specialPreviewSvg(id)}<span>${HEROES[id].name}</span></div>`).join('')}
+        ${party.map((id) => `<div class="t-special">${specialPreviewSvg(id)}<span>${heroNameHtml(id)}</span></div>`).join('')}
       </div>`,
   },
   {

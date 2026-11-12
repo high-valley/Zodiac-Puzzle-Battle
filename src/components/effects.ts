@@ -3,7 +3,7 @@
 import { assetUrl } from './assets';
 import { HERO_ART } from '../data/heroArt';
 import { CUTIN_ART, FX_TIMING, HERO_FX, type FxStep } from '../data/heroFx';
-import { HEROES } from '../data/heroes';
+import { HEROES, heroNameHtml } from '../data/heroes';
 import type { HeroId } from '../game/types';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -405,7 +405,7 @@ export function createFx(layer: HTMLElement, speed: () => number): FxView {
         </svg>
       </div>
       <div class="fx-cutin-text">
-        <span class="fx-cutin-hero">${hero.symbol} ${hero.name}</span>
+        <span class="fx-cutin-hero">${hero.symbol} ${heroNameHtml(heroId)}</span>
         <span class="fx-cutin-name">${hero.special.name}</span>
       </div>`;
     layer.append(el);
@@ -513,7 +513,7 @@ export function createFx(layer: HTMLElement, speed: () => number): FxView {
       <div class="fx-cutin-band"></div>
       <img class="fx-cutin-art" src="${assetUrl(art.file)}" alt="" draggable="false" />
       <div class="fx-cutin-text">
-        <span class="fx-cutin-hero">${hero.symbol} ${hero.name}</span>
+        <span class="fx-cutin-hero">${hero.symbol} ${heroNameHtml(heroId)}</span>
         <span class="fx-cutin-name">${hero.special.name}</span>
       </div>`;
     layer.append(el);

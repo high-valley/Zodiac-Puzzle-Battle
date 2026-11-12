@@ -8,7 +8,7 @@ import { enemySvg } from '../components/enemyArt';
 import { ENEMIES } from '../data/enemies';
 import { CHAPTERS, STAR3_HP_RATIO, findStage, stageEnemyName } from '../data/stages';
 import { nextStageId } from '../storage/progress';
-import { HEROES, joinersOf } from '../data/heroes';
+import { HEROES, joinersOf, heroNameHtml } from '../data/heroes';
 
 // マップ上の点の位置（％）。ストーリーだけのマス（プロローグ）がある章は6つ、無い章はステージの5つを広めに置く
 const NODE_POS_WITH_STORY: [number, number][] = [
@@ -268,7 +268,7 @@ export function mountQuest(container: HTMLElement, ctx: AppContext, initialStage
           ? `記録 <span class="sr-stars">${starsText(record.stars)}</span>${record.bestTurns ? `　${record.bestTurns}ターン` : ''}　<span class="sr-goal">★★は${stage.targetTurns}ターン以内</span>`
           : `まだクリアしていません　<span class="sr-goal">★★は${stage.targetTurns}ターン以内</span>`
       }</p>
-      ${joiners.length ? `<p class="stage-join">${cleared ? '仲間になった' : '初めてクリアすると仲間になる'}：${joiners.map((id) => `<span class="sj-hero">${HEROES[id].symbol} ${HEROES[id].name}</span>`).join('')}</p>` : ''}
+      ${joiners.length ? `<p class="stage-join">${cleared ? '仲間になった' : '初めてクリアすると仲間になる'}：${joiners.map((id) => `<span class="sj-hero">${HEROES[id].symbol} ${heroNameHtml(id)}</span>`).join('')}</p>` : ''}
       ${savedElsewhere ? `<p class="stage-note">出撃すると、途中の ${savedElsewhere} のバトルは消えます</p>` : ''}
       <div class="stage-actions">
         ${

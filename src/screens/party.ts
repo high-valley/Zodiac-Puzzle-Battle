@@ -3,7 +3,7 @@ import type { AppContext } from '../app';
 import { heroCardInner, joinText, lockedCardInner } from '../components/heroCard';
 import { mountHeroSort } from '../components/heroSort';
 import { specialOrbsHtml } from '../components/specialPreview';
-import { ALL_HEROES, HEROES, PARTY_MAX } from '../data/heroes';
+import { ALL_HEROES, HEROES, PARTY_MAX, HERO_CALL_NAME, heroFullName } from '../data/heroes';
 import { DEFENSE } from '../data/balance';
 import { PARTY_PROBLEM_TEXT, partyDefense, partyMaxHp, partyProblem } from '../game/party';
 import type { HeroId } from '../game/types';
@@ -53,12 +53,11 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
   function slotOf(id: HeroId): HTMLButtonElement {
     let b = slotEls.get(id);
     if (!b) {
-      const h = HEROES[id];
       b = document.createElement('button');
       b.type = 'button';
       b.className = 'slot';
       b.dataset.remove = id;
-      b.setAttribute('aria-label', `${h.name}を外す`);
+      b.setAttribute('aria-label', `${heroFullName(id)}を外す`);
       b.innerHTML = `${heroCardInner(id, level(id))}<span class="slot-special">${specialOrbsHtml(id)}</span>`;
       b.addEventListener('click', () => {
         const at = picked.indexOf(id);
@@ -89,7 +88,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
           <span class="hc-badge" hidden>出撃</span>
         </button>`
       : `
-        <div role="listitem" class="hero-card locked" data-id="${id}" aria-label="${HEROES[id].name}（${joinText(id)}）">
+        <div role="listitem" class="hero-card locked" data-id="${id}" aria-label="${heroFullName(id)}（${joinText(id)}）">
           ${lockedCardInner(id)}
         </div>`,
   ).join('');
@@ -133,7 +132,7 @@ export function mountParty(container: HTMLElement, ctx: AppContext): () => void 
           ? `${summary(members)}　回復役がいないので、HPは回復できません（攻撃特化）`
           : `${summary(members)}　この${members.length}人で出撃します`
         : picked.length === 0
-          ? `出撃する仲間を選んでください（選ぶまでは、前の編成（${ctx.party().map((id) => HEROES[id].name).join('・')}）で出撃します）`
+          ? `出撃する仲間を選んでください（選ぶまでは、前の編成（${ctx.party().map((id) => HERO_CALL_NAME[id]).join('・')}）で出撃します）`
           : `${PARTY_PROBLEM_TEXT[problem]}（今の編成はまだ保存されていません）`;
     // 一覧：出撃の印だけ変える
     roster.querySelectorAll<HTMLButtonElement>('button.hero-card').forEach((b) => {

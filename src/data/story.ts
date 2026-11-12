@@ -1,6 +1,7 @@
 // ストーリーの会話（docs/story.md）。章ごとの場面と、ステージの前後のどこで見せるか。
 // 文は1行ずつ「話す人・表情・左右・文」。who が null の行は地の文（名前の札なし）
 import type { HeroId } from '../game/types';
+import { HERO_CALL_NAME } from './heroes';
 
 /** 会話用の上半身の表情（2026-11-04 ユーザーの決定：6種類） */
 export type Expression = 'normal' | 'smile' | 'serious' | 'surprised' | 'sad' | 'shy';
@@ -22,21 +23,8 @@ export interface Scene {
   lines: StoryLine[];
 }
 
-/** 会話の中での呼び名（名前の札）。星座の英名からとる（2026-11-04） */
-export const STORY_NAME: Record<HeroId, string> = {
-  aries: 'アリエス',
-  taurus: 'タウラス',
-  gemini: 'ジェミニ',
-  cancer: 'キャンサー',
-  leo: 'レオ',
-  virgo: 'ヴァルゴ',
-  libra: 'リブラ',
-  scorpio: 'スコルピオ',
-  sagittarius: 'サジタリウス',
-  capricorn: 'カプリコーン',
-  aquarius: 'アクエリアス',
-  pisces: 'ピスケス',
-};
+/** 会話の中での呼び名（名前の札）。星座の英名からとる（2026-11-04）。2026-11-12 から画面全体の表示名（data/heroes の HERO_CALL_NAME） */
+export const STORY_NAME: Record<HeroId, string> = HERO_CALL_NAME;
 
 const N = (text: string): StoryLine => ({ who: null, text });
 const L = (who: HeroId, face: Expression, text: string, side?: 'left' | 'right'): StoryLine => ({ who, face, text, side });
