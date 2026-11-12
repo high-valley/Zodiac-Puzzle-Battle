@@ -27,6 +27,8 @@ export function orbSymbolSvg(color: Cell): string {
 
 export interface BoardView {
   el: HTMLElement;
+  /** 回し方（設定）が変わったら呼ぶ：選んだ外を暗くするか、読み上げの説明 */
+  applyMode(): void;
   render(board: Board): void;
   /** 選んだ交点 */
   selected(): Pos | null;
@@ -88,7 +90,11 @@ export function createBoardView(
   const el = document.createElement('div');
   el.className = 'board';
   el.setAttribute('role', 'grid');
-  el.setAttribute('aria-label', '盤面。2×2 の4個を押して、つまみを回すように指で円を描くと、4個がその向きに回ります');
+  const ARIA = {
+    grab: '盤面。2×2 の4個を押して、つまみを回すように指で円を描くと、4個がその向きに回ります',
+    tap: '盤面。タップで 2×2 の4個を選び、盤のどこかで指で円を描くと、選んだ4個がその向きに回ります',
+  };
+  el.setAttribute('aria-label', ARIA[mode()]);
 
   const orbLayer = document.createElement('div');
   orbLayer.className = 'orbs';
@@ -260,7 +266,6 @@ export function createBoardView(
     for (const a of running) a.finish();
     for (const a of springs) a.cancel();
     springs = [];
-    el.classList.toggle('tap-mode', mode() === 'tap');
     const p = local(e);
     const before = current;
     let pending: { x: number; y: number } | null = null;
@@ -404,6 +409,10 @@ export function createBoardView(
   el.addEventListener('lostpointercapture', cancel);
 
   return {
+    applyMode() {
+      el.classList.toggle('tap-mode', mode() === 'tap');
+      el.setAttribute('aria-label', ARIA[mode()]);
+    },
     el,
     render,
     selected: () => current,

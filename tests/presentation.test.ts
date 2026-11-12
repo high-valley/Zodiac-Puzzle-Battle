@@ -196,6 +196,7 @@ describe('parseSettings', () => {
     expect(parseSettings('{"rotateMode":"other"}').rotateMode).toBe('grab');
     expect(parseSettings('{"devRotateMode":"tap"}').rotateMode).toBe('tap');
     expect(parseSettings('{"rotateMode":"grab","devRotateMode":"tap"}').rotateMode).toBe('grab');
+    expect(parseSettings('{"rotateMode":null,"devRotateMode":"tap"}').rotateMode).toBe('grab');
   });
 
   it('壊れた値・型の違う値・足りない項目は既定値で補う', () => {

@@ -160,7 +160,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
   );
   $('.board-wrap').prepend(board.el);
   // 回し方（設定）：タップで選ぶ方式では、選んだ 2×2 の外を暗くする
-  const applyRotateMode = () => board.el.classList.toggle('tap-mode', ctx.settings.rotateMode === 'tap');
+  const applyRotateMode = () => board.applyMode();
   applyRotateMode();
 
   const enemyFigure = $<HTMLElement>('.enemy-figure');
@@ -707,7 +707,7 @@ export function mountBattle(container: HTMLElement, ctx: AppContext, stageId: st
     renderSettings();
   });
 
-  // 設定（速さ）がメニューから変わったら反映する
+  // 設定（速さ・回し方）がメニューから変わったら反映する
   const onSettingsChanged = () => {
     renderSettings();
     applyRotateMode();
